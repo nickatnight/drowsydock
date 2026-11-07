@@ -60,7 +60,6 @@ extension CatRenderer {
     to target: MascotPose,
     completion: @escaping @MainActor () -> Void
   ) {
-    let from = pose
     pose = target
     let duration = animation.duration.inSeconds
     switch animation {
@@ -69,7 +68,7 @@ extension CatRenderer {
     case .yawn:
       yawn(into: target)
     case .nodOff:
-      nodOff(into: target, from: from)
+      nodOff(into: target)
     case .wakeUp:
       wakeUp(into: target)
     }
@@ -140,7 +139,7 @@ extension CatRenderer {
   }
 
   // The head droops forward as the eyes fall shut, jerks back up, and settles in the new pose.
-  private func nodOff(into target: MascotPose, from: MascotPose) {
+  private func nodOff(into target: MascotPose) {
     let tilt = Self.radians(target.headTiltDegrees)
     let neck = Metrics.neck
     let droop = SKAction.group([

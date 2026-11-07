@@ -31,8 +31,9 @@ public final class OverlayWindow {
 
   private static let fadeDuration: TimeInterval = 0.2
 
-  /// Whether the window is on screen and not faded out.
-  public private(set) var isShowing = false
+  // Whether the window should end up on screen and opaque, so a fade-out that finishes after a
+  // later `show` doesn't order the window out.
+  private var isShowing = false
 
   /// Shows the window at `frame`, in AppKit global coordinates, fading it in if it was hidden or
   /// faded out.

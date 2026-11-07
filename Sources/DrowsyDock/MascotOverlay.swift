@@ -1,7 +1,6 @@
 import AppKit
 import DockOverlayKit
 import DrowsyDockCore
-import SpriteKit
 import os
 
 /// Shows the cat on the Dock: the cat in a small window at the perch, and the veil and the crowd
