@@ -25,8 +25,7 @@ trap 'rm -rf "$work"' EXIT
 
 step() { printf '\n==> %s\n' "$*"; }
 
-# Prints the Swift files tracked or untracked (not ignored) under the given directories, at any
-# depth. A git pathspec `*` matches across `/`.
+# A git pathspec `*` matches across `/`.
 swift_files_under() {
   local dir file
   for dir in "$@"; do
@@ -58,7 +57,6 @@ floor_rules() {
     echo "Floor: empty catch" >&2
     failed=1
   fi
-  # A suppression needs a `//` comment on its own line or the line above, explaining why.
   if swift_files_under Sources Tests | xargs awk '
     FNR == 1 { previous = "" }
     /swift-format-ignore|@preconcurrency|nonisolated\(unsafe\)|@unchecked Sendable/ &&
@@ -155,7 +153,6 @@ swift build --build-tests -Xswiftc -warnings-as-errors
 step "Format"
 swift format lint --strict --recursive Sources Tests
 
-# CONSTRAINTS exempts thin adapters from coverage only if docs/manual-qa.md covers each one.
 manual_qa_entries() {
   local file name failed=0
   while IFS= read -r file; do

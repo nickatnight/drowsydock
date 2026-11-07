@@ -35,7 +35,6 @@ public enum PowerSourceParser {
       let powerState = powerState(of: battery)
     else { return nil }
 
-    // Clamping first bounds the arithmetic: capacity * 100 + maxCapacity / 2 <= maxCapacity * 101.
     let capacity = min(max(currentCapacity, 0), maxCapacity)
     let roundedPercentage = (capacity * 100 + maxCapacity / 2) / maxCapacity
     return BatteryReading(clampingPercentage: roundedPercentage, powerState: powerState)

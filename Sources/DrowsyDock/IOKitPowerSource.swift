@@ -17,14 +17,8 @@ enum IOKitPowerSource {
     return PowerSourceParser.reading(from: descriptions)
   }
 
-  /// Calls `onChange` on the main actor for every power source or Low Power Mode change, until
-  /// released.
-  ///
   /// It is not main-actor isolated, so its `deinit` may read these non-Sendable handles. A
   /// main-actor class could not, because its `deinit` is nonisolated in Swift 6.0.
-  ///
-  /// Release it on the main thread. IOKit calls back on the main thread, and `deinit` frees the
-  /// callback's context, so a release on another thread could free it mid-callback.
   final class Subscription {
     enum SubscriptionError: Error {
       case runLoopSourceUnavailable
