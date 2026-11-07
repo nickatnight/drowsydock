@@ -8,7 +8,7 @@ final class BatteryMonitor {
   private static let wakingDuration = Duration.seconds(3)
 
   private static let logger = Logger(
-    subsystem: "com.drowsydock.SleepyBattery",
+    subsystem: "com.drowsydock.DrowsyDock",
     category: "battery"
   )
 

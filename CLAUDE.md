@@ -1,6 +1,6 @@
 # drowsydock
 
-Sleepy Battery: a macOS menu-bar app (Swift 6, macOS 14+, Apple frameworks only). An original cat perches on the Dock and gets drowsier as the battery drains. It is drawn in a click-through overlay window and tracks the Dock through the Accessibility API.
+DrowsyDock: a macOS menu-bar app (Swift 6, macOS 14+, Apple frameworks only). An original cat perches on the Dock and gets drowsier as the battery drains. It is drawn in a click-through overlay window and tracks the Dock through the Accessibility API.
 
 Read CONSTRAINTS.md before writing code. Do not weaken it to make a change pass.
 
@@ -23,7 +23,7 @@ Format:  swift format lint --strict --recursive Sources Tests
 Bundle:  scripts/bundle.sh                 # → build/DrowsyDock.app, universal, ad-hoc signed
 Run:     open build/DrowsyDock.app
 Quit:    pkill -x DrowsyDock
-Logs:    log stream --predicate 'subsystem == "com.drowsydock.SleepyBattery"'
+Logs:    log stream --predicate 'subsystem == "com.drowsydock.DrowsyDock"'
 Checks:  scripts/check.sh fast | task
 ```
 

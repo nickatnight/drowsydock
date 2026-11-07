@@ -11,7 +11,7 @@ Every Swift file that the coverage gate exempts must be named here in backticks.
 Watch the log in a second terminal (it needs an admin account):
 
 ```
-log stream --level debug --predicate 'subsystem == "com.drowsydock.SleepyBattery"'
+log stream --level debug --predicate 'subsystem == "com.drowsydock.DrowsyDock"'
 ```
 
 Each `Changed:` line is a status change. `Power source notification` is logged at debug level for every IOKit callback, including ones that change nothing in the menu.
@@ -21,7 +21,7 @@ Each `Changed:` line is a status change. `Power source notification` is logged a
 | # | Check | Expected |
 |---|---|---|
 | 1.1 | Launch the app. | A moon-and-z icon appears in the menu bar. No Dock icon appears, and the app is absent from the Cmd-Tab switcher. |
-| 1.2 | Choose Quit Sleepy Battery from the menu. | The icon disappears and `pgrep -x DrowsyDock` prints nothing. |
+| 1.2 | Choose Quit DrowsyDock from the menu. | The icon disappears and `pgrep -x DrowsyDock` prints nothing. |
 | 1.3 | Open the menu and press Cmd-Q. | Same as 1.2. |
 | 1.4 | On an Intel Mac, launch the same bundle. | It starts. The bundle is universal (`lipo -archs` lists `x86_64 arm64`). |
 

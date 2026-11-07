@@ -5,7 +5,7 @@ struct DrowsyDockApp: App {
   @State private var monitor = BatteryMonitor()
 
   var body: some Scene {
-    MenuBarExtra("Sleepy Battery", systemImage: "moon.zzz") {
+    MenuBarExtra("DrowsyDock", systemImage: "moon.zzz") {
       MenuContent(monitor: monitor)
     }
   }

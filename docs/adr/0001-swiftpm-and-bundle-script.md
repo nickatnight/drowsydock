@@ -6,7 +6,7 @@ Accepted (Gate 1, 2026-11-06)
 
 ## Context
 
-Sleepy Battery is a macOS menu-bar app (`LSUIElement`), and agents build most of it. Every build, test and signing step has to run from a shell without a GUI. An `.xcodeproj` keeps targets, files and settings in a `project.pbxproj` file. Almost every file you add changes it, and it merges badly. The app needs no storyboards, asset catalogs or app extensions.
+DrowsyDock is a macOS menu-bar app (`LSUIElement`), and agents build most of it. Every build, test and signing step has to run from a shell without a GUI. An `.xcodeproj` keeps targets, files and settings in a `project.pbxproj` file. Almost every file you add changes it, and it merges badly. The app needs no storyboards, asset catalogs or app extensions.
 
 ## Decision
 

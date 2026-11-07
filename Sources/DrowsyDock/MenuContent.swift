@@ -21,7 +21,7 @@ struct MenuContent: View {
 
     Divider()
 
-    Button("Quit Sleepy Battery") {
+    Button("Quit DrowsyDock") {
       NSApplication.shared.terminate(nil)
     }
     .keyboardShortcut("q")
