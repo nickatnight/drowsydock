@@ -17,8 +17,11 @@ public final class DockTracker {
   // after the pointer leaves.
   private static let followUpReadDelay = Duration.milliseconds(500)
 
-  // A relaunched Dock needs time to build its icon list before Accessibility can read it.
-  private static let relaunchReadDelay = Duration.seconds(2)
+  // A relaunched Dock needs time to build its icon list before Accessibility can read it, and
+  // how long varies. The first retry comes soon enough to re-place the overlay within 1 s of a
+  // fast relaunch. Doubling gives up after 7.75 s in all; after that, the next display, Space or
+  // preference change reads the Dock again.
+  private static let relaunchRetryDelays: [Duration] = [0.25, 0.5, 1, 2, 4].map { .seconds($0) }
 
   private static let dockBundleIdentifier = "com.apple.dock"
   private static let dockPreferencesChanged = Notification.Name("com.apple.dock.prefchanged")
@@ -43,6 +46,7 @@ public final class DockTracker {
   private var pointerMonitor: Any?
   private var frameCheckTimer: Timer?
   private var followUpRead: Task<Void, Never>?
+  private var relaunchRetry: Task<Void, Never>?
   private var listObserver: DockListObserver?
 
   /// Creates a tracker that is idle until `accessibilityChanged(isGranted:)` reports a grant.
@@ -95,6 +99,8 @@ public final class DockTracker {
     pointerMonitor = nil
     followUpRead?.cancel()
     followUpRead = nil
+    relaunchRetry?.cancel()
+    relaunchRetry = nil
     listObserver = nil
   }
 
@@ -132,7 +138,17 @@ public final class DockTracker {
   private func dockRelaunched() {
     logger.notice("The Dock relaunched")
     listObserver = nil
-    scheduleFollowUpRead(after: Self.relaunchReadDelay)
+    relaunchRetry?.cancel()
+    relaunchRetry = Task { [weak self] in
+      for delay in Self.relaunchRetryDelays {
+        guard (try? await Task.sleep(for: delay)) != nil else { return }
+        if (try? DockReader.iconList()) != nil { break }
+      }
+      guard let self else { return }
+      relaunchRetry = nil
+      readDock()
+      apply()
+    }
   }
 
   private func pointerMoved() {
