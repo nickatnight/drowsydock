@@ -11,6 +11,7 @@ Read CONSTRAINTS.md before writing code. Do not weaken it to make a change pass.
 - `Sources/SleepyBattery/`: the executable. SwiftUI menu bar and settings, the IOKit adapter, the SpriteKit scene, wiring.
 - `Tests/`: XCTest, one target per library.
 - `docs/manual-qa.md`: checks that need a real Dock, a real charger or an Accessibility grant.
+- `docs/adr/`: architecture decision records. Read them before changing the build setup (0001), the target split (0002) or the tracker's phases (0003). Supersede an ADR with a new one; don't edit its decision.
 
 ## Commands
 
