@@ -69,10 +69,12 @@ enum IOKitPowerSource {
     }
 
     deinit {
-      dispatchPrecondition(condition: .onQueue(.main))
       CFRunLoopSourceInvalidate(runLoopSource)
-      callback.release()
       NotificationCenter.default.removeObserver(lowPowerObserver)
+      // IOKit may be running the callback on the main thread right now, so free its context on
+      // the main queue, after that callback returns.
+      let callback = callback
+      DispatchQueue.main.async { callback.release() }
     }
   }
 }
