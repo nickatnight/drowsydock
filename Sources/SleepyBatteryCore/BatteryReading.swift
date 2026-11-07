@@ -25,4 +25,10 @@ public struct BatteryReading: Sendable, Equatable {
     self.percentage = percentage
     self.powerState = powerState
   }
+
+  /// Creates a reading with `percentage` clamped into 0...100.
+  public init(clampingPercentage percentage: Int, powerState: PowerState) {
+    self.percentage = min(max(percentage, 0), 100)
+    self.powerState = powerState
+  }
 }
