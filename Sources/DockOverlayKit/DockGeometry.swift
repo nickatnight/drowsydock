@@ -97,9 +97,13 @@ public struct DockGeometry: Equatable, Sendable {
 
   /// Returns whether `current` is the Dock at `resting`, magnified by the pointer.
   ///
-  /// Magnification only grows the list or its icons. A Dock that shrank, or whose icons were
-  /// added or removed, has a new resting geometry instead.
+  /// Magnification only grows the list or its icons, and never changes the orientation or the
+  /// display. A Dock that shrank, moved to another edge or display, or whose icons were added or
+  /// removed, has a new resting geometry instead. A Dock made larger by dragging its separator
+  /// can't be told apart from a magnified one, so it counts as magnified until the pointer leaves.
   public static func isMagnified(current: DockGeometry, resting: DockGeometry) -> Bool {
+    guard current.orientation == resting.orientation, current.screenFrame == resting.screenFrame
+    else { return false }
     if grew(from: resting.frame, to: current.frame) { return true }
     guard current.iconFrames.count == resting.iconFrames.count else { return false }
     return zip(resting.iconFrames, current.iconFrames).contains { grew(from: $0, to: $1) }

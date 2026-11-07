@@ -20,11 +20,11 @@ public final class DockTracker {
   // after the pointer leaves.
   private static let followUpReadDelay = Duration.milliseconds(500)
 
-  // A relaunched Dock needs time to build its icon list before Accessibility can read it, and
+  // A relaunched Dock needs time to build a new icon list before Accessibility can read it, and
   // how long varies. The first retry comes soon enough to re-place the overlay within 1 s of a
   // fast relaunch. Doubling gives up after 7.75 s in all; after that, the next display, Space or
   // preference change reads the Dock again.
-  private static let relaunchRetryDelays: [Duration] = [0.25, 0.5, 1, 2, 4].map { .seconds($0) }
+  private static let listRetryDelays: [Duration] = [0.25, 0.5, 1, 2, 4].map { .seconds($0) }
 
   private static let dockPreferencesChanged = Notification.Name("com.apple.dock.prefchanged")
 
@@ -43,12 +43,13 @@ public final class DockTracker {
   private let onPresentationChange: @MainActor (OverlayPresentation) -> Void
   private var state: DockTrackerState
   private var appliedPresentation = OverlayPresentation.hidden
+  private var awaitedSettledRead = false
   private var isTracking = false
   private var notificationTokens: [(center: NotificationCenter, token: any NSObjectProtocol)] = []
   private var pointerMonitor: Any?
   private var frameCheckTimer: Timer?
   private var followUpRead: Task<Void, Never>?
-  private var relaunchRetry: Task<Void, Never>?
+  private var listRecovery: Task<Void, Never>?
   private var listObserver: DockListObserver?
 
   /// Creates a tracker that is idle until `accessibilityChanged(isGranted:)` reports a grant.
@@ -92,7 +93,7 @@ public final class DockTracker {
         notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
       let isDock = application.map(DockReader.isDock) ?? false
       MainActor.assumeIsolated {
-        if isDock { self?.dockRelaunched() }
+        if isDock { self?.recoverDockList(because: "The Dock relaunched") }
       }
     }
     pointerMonitor = NSEvent.addGlobalMonitorForEvents(
@@ -115,8 +116,8 @@ public final class DockTracker {
     pointerMonitor = nil
     followUpRead?.cancel()
     followUpRead = nil
-    relaunchRetry?.cancel()
-    relaunchRetry = nil
+    listRecovery?.cancel()
+    listRecovery = nil
     frameCheckTimer?.invalidate()
     frameCheckTimer = nil
     listObserver = nil
@@ -131,23 +132,29 @@ public final class DockTracker {
     notificationTokens.append((center, token))
   }
 
+  // While frame checks run, they and the follow-up read cover the change. Reading on every
+  // notification could turn into a read per animation frame if the Dock posts them while magnifying.
   private func dockMayHaveChanged() {
-    readDock()
+    if !state.runsFrameChecks {
+      readDock()
+    }
     scheduleFollowUpRead(after: Self.followUpReadDelay)
     apply()
   }
 
-  private func dockRelaunched() {
-    logger.notice("The Dock relaunched")
+  // The Dock's list element is gone, so the observer on it is dead. Drop it and retry until the
+  // Dock has a new list.
+  private func recoverDockList(because reason: String) {
+    logger.notice("\(reason, privacy: .public)")
     listObserver = nil
-    relaunchRetry?.cancel()
-    relaunchRetry = Task { [weak self] in
-      for delay in Self.relaunchRetryDelays {
+    listRecovery?.cancel()
+    listRecovery = Task { [weak self] in
+      for delay in Self.listRetryDelays {
         guard (try? await Task.sleep(for: delay)) != nil else { return }
         if (try? DockReader.iconList()) != nil { break }
       }
       guard let self else { return }
-      relaunchRetry = nil
+      listRecovery = nil
       readDock()
       apply()
     }
@@ -173,6 +180,8 @@ public final class DockTracker {
       logger.error("Dock geometry unavailable: \(String(describing: error), privacy: .public)")
       state.dockRead(nil)
     }
+    // The pointer may already be on the Dock, for example at launch or after a Space change.
+    state.pointerMoved(to: NSEvent.mouseLocation)
   }
 
   private func scheduleFollowUpRead(after delay: Duration) {
@@ -193,8 +202,12 @@ public final class DockTracker {
         processIdentifier: list.processIdentifier,
         list: list.element,
         notifications: Self.listNotifications
-      ) { [weak self] in
-        self?.dockMayHaveChanged()
+      ) { [weak self] notification in
+        if notification == kAXUIElementDestroyedNotification {
+          self?.recoverDockList(because: "The Dock list was destroyed")
+        } else {
+          self?.dockMayHaveChanged()
+        }
       }
       logger.notice(
         "Observing the Dock list for: \(self.listObserver?.notifications ?? [], privacy: .public)"
@@ -216,9 +229,12 @@ public final class DockTracker {
       onPresentationChange(presentation)
     }
     updateFrameCheckTimer()
-    if state.awaitsSettledRead, followUpRead == nil {
+    // Timed from the moment the pointer left, even if an earlier follow-up read is pending, so the
+    // read doesn't catch the Dock still shrinking back.
+    if state.awaitsSettledRead, !awaitedSettledRead {
       scheduleFollowUpRead(after: Self.followUpReadDelay)
     }
+    awaitedSettledRead = state.awaitsSettledRead
   }
 
   private func updateFrameCheckTimer() {
@@ -247,9 +263,9 @@ public final class DockTracker {
 /// handles. A main-actor class could not, because its `deinit` is nonisolated in Swift 6.0.
 private final class DockListObserver {
   private final class Callback: Sendable {
-    let onNotification: @MainActor @Sendable () -> Void
+    let onNotification: @MainActor @Sendable (String) -> Void
 
-    init(_ onNotification: @escaping @MainActor @Sendable () -> Void) {
+    init(_ onNotification: @escaping @MainActor @Sendable (String) -> Void) {
       self.onNotification = onNotification
     }
   }
@@ -265,17 +281,18 @@ private final class DockListObserver {
     processIdentifier: pid_t,
     list: AXUIElement,
     notifications: [String],
-    onNotification: @escaping @MainActor @Sendable () -> Void
+    onNotification: @escaping @MainActor @Sendable (String) -> Void
   ) throws(DockReader.Failure) {
     var created: AXObserver?
     let error = AXObserverCreate(
       processIdentifier,
-      { _, _, _, context in
+      { _, _, notification, context in
         guard let context else { return }
         let callback = Unmanaged<Callback>.fromOpaque(context).takeUnretainedValue()
+        let name = notification as String
         // The observer's source is added to the main run loop below, so callbacks arrive on the
         // main thread.
-        MainActor.assumeIsolated { callback.onNotification() }
+        MainActor.assumeIsolated { callback.onNotification(name) }
       },
       &created
     )

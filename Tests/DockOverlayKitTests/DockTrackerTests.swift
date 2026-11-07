@@ -292,6 +292,41 @@ final class DockTrackerTests: XCTestCase {
     XCTAssertEqual(tracker.presentation, .shown(smallerDock.perch(for: sprite)))
   }
 
+  func testAReadWhileHoveringThatFindsALeftDockShowsTheLeftPerch() {
+    var tracker = trackerHoveringOverTheDock()
+    let leftDock = DockGeometry(
+      listFrame: AXRect(CGRect(x: 0, y: 200, width: 70, height: 500)),
+      iconFrames: [AXRect(CGRect(x: 5, y: 205, width: 60, height: 60))],
+      layout: laptop
+    )
+
+    tracker.dockRead(leftDock)
+
+    XCTAssertEqual(tracker.presentation, .shown(leftDock.perch(for: sprite)))
+  }
+
+  func testAReadWhileHoveringThatFindsTheDockOnAnotherDisplayMovesThePerch() {
+    let external = CGRect(x: 1440, y: 0, width: 1920, height: 1080)
+    let twoDisplays = DisplayLayout(primary: laptop.primary, others: [external])
+    let dockOnLaptop = DockGeometry(
+      listFrame: AXRect(CGRect(x: 370, y: 830, width: 700, height: 70)),
+      iconFrames: [],
+      layout: twoDisplays
+    )
+    let tallerDockOnExternal = DockGeometry(
+      listFrame: AXRect(CGRect(x: 2000, y: 800, width: 800, height: 100)),
+      iconFrames: [],
+      layout: twoDisplays
+    )
+    var tracker = trackerWithAccessibility()
+    tracker.dockRead(dockOnLaptop)
+    tracker.pointerMoved(to: overTheDock)
+
+    tracker.dockRead(tallerDockOnExternal)
+
+    XCTAssertEqual(tracker.presentation, .shown(tallerDockOnExternal.perch(for: sprite)))
+  }
+
   func testAFailedFrameCheckChangesNothing() {
     var tracker = trackerHoveringOverTheDock()
     tracker.frameChecked(magnifiedDock)

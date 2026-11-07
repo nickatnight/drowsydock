@@ -18,6 +18,8 @@ public final class OverlayWindow {
     window.backgroundColor = .clear
     window.hasShadow = false
     window.ignoresMouseEvents = true
+    // "Hide Others" in another app would otherwise hide the overlay too.
+    window.canHide = false
     window.isReleasedWhenClosed = false
     window.animationBehavior = .none
     window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.dockWindow)) + 1)

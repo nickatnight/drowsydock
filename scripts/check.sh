@@ -21,9 +21,10 @@ coverage_minimum=80
 # The coverage gate covers the files in these targets that import no adapter framework. Every
 # other file under Sources is exempt and needs a manual-QA entry instead.
 gated_targets=(Sources/DrowsyDockCore Sources/DockOverlayKit)
-# An import may carry attributes (`@preconcurrency`, `@_exported`, `@_spi(Name)`) and a kind
-# (`import class AppKit.NSColor`).
-coverage_exempt_imports='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?(AppKit|ApplicationServices|Cocoa|IOKit|ServiceManagement|SpriteKit|SwiftUI)([.[:space:]]|$)'
+# An import may carry attributes (`@preconcurrency`, `@_exported`, `@_spi(Name)`), an access level
+# (`internal import`) and a kind (`import class AppKit.NSColor`). HIServices holds the AX API, and
+# Carbon and Quartz re-export AX and AppKit.
+coverage_exempt_imports='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?(AppKit|ApplicationServices|Carbon|Cocoa|HIServices|IOKit|Quartz|ServiceManagement|SpriteKit|SwiftUI)([.[:space:]]|$)'
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -265,7 +266,8 @@ if [[ -n $signing_files ]]; then
 fi
 gitleaks detect --redact --no-banner -v
 # `detect` reads only commits, so also scan a copy of the uncommitted and untracked working-tree
-# files. One `gitleaks dir` run over the copy skips build output and ignored files.
+# files. One `gitleaks dir` run over the copy skips build output and ignored files. A finding's
+# path starts with the deleted temp copy (`…/tree/`); drop that prefix to get the path in the repo.
 mkdir "$work/tree"
 while IFS= read -r -d '' file; do
   if [[ -f $file ]]; then printf '%s\0' "$file"; fi
