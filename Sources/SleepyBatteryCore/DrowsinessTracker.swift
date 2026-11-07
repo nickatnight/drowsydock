@@ -6,7 +6,6 @@
 public struct DrowsinessTracker: Sendable, Equatable {
   /// What the mascot is doing.
   public enum Phase: Sendable, Equatable {
-    /// The Mac has no internal battery, so there is nothing to show.
     case noBattery
     /// On battery, at the sleepiest state reached during this discharge cycle.
     case discharging(DrowsinessState)

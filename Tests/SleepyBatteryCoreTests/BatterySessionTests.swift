@@ -54,7 +54,6 @@ final class BatterySessionTests: XCTestCase {
     ]
     var session = BatterySession(realReading: onBattery(60))
 
-    // Reverse order: a simulated level is a jump, not a discharge, so it must not stay sleepier.
     for (percentage, state) in expected.reversed() {
       session.simulate(.discharging(percentage: percentage))
 

@@ -3,11 +3,9 @@ import Observation
 import SleepyBatteryCore
 import os
 
-/// Owns the battery session for the app's lifetime and logs every change to it.
 @MainActor
 @Observable
 final class BatteryMonitor {
-  /// How long the wake-up phase lasts. The spec caps the wake-up animation at 3 s.
   private static let wakingDuration = Duration.seconds(3)
 
   private static let logger = Logger(
@@ -21,7 +19,6 @@ final class BatteryMonitor {
   private let powerSource = IOKitPowerSource()
   @ObservationIgnored private var wakingTask: Task<Void, Never>?
 
-  /// The menu's battery line, such as "63% · Discharging · Drowsy".
   var statusText: String {
     StatusLine.text(for: session.tracker, isLowPowerModeOn: isLowPowerModeOn)
   }
@@ -39,7 +36,6 @@ final class BatteryMonitor {
     }
   }
 
-  /// Switches the Debug ▸ Simulate battery choice.
   func simulate(_ simulation: BatterySimulation) {
     update { session.simulate(simulation) }
   }
@@ -53,8 +49,6 @@ final class BatteryMonitor {
     }
   }
 
-  /// Applies `change`, starts the wake-up timer on entering `waking`, and logs the new status if
-  /// it differs. IOKit also notifies for changes the menu doesn't show, such as time remaining.
   private func update(_ change: () -> Void) {
     let previousLine = logLine
     let previousPhase = session.tracker.phase

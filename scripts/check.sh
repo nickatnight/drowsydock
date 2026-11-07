@@ -18,12 +18,10 @@ case "$mode" in
 esac
 
 coverage_minimum=80
-# Files in DockOverlayKit that import one of these are thin adapters, exempt from coverage.
 adapter_imports='^import (AppKit|ApplicationServices|Cocoa|IOKit|ServiceManagement|SpriteKit|SwiftUI)'
 
 step() { printf '\n==> %s\n' "$*"; }
 
-# Prints the Swift files whose changed lines must meet the coverage minimum.
 gated_files() {
   local file
   for file in Sources/SleepyBatteryCore/*.swift; do
@@ -35,8 +33,6 @@ gated_files() {
   return 0
 }
 
-# Prints "path line" for every line added or changed since the merge base, including
-# uncommitted and untracked files.
 changed_lines() {
   local merge_base="$1"
   shift

@@ -1,13 +1,10 @@
 /// A battery the Debug menu can substitute for the real one, so every state can be seen without
 /// draining the battery.
 public enum BatterySimulation: Hashable, Sendable {
-  /// Use the real battery.
   case real
-  /// Pretend to be on battery at `percentage`.
   case discharging(percentage: Int)
   /// Pretend AC power was connected, keeping the percentage shown at the time.
   case charging
-  /// Pretend the Mac has no battery.
   case noBattery
 
   /// The choices in the Debug ▸ Simulate battery menu, in menu order.

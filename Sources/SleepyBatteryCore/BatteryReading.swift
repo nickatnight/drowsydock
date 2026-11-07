@@ -2,9 +2,7 @@
 public struct BatteryReading: Sendable, Equatable {
   /// Where the Mac draws power from, as the power source reports it.
   public enum PowerState: Sendable, Equatable {
-    /// On battery power.
     case discharging
-    /// On AC power and charging.
     case charging
     /// On AC power and not charging, because the battery is full or macOS is holding the charge.
     case pluggedIn

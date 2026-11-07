@@ -2,7 +2,6 @@ import Foundation
 import IOKit.ps
 import SleepyBatteryCore
 
-/// Reads the internal battery and Low Power Mode, and reports changes to either without polling.
 @MainActor
 final class IOKitPowerSource {
   /// Removes the IOKit and Low Power Mode registrations when released.
@@ -26,10 +25,8 @@ final class IOKitPowerSource {
   private var onChange: (@MainActor () -> Void)?
   private let registrations = Registrations()
 
-  /// Whether Low Power Mode is on.
   var isLowPowerModeOn: Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }
 
-  /// Returns the internal battery's reading, or `nil` when the Mac has none.
   func readBattery() -> BatteryReading? {
     guard
       let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
@@ -42,14 +39,9 @@ final class IOKitPowerSource {
     return PowerSourceParser.reading(from: descriptions)
   }
 
-  /// Calls `onChange` on the main actor whenever a power source or Low Power Mode changes.
-  ///
-  /// Returns `false` if IOKit could not create the notification source.
   func startObserving(onChange: @escaping @MainActor () -> Void) -> Bool {
     self.onChange = onChange
 
-    // The context is unretained: releasing `registrations` invalidates the source along with
-    // `self`.
     let context = Unmanaged.passUnretained(self).toOpaque()
     guard
       let source = IOPSNotificationCreateRunLoopSource(

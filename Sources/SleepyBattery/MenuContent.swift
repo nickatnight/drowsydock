@@ -2,7 +2,6 @@ import AppKit
 import SleepyBatteryCore
 import SwiftUI
 
-/// The items of the menu-bar menu.
 struct MenuContent: View {
   let monitor: BatteryMonitor
 
