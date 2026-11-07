@@ -43,6 +43,10 @@ gated_files() {
   done < <(swift_files_under Sources/DockOverlayKit)
 }
 
+coverage_exempt_files() {
+  comm -23 <(swift_files_under Sources | sort) <(gated_files | sort)
+}
+
 floor_rules() {
   local failed=0
   if grep -rnF 'try!' Sources; then
@@ -153,24 +157,21 @@ swift build --build-tests -Xswiftc -warnings-as-errors
 step "Format"
 swift format lint --strict --recursive Sources Tests
 
-manual_qa_entries() {
+coverage_exempt_files_are_in_manual_qa() {
   local file name failed=0
   while IFS= read -r file; do
-    if [[ $file == Sources/DockOverlayKit/* ]] && ! grep -Eq "$coverage_exempt_imports" "$file"; then
-      continue
-    fi
     name="$(basename "$file" .swift)"
     if ! grep -qF "\`$name\`" docs/manual-qa.md; then
       echo "Manual QA: $file is exempt from coverage but docs/manual-qa.md never names \`$name\`" >&2
       failed=1
     fi
-  done < <(swift_files_under Sources/DrowsyDock Sources/DockOverlayKit)
+  done < <(coverage_exempt_files)
   return "$failed"
 }
 
 step "Floor rules"
 floor_rules
-manual_qa_entries
+coverage_exempt_files_are_in_manual_qa
 
 step "Secrets"
 # gitleaks matches text, so binary signing material needs its own check.
