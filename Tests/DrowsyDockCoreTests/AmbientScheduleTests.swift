@@ -70,10 +70,19 @@ final class AmbientScheduleTests: XCTestCase {
     }
   }
 
-  func testADrowsyCatBlinksNoMoreOftenThanAnAwakeOne() {
+  func testADrowsyCatBlinksSlowlyEvery10To20Seconds() {
     let drowsy = delays(for: .drowsy)
 
-    XCTAssertGreaterThanOrEqual(drowsy.min() ?? 0, 8)
+    XCTAssertEqual(drowsy.count, 2000)
+    XCTAssertGreaterThanOrEqual(drowsy.min() ?? 0, 10)
+    XCTAssertLessThanOrEqual(drowsy.max() ?? .infinity, 20)
+  }
+
+  func testDrowsyBlinkDelaysSpreadOverTheWholeRange() {
+    let drowsy = delays(for: .drowsy)
+
+    XCTAssertLessThan(drowsy.min() ?? .infinity, 10.5)
+    XCTAssertGreaterThan(drowsy.max() ?? 0, 19.5)
   }
 
   // MARK: - Yawning

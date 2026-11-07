@@ -129,7 +129,7 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 | 7.8 | Run `killall Dock`. | The Dock relaunches, and the log shows `The Dock relaunched` every time. `The Dock list was destroyed` may appear as well. The cat returns once the Dock's icons are back, within 1 s of them appearing. The tracker retries after 0.25, 0.5, 1, 2 and 4 s, so a Dock still missing after 7.75 s leaves the cat hidden until the next display, Space or Dock preference change. |
 | 7.8a | After 7.8, without relaunching DrowsyDock, drag an app into the Dock, then remove it. | The cat follows the new last icon within 1 s each time. The log shows `Observing the Dock list for:` again after the relaunch, which proves the observer was re-installed on the new Dock. |
 | 7.8b | Launch an app that isn't kept in the Dock, wait for its icon to appear, then quit it. | The cat moves to the new last icon within 1 s. The log shows no `The Dock list was destroyed` line and no new `Observing the Dock list for:` line, so an icon's removal isn't mistaken for the list's. |
-| 7.9 | With the pointer away from the Dock, run the idle CPU measurement from CONSTRAINTS.md. | The average is at most 1.0%. |
+| 7.9 | Choose Debug ▸ Simulate battery ▸ 80% (the awake cat; below 20% its loop runs and has the 3.0% budget of row 9.7). With the pointer away from the Dock, run the idle CPU measurement from CONSTRAINTS.md. | The average is at most 1.0%. |
 | 7.10 | Change the main display's resolution or scaled size (System Settings ▸ Displays). | Within 1 s of the change the cat is back at the Dock's perch. This change moves `primary.maxY`, which every Accessibility-to-AppKit conversion uses. |
 | 7.11 | With two displays, drag one to a new position in Displays ▸ Arrange. | Within 1 s the cat is back at the perch on the display holding the Dock. |
 | 7.12 | Unplug the display that holds the Dock. | The Dock moves to the remaining display, and within 1 s of it settling the cat is at its perch there. |
@@ -172,13 +172,13 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 | 9.4 | Simulate 15%. | Small "z"s rise from behind the head one after another (one every 1.6 s), drift up and away and fade. The head bobs slowly. The static "z" is gone while the loop runs. |
 | 9.5 | Simulate 5%. | The body rises gently on each breath (about 3 s per breath). On each breath out the snore bubble swells and a "z" rises; on each breath in the bubble shrinks. |
 | 9.6 | At 80%, with the pointer away from the Dock, run the idle CPU command from CONSTRAINTS.md. | The average is at most 1.0%. |
-| 9.7 | At 15%, then at 5%, run the same command. | Each average is at most 3.0%. The same scene on screen in a harness measured about 1.9 to 2.3% (ADR 0011). If the real value is above 3.0%, note it here. `MascotScene.loopFramesPerSecond` (15) is the lever: each frame per second costs about 0.15%. |
+| 9.7 | At 15%, then at 5%, run the same command. | Each average is at most 3.0%. The same scene on screen in a harness measured about 1.9 to 2.3% (ADR 0011). A value above 3.0% fails the checkpoint (spec success criterion 6): record it here and stop. `MascotScene.loopFramesPerSecond` (15) is the lever for a fix: each frame per second costs about 0.15%. |
 | 9.8 | At 5%, rest the pointer on the Trash (the cat fades), run `sample DrowsyDock 3`, then move the pointer away. | While faded, the sample shows no SpriteKit rendering. After the pointer leaves, the snore loop resumes. |
 | 9.9 | At 25%, switch Simulate battery to 80% in the middle of a yawn. | The yawn stops at once and a 0.6 s crossfade carries the cat to the awake pose. |
 
 ## Transitions (slice 10, `MascotScene`, `CatRenderer+Animations` and `OverlayWindow`)
 
-`AnimationDirector` (tested in `AnimationDirectorTests`) picks the animation into each new mood: a yawn into yawning, a nod-off into nodding off, a wake-up into waking, a crossfade for every other change. A change that arrives during an animation waits for it, and only the newest change waits. While the cat is hidden or faded out, changes switch at once. `BatteryMonitor` still ends `waking` after 3 s (`DrowsinessTracker.wakingDuration`, ADR 0010), and the wake-up animation fits inside that. These checks need the grant.
+`AnimationDirector` (tested in `AnimationDirectorTests`) picks the animation into each new mood: a yawn into yawning, a nod-off into nodding off, a wake-up into waking, a crossfade for every other change. A change that arrives during an animation waits for it, and only the newest change waits. Charging is the exception: the wake-up interrupts whatever plays. While the cat is hidden or faded out, changes switch at once. `BatteryMonitor` still ends `waking` after 3 s (`DrowsinessTracker.wakingDuration`, ADR 0010), and the wake-up animation fits inside that. These checks need the grant.
 
 | # | Choose Debug ▸ Simulate battery ▸ … | Expected |
 |---|---|---|
@@ -191,6 +191,7 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 | 10.7 | 80%, then 5%, then hover the Trash in the middle of the crossfade | The cat fades out and comes back in the asleep pose, without replaying the crossfade. |
 | 10.8 | With the Dock auto-hidden and off screen, choose 25%, then show the Dock | The cat appears in the yawning pose at once, without replaying the yawn. |
 | 10.9 | Interrupt each transition by resting the pointer on the Trash as it starts: 40%, then 25% (yawn); 25%, then 15% (nod-off); 15%, then 5% (crossfade); 5%, then Charging (wake-up). Move the pointer away after a second. | Each time the cat fades out and comes back in the new state's pose, at its normal width and with no leftover "z"s or bubble. Within a few seconds the next ambient behaviour starts (a blink, the floating "z"s or the snore), and `sample DrowsyDock 3` shows no drawing once the cat is still. A cat that stays narrower after the wake-up, or that never pauses again, fails this row. |
+| 10.10 | 40%, then 25%, then Charging within half a second (while the yawn plays). Repeat with 25%, then 15%, then Charging during the nod-off. | The yawn or nod-off stops and the wake-up plays at once: eyes snap open, stretch, sparkles, blink. The menu reads `Waking`, then `Awake` about 3 s after the click, with no second animation. A crossfade straight to the awake pose with no wake-up fails this row. |
 
 ## The whole Dock nods off (slice 11, `CrowdEffectNode`, `DockCanvasScene`, `MascotOverlay` and `AppCoordinator`)
 

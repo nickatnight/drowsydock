@@ -74,6 +74,16 @@ final class AnimationDirectorTests: XCTestCase {
     }
   }
 
+  func testInQuietHoursRequestingTheShownMoodStillDoesNothing() {
+    for mood in everyMood {
+      XCTAssertEqual(
+        AnimationDirector.transition(from: mood, to: mood, quietHours: true),
+        .none,
+        "\(mood)"
+      )
+    }
+  }
+
   // MARK: - Playing and queueing
 
   func testTheFirstRequestShowsTheMoodAtOnce() {
@@ -81,6 +91,14 @@ final class AnimationDirectorTests: XCTestCase {
 
     XCTAssertEqual(director.request(drowsy), .init(animation: nil, target: drowsy))
     XCTAssertFalse(director.isAnimating)
+    XCTAssertEqual(director.shown, drowsy)
+  }
+
+  func testAfterAFirstCutTheNextChangeAnimates() {
+    var director = AnimationDirector()
+    _ = director.request(drowsy)
+
+    XCTAssertEqual(director.request(yawning), .init(animation: .yawn, target: yawning))
   }
 
   func testARequestWhileIdlePlaysItsAnimation() {
@@ -128,6 +146,19 @@ final class AnimationDirectorTests: XCTestCase {
     XCTAssertNil(director.finishAnimation())
     XCTAssertFalse(director.isAnimating)
     XCTAssertEqual(director.shown, drowsy)
+  }
+
+  func testAMoodThatWaitedAndPlayedIsNotPlayedAgain() {
+    var director = AnimationDirector(showing: drowsy)
+    _ = director.request(yawning)
+    _ = director.request(noddingOff)
+    _ = director.finishAnimation()
+    _ = director.finishAnimation()
+
+    _ = director.request(asleep)
+
+    XCTAssertNil(director.finishAnimation())
+    XCTAssertEqual(director.shown, asleep)
   }
 
   func testFinishingWithNothingQueuedLeavesTheDirectorIdle() {
@@ -184,6 +215,96 @@ final class AnimationDirectorTests: XCTestCase {
     XCTAssertEqual(director.request(waking), .init(animation: .wakeUp, target: waking))
     XCTAssertNil(director.request(awake))
     XCTAssertEqual(director.finishAnimation(), .init(animation: nil, target: awake))
+  }
+
+  // MARK: - Plugging in during another transition
+
+  // Plays the director the way MascotScene does: every animation runs to its end before the next
+  // request, unless the request itself returns a step that replaces it.
+  private func steps(
+    from start: MascotMood,
+    requests: [MascotMood]
+  ) -> (steps: [AnimationDirector.Step], director: AnimationDirector) {
+    var director = AnimationDirector(showing: start)
+    var steps: [AnimationDirector.Step] = []
+    for mood in requests {
+      if let step = director.request(mood) {
+        steps.append(step)
+      }
+    }
+    while director.isAnimating, let next = director.finishAnimation() {
+      steps.append(next)
+    }
+    if director.isAnimating {
+      _ = director.finishAnimation()
+    }
+    return (steps, director)
+  }
+
+  func testChargingDuringAYawnStillPlaysTheWakeUpAndEndsAwake() {
+    // The yawn lasts 3.4 s and waking ends 3 s after the click, so both changes arrive while it
+    // plays.
+    let run = steps(from: drowsy, requests: [yawning, waking, awake])
+
+    XCTAssertTrue(run.steps.contains { $0.animation == .wakeUp }, "\(run.steps)")
+    XCTAssertEqual(run.director.shown, awake)
+    XCTAssertFalse(run.director.isAnimating)
+  }
+
+  func testChargingDuringEveryOtherTransitionStillPlaysTheWakeUp() {
+    for (from, to) in [(yawning, noddingOff), (noddingOff, asleep), (asleep, yawning)] {
+      let run = steps(from: from, requests: [to, waking, awake])
+
+      XCTAssertTrue(run.steps.contains { $0.animation == .wakeUp }, "\(from) to \(to)")
+      XCTAssertEqual(run.director.shown, awake, "\(from) to \(to)")
+    }
+  }
+
+  func testChargingDuringATransitionStartsTheWakeUpAtOnce() {
+    var director = AnimationDirector(showing: drowsy)
+    _ = director.request(yawning)
+
+    XCTAssertEqual(director.request(waking), .init(animation: .wakeUp, target: waking))
+    XCTAssertTrue(director.isAnimating)
+  }
+
+  func testChargingAgainDuringTheWakeUpDoesNotRestartIt() {
+    var director = AnimationDirector(showing: asleep)
+    _ = director.request(waking)
+
+    XCTAssertNil(director.request(waking))
+  }
+
+  func testChargingAgainDuringTheWakeUpLetsItFinishBeforeAwake() {
+    var director = AnimationDirector(showing: asleep)
+    _ = director.request(waking)
+    _ = director.request(waking)
+
+    XCTAssertNil(director.request(awake))
+    XCTAssertTrue(director.isAnimating)
+    XCTAssertEqual(director.finishAnimation(), .init(animation: nil, target: awake))
+  }
+
+  func testTheWakeUpDropsAChangeThatWasWaiting() {
+    var director = AnimationDirector(showing: drowsy)
+    _ = director.request(yawning)
+    _ = director.request(noddingOff)
+
+    _ = director.request(waking)
+
+    XCTAssertNil(director.finishAnimation())
+    XCTAssertEqual(director.shown, waking)
+  }
+
+  func testChargingDuringATransitionInQuietHoursCutsToTheWakeUpsEnd() {
+    var director = AnimationDirector(showing: drowsy)
+    _ = director.request(yawning)
+
+    XCTAssertEqual(
+      director.request(waking, quietHours: true),
+      .init(animation: nil, target: waking)
+    )
+    XCTAssertFalse(director.isAnimating)
   }
 
   // MARK: - Durations

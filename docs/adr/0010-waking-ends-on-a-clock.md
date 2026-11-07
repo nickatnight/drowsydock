@@ -14,7 +14,8 @@ The animation doesn't always run. Without the Accessibility grant the overlay is
 
 - `BatteryMonitor` keeps ending `waking` after `DrowsinessTracker.wakingDuration` (3 s), whatever the overlay does. The constant moved into the core so the tests can see it.
 - `MascotAnimation.wakeUp` lasts 2.8 s. A test pins `wakeUp.duration ≤ wakingDuration` (and ≤ 3 s, the spec's limit).
-- When `waking` ends, the mood changes from `.waking` to awake. `AnimationDirector` treats that as a cut, because the wake-up already ends in the awake pose. If the clock fires first, the change waits for the animation and then cuts.
+- When `waking` ends, the mood changes from `.waking` to awake. `AnimationDirector` treats that as a cut, because the wake-up already ends in the awake pose. If the clock fires while the wake-up still plays, the change waits for it and then cuts.
+- Plugging in during another transition (a yawn lasts 3.4 s, longer than `waking`) used to queue `.waking`, and the clock's `awake` then replaced it in the one-slot queue, so the wake-up never played. Since job 003's round-1 review, `.waking` interrupts whatever plays and drops anything queued: the wake-up starts at the click and still fits inside the 3 s phase. `AnimationDirectorTests` pins this, and QA 10.10 checks it on screen.
 
 ## Alternatives considered
 

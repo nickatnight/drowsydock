@@ -1,7 +1,7 @@
 /// Decides which animation carries the cat into each new mood, one at a time.
 ///
 /// A mood that arrives while an animation plays waits for it to finish. Only the newest one
-/// waits: back-to-back changes collapse to the last.
+/// waits: back-to-back changes collapse to the last. The wake-up is the exception: it interrupts.
 public struct AnimationDirector: Equatable, Sendable {
   /// How the cat gets from one mood to another.
   public enum Transition: Equatable, Sendable {
@@ -72,10 +72,18 @@ public struct AnimationDirector: Equatable, Sendable {
 
   /// Asks for `mood`. Returns the step to take now, or `nil` when there is nothing to do yet:
   /// the mood is already shown, or an animation is playing and the mood waits for it.
+  ///
+  /// `.waking` doesn't wait: plugging in always shows the wake-up, so it replaces whatever is
+  /// playing and drops anything queued. Waiting would let the end of `waking` overwrite it in the
+  /// queue before it ever played. The caller stops the replaced animation.
   public mutating func request(_ mood: MascotMood, quietHours: Bool = false) -> Step? {
-    guard !isAnimating else {
-      queued = mood
-      return nil
+    if isAnimating {
+      guard mood == .waking, shown != .waking else {
+        queued = mood
+        return nil
+      }
+      isAnimating = false
+      queued = nil
     }
     switch Self.transition(from: shown, to: mood, quietHours: quietHours) {
     case .none:

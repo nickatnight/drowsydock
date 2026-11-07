@@ -8,11 +8,7 @@ extension CatRenderer {
   static let floatingZName = "floatingZ"
   private static let sparkleName = "sparkle"
 
-  private typealias BlinkTiming = (close: Double, hold: Double, open: Double)
-
   private enum Timing {
-    static let blink: BlinkTiming = (close: 0.08, hold: 0.04, open: 0.12)
-    static let slowBlink: BlinkTiming = (close: 0.4, hold: 0.25, open: 0.45)
     static let zSpawnInterval = 1.6
     static let zRise = 2.6
     static let breath = (inhale: 1.5, exhale: 1.7)
@@ -20,26 +16,11 @@ extension CatRenderer {
     static let staticZFade = 0.4
   }
 
-  // The phases of the yawn and nod, in order. The mouth and the eyelids follow the head.
-  private enum YawnAndNod {
-    static let leanBack = 0.5
-    static let holdYawn = 0.9
-    static let straighten = 0.4
-    static let nodDown = 0.6
-    static let jerkUp = 0.22
-    static let length = leanBack + holdYawn + straighten + nodDown + jerkUp
-  }
+  // How far the eyes open when the nodding-off head jerks back up.
+  private static let nodOffJerkOpenness = 0.35
 
-  // The nod-off's last phase, the settle, takes whatever `MascotAnimation.nodOff` leaves.
-  private enum NodOff {
-    static let droop = 1.3
-    static let jerk = 0.15
-    static let jerkOpenness = 0.35
-  }
-
-  // The wake-up holds the open eyes until a final blink that ends with `MascotAnimation.wakeUp`.
-  private enum WakeUp {
-    static let snapOpen = 0.08
+  // Beats inside the wake-up's hold, which MascotTimeline sizes. All of them end within it.
+  private enum WakeUpBeats {
     static let earsUp = 0.12
     static let pop = 0.15
     static let headStraighten = 0.18
@@ -54,9 +35,9 @@ extension CatRenderer {
     let duration: TimeInterval
     switch gesture {
     case .blink:
-      duration = blink(Timing.blink)
+      duration = blink(MascotTimeline.blink)
     case .slowBlink:
-      duration = blink(Timing.slowBlink)
+      duration = blink(MascotTimeline.slowBlink)
     case .yawnAndNod:
       duration = yawnAndNod()
     }
@@ -143,22 +124,23 @@ extension CatRenderer {
   }
 
   private func yawn(into target: MascotPose) {
-    let settle = MascotAnimation.yawn.duration.inSeconds - YawnAndNod.length
+    let settle = MascotTimeline.flexiblePhase(of: .yawn)
     blend(to: target, over: settle)
     yawnAndNod(after: settle)
   }
 
   private func nodOff(into target: MascotPose) {
-    let settleTime = MascotAnimation.nodOff.duration.inSeconds - NodOff.droop - NodOff.jerk
+    let phases = MascotTimeline.NodOff.self
+    let settleTime = MascotTimeline.flexiblePhase(of: .nodOff)
     let tilt = Self.radians(target.headTiltDegrees)
     let neck = Metrics.neck
     let droop = SKAction.group([
-      .rotate(toAngle: tilt + Self.radians(14), duration: NodOff.droop),
-      .moveTo(y: neck.y - 2, duration: NodOff.droop),
+      .rotate(toAngle: tilt + Self.radians(14), duration: phases.droop),
+      .moveTo(y: neck.y - 2, duration: phases.droop),
     ])
     let jerk = SKAction.group([
-      .rotate(toAngle: tilt - Self.radians(3), duration: NodOff.jerk),
-      .moveTo(y: neck.y + 0.6, duration: NodOff.jerk),
+      .rotate(toAngle: tilt - Self.radians(3), duration: phases.jerk),
+      .moveTo(y: neck.y + 0.6, duration: phases.jerk),
     ])
     let settle = SKAction.group([
       .rotate(toAngle: tilt, duration: settleTime),
@@ -169,38 +151,39 @@ extension CatRenderer {
     settle.timingMode = .easeInEaseOut
     head.run(.sequence([droop, jerk, settle]), withKey: Self.animationKey)
 
-    let jerkOpenness = max(target.eyelidOpenness, NodOff.jerkOpenness)
+    let jerkOpenness = max(target.eyelidOpenness, Self.nodOffJerkOpenness)
     run(
       .sequence([
-        .moveTo(y: Self.lidEdge(at: 0), duration: NodOff.droop),
-        .moveTo(y: Self.lidEdge(at: jerkOpenness), duration: NodOff.jerk),
+        .moveTo(y: Self.lidEdge(at: 0), duration: phases.droop),
+        .moveTo(y: Self.lidEdge(at: jerkOpenness), duration: phases.jerk),
         Self.eased(.moveTo(y: Self.lidEdge(at: target.eyelidOpenness), duration: settleTime)),
       ]),
       on: lids
     )
     run(.fadeIn(withDuration: Timing.lashFade), on: lashes)
-    rotateEars(toDroop: target.earDroop, over: NodOff.droop)
+    rotateEars(toDroop: target.earDroop, over: phases.droop)
     for (index, z) in zs.enumerated() {
       z.run(
         .sequence([
-          .wait(forDuration: NodOff.droop + NodOff.jerk),
+          .wait(forDuration: phases.droop + phases.jerk),
           .fadeAlpha(to: index < target.zCount ? 1 : 0, duration: settleTime),
         ]),
         withKey: Self.animationKey
       )
     }
     snoreBubble.run(
-      .fadeAlpha(to: target.showsSnoreBubble ? 1 : 0, duration: NodOff.droop),
+      .fadeAlpha(to: target.showsSnoreBubble ? 1 : 0, duration: phases.droop),
       withKey: Self.animationKey
     )
   }
 
   private func wakeUp(into target: MascotPose) {
-    let finalBlink = blinkActions(Timing.blink, endingAt: target.eyelidOpenness)
-    let holdOpen = MascotAnimation.wakeUp.duration.inSeconds - WakeUp.snapOpen - finalBlink.length
+    let finalBlink = blinkActions(MascotTimeline.blink, endingAt: target.eyelidOpenness)
+    let holdOpen = MascotTimeline.flexiblePhase(of: .wakeUp)
+    let snapOpen = MascotTimeline.WakeUp.snapOpen
     run(
       .sequence([
-        .moveTo(y: Self.lidEdge(at: target.eyelidOpenness), duration: WakeUp.snapOpen),
+        .moveTo(y: Self.lidEdge(at: target.eyelidOpenness), duration: snapOpen),
         .wait(forDuration: holdOpen),
         finalBlink.lid,
       ]),
@@ -208,50 +191,51 @@ extension CatRenderer {
     )
     run(
       .sequence([
-        .fadeAlpha(to: Self.lashAlpha(at: target.eyelidOpenness), duration: WakeUp.snapOpen),
+        .fadeAlpha(to: Self.lashAlpha(at: target.eyelidOpenness), duration: snapOpen),
         .wait(forDuration: holdOpen),
         finalBlink.lash,
       ]),
       on: lashes
     )
-    rotateEars(toDroop: 0, over: WakeUp.earsUp)
+    rotateEars(toDroop: 0, over: WakeUpBeats.earsUp)
     head.run(
       .sequence([
         Self.eased(
           .rotate(
             toAngle: Self.radians(target.headTiltDegrees),
-            duration: WakeUp.headStraighten
+            duration: WakeUpBeats.headStraighten
           )
         ),
-        .wait(forDuration: WakeUp.stretchDelay - WakeUp.headStraighten),
-        .moveBy(x: 0, y: 2.5, duration: WakeUp.stretch),
-        .moveBy(x: 0, y: -2.5, duration: WakeUp.stretch),
+        .wait(forDuration: WakeUpBeats.stretchDelay - WakeUpBeats.headStraighten),
+        .moveBy(x: 0, y: 2.5, duration: WakeUpBeats.stretch),
+        .moveBy(x: 0, y: -2.5, duration: WakeUpBeats.stretch),
       ]),
       withKey: Self.animationKey
     )
-    run(.fadeOut(withDuration: WakeUp.pop), on: zs)
+    run(.fadeOut(withDuration: WakeUpBeats.pop), on: zs)
     snoreBubble.run(
-      .group([.scale(to: 1.7, duration: WakeUp.pop), .fadeOut(withDuration: WakeUp.pop)]),
+      .group([.scale(to: 1.7, duration: WakeUpBeats.pop), .fadeOut(withDuration: WakeUpBeats.pop)]),
       withKey: Self.animationKey
     )
     let stretch = SKAction.group([
-      .scaleX(to: 0.94, duration: WakeUp.stretch),
-      .scaleY(to: 1.12, duration: WakeUp.stretch),
+      .scaleX(to: 0.94, duration: WakeUpBeats.stretch),
+      .scaleY(to: 1.12, duration: WakeUpBeats.stretch),
     ])
     let relax = SKAction.group([
-      .scaleX(to: 1, duration: WakeUp.stretch),
-      .scaleY(to: 1, duration: WakeUp.stretch),
+      .scaleX(to: 1, duration: WakeUpBeats.stretch),
+      .scaleY(to: 1, duration: WakeUpBeats.stretch),
     ])
     stretch.timingMode = .easeOut
     relax.timingMode = .easeIn
     torso.run(
-      .sequence([.wait(forDuration: WakeUp.stretchDelay), stretch, relax]),
+      .sequence([.wait(forDuration: WakeUpBeats.stretchDelay), stretch, relax]),
       withKey: Self.animationKey
     )
     for (index, spot) in [
       CGPoint(x: -19, y: 52), CGPoint(x: 20, y: 60), CGPoint(x: 23, y: 40),
     ].enumerated() {
-      spawnSparkle(at: spot, after: WakeUp.firstSparkle + Double(index) * WakeUp.sparkleInterval)
+      spawnSparkle(
+        at: spot, after: WakeUpBeats.firstSparkle + Double(index) * WakeUpBeats.sparkleInterval)
     }
   }
 
@@ -304,7 +288,7 @@ extension CatRenderer {
 
   // MARK: - One-shots
 
-  private func blink(_ timing: BlinkTiming) -> TimeInterval {
+  private func blink(_ timing: MascotTimeline.Blink) -> TimeInterval {
     let blink = blinkActions(timing, endingAt: pose.eyelidOpenness)
     run(blink.lid, on: lids)
     run(blink.lash, on: lashes)
@@ -314,14 +298,14 @@ extension CatRenderer {
   // A blink from wherever the lids are, back to `openness`. The lash line shows while the eye is
   // shut.
   private func blinkActions(
-    _ timing: BlinkTiming,
+    _ timing: MascotTimeline.Blink,
     endingAt openness: Double
   ) -> (lid: SKAction, lash: SKAction, length: TimeInterval) {
     let close = SKAction.moveTo(y: Self.lidEdge(at: 0), duration: timing.close)
     let open = SKAction.moveTo(y: Self.lidEdge(at: openness), duration: timing.open)
     close.timingMode = .easeIn
     open.timingMode = .easeOut
-    let length = timing.close + timing.hold + timing.open
+    let length = timing.length
     let lash = SKAction.sequence([
       .fadeIn(withDuration: timing.close / 2),
       .wait(forDuration: length - timing.close / 2 - timing.open / 2),
@@ -335,7 +319,7 @@ extension CatRenderer {
   @discardableResult
   private func yawnAndNod(after delay: TimeInterval = 0) -> TimeInterval {
     let lead = SKAction.wait(forDuration: delay)
-    let phases = YawnAndNod.self
+    let phases = MascotTimeline.YawnAndNod.self
     let tilt = Self.radians(pose.headTiltDegrees)
     let neck = Metrics.neck
 
