@@ -9,6 +9,13 @@ final class CrowdEffectNode {
   private static let dimOpacity: CGFloat = 0.35
   private static let zSize: CGFloat = 9
 
+  // An app icon's artwork sits inside its Dock tile, as a rounded square.
+  private static let artworkInset: CGFloat = 0.12
+  private static let artworkCornerRadius: CGFloat = 0.22
+
+  // How the dim splits its duration: fade in, hold, fade out.
+  private static let dimPhases = (fadeIn: 0.3, hold: 0.3, fadeOut: 0.4)
+
   let node = SKNode()
 
   /// Plays the wave over `iconFrames`, given in the canvas's coordinates and in wave order, then
@@ -39,8 +46,11 @@ final class CrowdEffectNode {
   }
 
   private func dim(_ icon: CGRect, after delay: TimeInterval) {
-    let artwork = icon.insetBy(dx: icon.width * 0.12, dy: icon.height * 0.12)
-    let radius = artwork.width * 0.22
+    let artwork = icon.insetBy(
+      dx: icon.width * Self.artworkInset,
+      dy: icon.height * Self.artworkInset
+    )
+    let radius = artwork.width * Self.artworkCornerRadius
     let shade = SKShapeNode(
       path: CGPath(roundedRect: artwork, cornerWidth: radius, cornerHeight: radius, transform: nil)
     )
@@ -53,9 +63,9 @@ final class CrowdEffectNode {
     shade.run(
       .sequence([
         .wait(forDuration: delay),
-        .fadeAlpha(to: Self.dimOpacity, duration: dim * 0.3),
-        .wait(forDuration: dim * 0.3),
-        .fadeOut(withDuration: dim * 0.4),
+        .fadeAlpha(to: Self.dimOpacity, duration: dim * Self.dimPhases.fadeIn),
+        .wait(forDuration: dim * Self.dimPhases.hold),
+        .fadeOut(withDuration: dim * Self.dimPhases.fadeOut),
         .removeFromParent(),
       ])
     )

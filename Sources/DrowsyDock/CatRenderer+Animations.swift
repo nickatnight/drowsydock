@@ -440,16 +440,17 @@ extension CatRenderer {
   private func spawnFloatingZ(size: CGFloat) {
     let z = Self.z(size: size)
     z.setScale(0.6)
-    let holder = SKNode()
-    holder.name = Self.floatingZName
-    holder.xScale = node.xScale
-    holder.position = CGPoint(x: 14, y: 48)
-    holder.alpha = 0
-    holder.addChild(z)
-    node.addChild(holder)
+    // scale(to:) on the z would overwrite a negative xScale, so the mirroring sits on a parent.
+    let mirror = SKNode()
+    mirror.name = Self.floatingZName
+    mirror.xScale = node.xScale
+    mirror.position = CGPoint(x: 14, y: 48)
+    mirror.alpha = 0
+    mirror.addChild(z)
+    node.addChild(mirror)
     let rise = Timing.zRise
     z.run(.scale(to: 1.15, duration: rise))
-    holder.run(
+    mirror.run(
       .sequence([
         .group([
           .moveBy(x: 8, y: 20, duration: rise),

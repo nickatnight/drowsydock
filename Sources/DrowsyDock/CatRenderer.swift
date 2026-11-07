@@ -39,6 +39,7 @@ final class CatRenderer {
     static let lidSize = CGSize(width: 8.5, height: 7.6)
     static let lidCurve: CGFloat = 1.6
     static let maxEarDroop: CGFloat = 0.55
+    static let wideOpenEyelids = 0.97
     static let zSpots: [(position: CGPoint, size: CGFloat)] = [
       (CGPoint(x: 19, y: 53), 6.5),
       (CGPoint(x: 26, y: 64), 9),
@@ -218,7 +219,7 @@ final class CatRenderer {
   }
 
   static func lashAlpha(at openness: Double) -> CGFloat {
-    openness > 0.97 ? 0 : 1
+    openness > Metrics.wideOpenEyelids ? 0 : 1
   }
 
   static func radians(_ degrees: Double) -> CGFloat {

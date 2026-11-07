@@ -31,26 +31,26 @@ public final class OverlayWindow {
 
   private static let fadeDuration: TimeInterval = 0.2
 
-  private var isShowing = false
+  private var shouldEndVisible = false
 
   /// Shows the window at `frame`, in AppKit global coordinates, fading it in if it was hidden or
   /// faded out.
   public func show(at frame: CGRect) {
     place(at: frame)
     fade(to: 1)
-    isShowing = true
+    shouldEndVisible = true
   }
 
   /// Keeps the window at `frame` but fades it out.
   public func fadeOut(at frame: CGRect) {
     place(at: frame)
     fade(to: 0)
-    isShowing = false
+    shouldEndVisible = false
   }
 
   /// Takes the window off screen, at once or after fading it out.
   public func hide(fading: Bool = false) {
-    isShowing = false
+    shouldEndVisible = false
     guard fading, window.isVisible, window.alphaValue > 0 else {
       window.orderOut(nil)
       return
@@ -61,7 +61,7 @@ public final class OverlayWindow {
     } completionHandler: { [weak self] in
       // AppKit calls this on the main thread.
       MainActor.assumeIsolated {
-        guard let self, !self.isShowing else { return }
+        guard let self, !self.shouldEndVisible else { return }
         self.window.orderOut(nil)
       }
     }
