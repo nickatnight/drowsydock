@@ -190,6 +190,7 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 | 10.6 | 40%, then quickly 25%, 15% and 5% (within a second) | The yawn plays to its end, then one crossfade straight to the asleep pose. No nod-off plays in between. |
 | 10.7 | 80%, then 5%, then hover the Trash in the middle of the crossfade | The cat fades out and comes back in the asleep pose, without replaying the crossfade. |
 | 10.8 | With the Dock auto-hidden and off screen, choose 25%, then show the Dock | The cat appears in the yawning pose at once, without replaying the yawn. |
+| 10.9 | Interrupt each transition by resting the pointer on the Trash as it starts: 40%, then 25% (yawn); 25%, then 15% (nod-off); 15%, then 5% (crossfade); 5%, then Charging (wake-up). Move the pointer away after a second. | Each time the cat fades out and comes back in the new state's pose, at its normal width and with no leftover "z"s or bubble. Within a few seconds the next ambient behaviour starts (a blink, the floating "z"s or the snore), and `sample DrowsyDock 3` shows no drawing once the cat is still. A cat that stays narrower after the wake-up, or that never pauses again, fails this row. |
 
 ## The whole Dock nods off (slice 11, `CrowdEffectNode`, `DockCanvasScene`, `MascotOverlay` and `AppCoordinator`)
 

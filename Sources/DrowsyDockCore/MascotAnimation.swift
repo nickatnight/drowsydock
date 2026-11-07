@@ -1,6 +1,7 @@
 /// A one-shot animation that carries the cat from one mood to the next.
 public enum MascotAnimation: Equatable, Sendable {
-  /// A short blend of the pose: eyelids, head, ears, "z"s, bubble and veil.
+  /// A short blend of the pose: eyelids, head, ears, "z"s and bubble. The veil switches at once;
+  /// only its window's 0.2 s fade softens it.
   case crossfade
   /// Into `yawning`: a yawn and a nod.
   case yawn

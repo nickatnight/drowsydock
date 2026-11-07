@@ -45,6 +45,8 @@ public struct DockTrackerState: Equatable, Sendable {
   /// What the tracker knows about the Dock.
   public private(set) var phase = Phase.untrusted
 
+  // Never cleared: `hovering`, the only phase that reads it, is entered only through
+  // `pointerMoved(to:)`, which sets it first.
   private var pointer: CGPoint?
 
   /// Starts untrusted, with the overlay hidden.

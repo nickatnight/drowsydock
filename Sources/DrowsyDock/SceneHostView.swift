@@ -9,6 +9,10 @@ import SpriteKit
 /// It replaces `SKView`, which keeps a display link firing at the display's full refresh rate
 /// whenever it runs, whatever its `preferredFramesPerSecond`. On screen that cost about 1% CPU
 /// before drawing anything (ADR 0011). Here a `CADisplayLink` asks for exactly `framesPerSecond`.
+///
+/// The display link retains this view, so the view lives as long as its window. Removing it from
+/// its window invalidates the link and ends the cycle; dropping the window without that would leak
+/// the view, its scene and a link that keeps firing.
 @MainActor
 final class SceneHostView: NSView {
   /// The scene drawn. Its size follows the view's size.

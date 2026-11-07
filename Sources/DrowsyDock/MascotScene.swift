@@ -18,6 +18,9 @@ final class MascotScene: SKScene {
   // A gesture is playing or a loop is running.
   private var isAmbientMoving = false
   private var nextGesture: Task<Void, Never>?
+  // Bumped whenever running work stops. SpriteKit can deliver a completion after its action was
+  // removed, and a sleeping task can wake after it was cancelled, so each checks this first.
+  private var generation = 0
   private var generator = SystemRandomNumberGenerator()
 
   override init() {
@@ -87,8 +90,10 @@ final class MascotScene: SKScene {
       return
     }
     run(atFramesPerSecond: Self.oneShotFramesPerSecond)
+    let generation = self.generation
     cat.play(animation, to: pose) { [weak self] in
-      self?.animationFinished()
+      guard let self, self.generation == generation else { return }
+      animationFinished()
     }
   }
 
@@ -104,14 +109,16 @@ final class MascotScene: SKScene {
   // MARK: - Ambient behaviour
 
   private func startAmbient() {
+    nextGesture?.cancel()
     guard isActive, !director.isAnimating, case .drowsiness(let state) = director.shown else {
       return
     }
     switch AmbientSchedule.next(for: state, using: &generator) {
     case .oneShot(let gesture, let pause):
-      nextGesture = Task { [weak self] in
-        guard (try? await Task.sleep(for: pause)) != nil else { return }
-        self?.play(gesture)
+      nextGesture = Task { [weak self, generation] in
+        guard (try? await Task.sleep(for: pause)) != nil, !Task.isCancelled else { return }
+        guard let self, self.generation == generation else { return }
+        play(gesture)
       }
     case .loop(let loop):
       isAmbientMoving = true
@@ -121,10 +128,12 @@ final class MascotScene: SKScene {
   }
 
   private func play(_ gesture: AmbientGesture) {
+    guard isActive, !director.isAnimating, !isAmbientMoving else { return }
     isAmbientMoving = true
     run(atFramesPerSecond: Self.oneShotFramesPerSecond)
+    let generation = self.generation
     cat.play(gesture) { [weak self] in
-      guard let self else { return }
+      guard let self, self.generation == generation else { return }
       isAmbientMoving = false
       redraw()
       startAmbient()
@@ -132,6 +141,7 @@ final class MascotScene: SKScene {
   }
 
   private func stopEverything() {
+    generation += 1
     nextGesture?.cancel()
     nextGesture = nil
     isAmbientMoving = false

@@ -61,6 +61,12 @@ final class CatRenderer {
   /// as it starts, so stopping the transition early lands there.
   var pose = MascotPose(for: .awake)
 
+  // State the animations keep. `animationGeneration` changes whenever they stop, so a "z" spawn
+  // that SpriteKit dispatched before the stop can tell it is stale. `isLooping` says a loop has
+  // taken the static "z"s' place.
+  var animationGeneration = 0
+  var isLooping = false
+
   init() {
     let tail = Self.tail()
     let body = Self.shape(Self.bodyPath(), fill: Palette.fur)
@@ -173,7 +179,7 @@ final class CatRenderer {
 
   func apply(_ pose: MascotPose) {
     self.pose = pose
-    torso.yScale = 1
+    torso.setScale(1)
     head.position = Metrics.neck
     openMouth.alpha = 0
     snoreBubble.setScale(1)
@@ -207,6 +213,9 @@ final class CatRenderer {
     }
     for z in zs {
       z.xScale = node.xScale
+    }
+    for child in node.children where child.name == Self.floatingZName {
+      child.removeFromParent()
     }
   }
 

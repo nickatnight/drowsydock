@@ -3,7 +3,9 @@ import SpriteKit
 
 extension CatRenderer {
   private static let animationKey = "animation"
-  private static let floatingZName = "floatingZ"
+  // For actions that start after a lead-in on a node whose lead-in runs under `animationKey`.
+  private static let followUpKey = "followUp"
+  static let floatingZName = "floatingZ"
   private static let sparkleName = "sparkle"
 
   private typealias BlinkTiming = (close: Double, hold: Double, open: Double)
@@ -15,6 +17,7 @@ extension CatRenderer {
     static let zRise = 2.6
     static let breath = (inhale: 1.5, exhale: 1.7)
     static let lashFade = 0.1
+    static let staticZFade = 0.4
   }
 
   // The phases of the yawn and nod, in order. The mouth and the eyelids follow the head.
@@ -91,6 +94,7 @@ extension CatRenderer {
   }
 
   func stopAnimations() {
+    animationGeneration += 1
     var parts: [SKNode] = [node, torso, head, snoreBubble, openMouth]
     parts += ears
     parts += lids
@@ -98,12 +102,21 @@ extension CatRenderer {
     parts += zs
     for part in parts {
       part.removeAction(forKey: Self.animationKey)
+      part.removeAction(forKey: Self.followUpKey)
     }
     for child in node.children
     where child.name == Self.floatingZName || child.name == Self.sparkleName {
       child.removeFromParent()
     }
     apply(pose)
+    // The loop had faded the static "z"s out. Leave them out, so the next transition fades them
+    // from there instead of popping them in first.
+    if isLooping {
+      isLooping = false
+      for z in zs {
+        z.alpha = 0
+      }
+    }
   }
 
   // MARK: - Transitions
@@ -132,13 +145,7 @@ extension CatRenderer {
   private func yawn(into target: MascotPose) {
     let settle = MascotAnimation.yawn.duration.inSeconds - YawnAndNod.length
     blend(to: target, over: settle)
-    torso.run(
-      .sequence([
-        .wait(forDuration: settle),
-        .onMainActor { [weak self] in _ = self?.yawnAndNod() },
-      ]),
-      withKey: Self.animationKey
-    )
+    yawnAndNod(after: settle)
   }
 
   private func nodOff(into target: MascotPose) {
@@ -284,9 +291,9 @@ extension CatRenderer {
     }
   }
 
-  private func run(_ action: SKAction, on parts: [SKNode]) {
+  private func run(_ action: SKAction, on parts: [SKNode], key: String = animationKey) {
     for part in parts {
-      part.run(action, withKey: Self.animationKey)
+      part.run(action, withKey: key)
     }
   }
 
@@ -323,7 +330,11 @@ extension CatRenderer {
     return (.sequence([close, .wait(forDuration: timing.hold), open]), lash, length)
   }
 
-  private func yawnAndNod() -> TimeInterval {
+  // Runs under `followUpKey` after `delay`, so the yawn transition can schedule it behind its
+  // settle, whose actions on the same nodes run under `animationKey`.
+  @discardableResult
+  private func yawnAndNod(after delay: TimeInterval = 0) -> TimeInterval {
+    let lead = SKAction.wait(forDuration: delay)
     let phases = YawnAndNod.self
     let tilt = Self.radians(pose.headTiltDegrees)
     let neck = Metrics.neck
@@ -342,8 +353,8 @@ extension CatRenderer {
     nodDown.timingMode = .easeIn
     jerkUp.timingMode = .easeOut
     head.run(
-      .sequence([leanBack, .wait(forDuration: phases.holdYawn), straighten, nodDown, jerkUp]),
-      withKey: Self.animationKey
+      .sequence([lead, leanBack, .wait(forDuration: phases.holdYawn), straighten, nodDown, jerkUp]),
+      withKey: Self.followUpKey
     )
 
     let mouthOpen = SKAction.group([
@@ -356,27 +367,31 @@ extension CatRenderer {
     ])
     openMouth.setScale(0.3)
     openMouth.run(
-      .sequence([mouthOpen, .wait(forDuration: phases.holdYawn), mouthClose]),
-      withKey: Self.animationKey
+      .sequence([lead, mouthOpen, .wait(forDuration: phases.holdYawn), mouthClose]),
+      withKey: Self.followUpKey
     )
 
     run(
       .sequence([
+        lead,
         .moveTo(y: Self.lidEdge(at: 0), duration: phases.leanBack),
         .wait(forDuration: phases.holdYawn),
         .moveTo(y: Self.lidEdge(at: pose.eyelidOpenness * 0.5), duration: phases.straighten),
         .wait(forDuration: phases.nodDown),
         .moveTo(y: Self.lidEdge(at: pose.eyelidOpenness), duration: phases.jerkUp),
       ]),
-      on: lids
+      on: lids,
+      key: Self.followUpKey
     )
     run(
       .sequence([
+        lead,
         .fadeIn(withDuration: Timing.lashFade),
         .wait(forDuration: phases.length - 2 * Timing.lashFade),
         .fadeAlpha(to: Self.lashAlpha(at: pose.eyelidOpenness), duration: Timing.lashFade),
       ]),
-      on: lashes
+      on: lashes,
+      key: Self.followUpKey
     )
     return phases.length
   }
@@ -384,8 +399,8 @@ extension CatRenderer {
   // MARK: - Loops
 
   private func floatZs() {
-    hideStaticZs()
-    let spawn = SKAction.onMainActor { [weak self] in self?.spawnFloatingZ(size: 6) }
+    fadeOutStaticZs()
+    let spawn = spawnFloatingZ(size: 6)
     node.run(
       .repeatForever(.sequence([spawn, .wait(forDuration: Timing.zSpawnInterval)])),
       withKey: Self.animationKey
@@ -398,7 +413,7 @@ extension CatRenderer {
   }
 
   private func snore() {
-    hideStaticZs()
+    fadeOutStaticZs()
     let breath = Timing.breath
     let inhale = SKAction.scaleY(to: 1.035, duration: breath.inhale)
     let exhale = SKAction.scaleY(to: 1, duration: breath.exhale)
@@ -412,7 +427,7 @@ extension CatRenderer {
     swell.timingMode = .easeInEaseOut
     snoreBubble.run(.repeatForever(.sequence([shrink, swell])), withKey: Self.animationKey)
 
-    let spawn = SKAction.onMainActor { [weak self] in self?.spawnFloatingZ(size: 7.5) }
+    let spawn = spawnFloatingZ(size: 7.5)
     node.run(
       .repeatForever(
         .sequence([.wait(forDuration: breath.inhale), spawn, .wait(forDuration: breath.exhale)])
@@ -421,13 +436,22 @@ extension CatRenderer {
     )
   }
 
-  private func hideStaticZs() {
-    for z in zs {
-      z.alpha = 0
+  private func fadeOutStaticZs() {
+    isLooping = true
+    run(.fadeOut(withDuration: Timing.staticZFade), on: zs)
+  }
+
+  // An action that adds one floating "z". SpriteKit may run it after the loop stopped, so it
+  // checks that the loop that scheduled it is still the current one.
+  private func spawnFloatingZ(size: CGFloat) -> SKAction {
+    let generation = animationGeneration
+    return .onMainActor { [weak self] in
+      guard let self, self.animationGeneration == generation else { return }
+      addFloatingZ(size: size)
     }
   }
 
-  private func spawnFloatingZ(size: CGFloat) {
+  private func addFloatingZ(size: CGFloat) {
     let z = Self.z(size: size)
     z.setScale(0.6)
     // scale(to:) on the z would overwrite a negative xScale, so the mirroring sits on a parent.

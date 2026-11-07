@@ -99,6 +99,8 @@ final class AppCoordinator {
     }
   }
 
+  // Any process can post this notification, so this handler must never prompt or open System
+  // Settings: it only re-reads the grant, which `AccessibilityPermission.isGranted` does silently.
   private func accessibilityListDidChange() {
     refreshAccessibility()
     grantRecheck?.cancel()
