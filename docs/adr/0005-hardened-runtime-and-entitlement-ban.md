@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (job 002, round-1 security review, 2026-11-06)
+Accepted (job 002, round-1 security review, 2026-11-06). The entitlement ban is superseded by ADR 0007, which bans every entitlement.
 
 ## Context
 
