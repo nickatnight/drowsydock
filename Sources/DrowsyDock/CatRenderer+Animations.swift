@@ -116,10 +116,7 @@ extension CatRenderer {
       Self.eased(.rotate(toAngle: Self.radians(target.headTiltDegrees), duration: duration)),
       withKey: Self.animationKey
     )
-    let droop = CGFloat(target.earDroop) * Metrics.maxEarDroop
-    ears[0].run(Self.eased(.rotate(toAngle: droop, duration: duration)), withKey: Self.animationKey)
-    ears[1].run(
-      Self.eased(.rotate(toAngle: -droop, duration: duration)), withKey: Self.animationKey)
+    rotateEars(toDroop: target.earDroop, over: duration, timingMode: .easeInEaseOut)
     for (index, z) in zs.enumerated() {
       z.run(
         .fadeAlpha(to: index < target.zCount ? 1 : 0, duration: duration),
@@ -175,9 +172,7 @@ extension CatRenderer {
       on: lids
     )
     run(.fadeIn(withDuration: Timing.lashFade), on: lashes)
-    let droopEars = CGFloat(target.earDroop) * Metrics.maxEarDroop
-    ears[0].run(.rotate(toAngle: droopEars, duration: NodOff.droop), withKey: Self.animationKey)
-    ears[1].run(.rotate(toAngle: -droopEars, duration: NodOff.droop), withKey: Self.animationKey)
+    rotateEars(toDroop: target.earDroop, over: NodOff.droop)
     for (index, z) in zs.enumerated() {
       z.run(
         .sequence([
@@ -212,8 +207,7 @@ extension CatRenderer {
       ]),
       on: lashes
     )
-    ears[0].run(.rotate(toAngle: 0, duration: WakeUp.earsUp), withKey: Self.animationKey)
-    ears[1].run(.rotate(toAngle: 0, duration: WakeUp.earsUp), withKey: Self.animationKey)
+    rotateEars(toDroop: 0, over: WakeUp.earsUp)
     head.run(
       .sequence([
         Self.eased(
@@ -274,6 +268,20 @@ extension CatRenderer {
         .removeFromParent(),
       ])
     )
+  }
+
+  // The ears fold outward: the left one turns one way, the right one the other.
+  private func rotateEars(
+    toDroop droop: Double,
+    over duration: TimeInterval,
+    timingMode: SKActionTimingMode = .linear
+  ) {
+    let angle = CGFloat(droop) * Metrics.maxEarDroop
+    for (ear, side) in zip(ears, [1, -1] as [CGFloat]) {
+      let rotate = SKAction.rotate(toAngle: angle * side, duration: duration)
+      rotate.timingMode = timingMode
+      ear.run(rotate, withKey: Self.animationKey)
+    }
   }
 
   private func run(_ action: SKAction, on parts: [SKNode]) {
