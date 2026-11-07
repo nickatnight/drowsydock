@@ -31,13 +31,22 @@ public enum PowerSourceParser {
       let battery,
       let currentCapacity = battery[Key.currentCapacity] as? Int,
       let maxCapacity = battery[Key.maxCapacity] as? Int,
-      (1...Int.max / 101).contains(maxCapacity),
+      overflowSafeMaxCapacities.contains(maxCapacity),
       let powerState = powerState(of: battery)
     else { return nil }
 
-    let capacity = min(max(currentCapacity, 0), maxCapacity)
-    let roundedPercentage = (capacity * 100 + maxCapacity / 2) / maxCapacity
-    return BatteryReading(clampingPercentage: roundedPercentage, powerState: powerState)
+    return BatteryReading(
+      clampingPercentage: roundedPercentage(of: currentCapacity, outOf: maxCapacity),
+      powerState: powerState
+    )
+  }
+
+  /// `roundedPercentage` computes at most `maxCapacity * 101`, which fits in an `Int` for these.
+  private static let overflowSafeMaxCapacities = 1...(Int.max / 101)
+
+  private static func roundedPercentage(of capacity: Int, outOf maxCapacity: Int) -> Int {
+    let clampedCapacity = min(max(capacity, 0), maxCapacity)
+    return (clampedCapacity * 100 + maxCapacity / 2) / maxCapacity
   }
 
   private static func powerState(of battery: [String: Any]) -> BatteryReading.PowerState? {
