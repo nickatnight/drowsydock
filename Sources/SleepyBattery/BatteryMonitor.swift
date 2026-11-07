@@ -1,4 +1,3 @@
-import Foundation
 import Observation
 import SleepyBatteryCore
 import os

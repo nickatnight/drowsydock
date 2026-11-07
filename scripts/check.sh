@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs the checks from CONSTRAINTS.md.
 #
-#   scripts/check.sh fast   compile, format, secrets (run after every edit)
+#   scripts/check.sh fast   compile, format, floor rules, secrets (run after every edit)
 #   scripts/check.sh task   fast + tests, coverage gate, bundle (run before every commit)
 #
 # The coverage gate compares against the merge base with $CHECK_BASE (default: main).
@@ -20,18 +20,62 @@ esac
 coverage_minimum=80
 coverage_exempt_imports='^import (AppKit|ApplicationServices|Cocoa|IOKit|ServiceManagement|SpriteKit|SwiftUI)'
 
-shopt -s nullglob
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
 
 step() { printf '\n==> %s\n' "$*"; }
 
+# Prints the Swift files tracked or untracked (not ignored) under the given directories, at any
+# depth. A git pathspec `*` matches across `/`.
+swift_files_under() {
+  local dir file
+  for dir in "$@"; do
+    while IFS= read -r -d '' file; do
+      if [[ -f $file ]]; then echo "$file"; fi
+    done < <(git ls-files --cached --others --exclude-standard -z -- "$dir/*.swift")
+  done
+}
+
 gated_files() {
   local file
-  for file in Sources/SleepyBatteryCore/*.swift; do
-    echo "$file"
-  done
-  for file in Sources/DockOverlayKit/*.swift; do
+  swift_files_under Sources/SleepyBatteryCore
+  while IFS= read -r file; do
     grep -Eq "$coverage_exempt_imports" "$file" || echo "$file"
-  done
+  done < <(swift_files_under Sources/DockOverlayKit)
+}
+
+floor_rules() {
+  local failed=0
+  if grep -rnF 'try!' Sources; then
+    echo "Floor: try! outside tests" >&2
+    failed=1
+  fi
+  if grep -rnE 'fatalError\("(TODO|not implemented)' Sources Tests; then
+    echo "Floor: unimplemented stub" >&2
+    failed=1
+  fi
+  if grep -rnE 'catch[[:space:]]*\{[[:space:]]*\}' Sources Tests; then
+    echo "Floor: empty catch" >&2
+    failed=1
+  fi
+  # A suppression needs a `//` comment on its own line or the line above, explaining why.
+  if swift_files_under Sources Tests | xargs awk '
+    FNR == 1 { previous = "" }
+    /swift-format-ignore|@preconcurrency|nonisolated\(unsafe\)|@unchecked Sendable/ &&
+      $0 !~ /\/\/.*[[:alpha:]]/ && previous !~ /^[[:space:]]*\/\// {
+      print FILENAME ":" FNR ": " $0
+      found = 1
+    }
+    { previous = $0 }
+    END { exit !found }'; then
+    echo "Floor: suppression without an explaining comment" >&2
+    failed=1
+  fi
+  if ! grep -Eq '^  dependencies: \[\],?$' Package.swift; then
+    echo "Floor: Package.swift must declare empty package dependencies" >&2
+    failed=1
+  fi
+  return "$failed"
 }
 
 changed_lines() {
@@ -54,9 +98,8 @@ coverage_gate() {
   local merge_base bin_path lcov changed file
   merge_base="$(git merge-base "${CHECK_BASE:-main}" HEAD)"
   bin_path="$(swift build --show-bin-path)"
-  lcov="$(mktemp)"
-  changed="$(mktemp)"
-  trap 'rm -f "$lcov" "$changed"' RETURN
+  lcov="$work/coverage.lcov"
+  changed="$work/changed-lines.txt"
 
   local files=()
   while IFS= read -r file; do files+=("$file"); done < <(gated_files)
@@ -100,15 +143,19 @@ swift build --build-tests -Xswiftc -warnings-as-errors
 step "Format"
 swift format lint --strict --recursive Sources Tests
 
+step "Floor rules"
+floor_rules
+
 step "Secrets"
 gitleaks detect --redact --no-banner
-# `detect` reads only commits, so also scan the uncommitted and untracked working-tree files.
-leaks=0
+# `detect` reads only commits, so also scan a copy of the uncommitted and untracked working-tree
+# files. One `gitleaks dir` run over the copy skips build output and ignored files.
+mkdir "$work/tree"
 while IFS= read -r -d '' file; do
-  [[ -f $file ]] || continue
-  gitleaks dir --redact --no-banner --log-level warn "$file" || leaks=1
-done < <(git ls-files --cached --others --exclude-standard -z)
-((leaks == 0)) || exit 1
+  if [[ -f $file ]]; then printf '%s\0' "$file"; fi
+done < <(git ls-files --cached --others --exclude-standard -z) |
+  tar -cf - --null -T - | tar -xf - -C "$work/tree"
+gitleaks dir --redact --no-banner --log-level warn "$work/tree"
 
 if [[ $mode == fast ]]; then
   step "fast checks passed"

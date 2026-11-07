@@ -20,7 +20,8 @@ public enum PowerSourceParser {
   }
 
   /// Returns the reading for the first internal battery that is present, or `nil` when there is
-  /// none or its description lacks a usable capacity or power state.
+  /// none or its description lacks a usable capacity or power state. A capacity outside
+  /// 0...max capacity is clamped into it.
   public static func reading(from descriptions: [[String: Any]]) -> BatteryReading? {
     let battery = descriptions.first { description in
       description[Key.type] as? String == Value.internalBattery
@@ -28,13 +29,15 @@ public enum PowerSourceParser {
     }
     guard
       let battery,
-      let current = battery[Key.currentCapacity] as? Int,
-      let max = battery[Key.maxCapacity] as? Int,
-      max > 0,
+      let currentCapacity = battery[Key.currentCapacity] as? Int,
+      let maxCapacity = battery[Key.maxCapacity] as? Int,
+      (1...Int.max / 101).contains(maxCapacity),
       let powerState = powerState(of: battery)
     else { return nil }
 
-    let roundedPercentage = (current * 100 + max / 2) / max
+    // Clamping first bounds the arithmetic: capacity * 100 + maxCapacity / 2 <= maxCapacity * 101.
+    let capacity = min(max(currentCapacity, 0), maxCapacity)
+    let roundedPercentage = (capacity * 100 + maxCapacity / 2) / maxCapacity
     return BatteryReading(clampingPercentage: roundedPercentage, powerState: powerState)
   }
 

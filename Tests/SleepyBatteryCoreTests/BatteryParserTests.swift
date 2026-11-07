@@ -145,6 +145,21 @@ final class BatteryParserTests: XCTestCase {
     XCTAssertEqual(PowerSourceParser.reading(from: [raw])?.percentage, 100)
   }
 
+  func testAnAbsurdCurrentCapacityClampsInsteadOfOverflowing() {
+    var raw = laptopDischarging
+    raw["Current Capacity"] = Int.max
+
+    XCTAssertEqual(PowerSourceParser.reading(from: [raw])?.percentage, 100)
+  }
+
+  func testRejectsAnAbsurdMaxCapacityInsteadOfOverflowing() {
+    var raw = laptopDischarging
+    raw["Current Capacity"] = Int.max / 2
+    raw["Max Capacity"] = Int.max
+
+    XCTAssertNil(PowerSourceParser.reading(from: [raw]))
+  }
+
   func testRejectsAZeroMaxCapacity() {
     var raw = laptopDischarging
     raw["Max Capacity"] = 0
