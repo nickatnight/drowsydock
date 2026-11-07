@@ -295,6 +295,14 @@ if ! grep -Eq '^CodeDirectory .*flags=0x[0-9a-f]+\([^)]*runtime' <<<"$signature"
   echo "Bundle: the signature lacks the hardened runtime (codesign --options runtime)" >&2
   exit 1
 fi
+# Each of these entitlements reopens a hole that the hardened runtime closes.
+entitlements="$(codesign -d --entitlements - --xml build/DrowsyDock.app 2>/dev/null)"
+weakening='allow-dyld-environment-variables|disable-library-validation|allow-unsigned-executable-memory|get-task-allow'
+if grep -Eq "$weakening" <<<"$entitlements"; then
+  echo "Bundle: the signature carries an entitlement that weakens the hardened runtime" >&2
+  grep -Eo "$weakening" <<<"$entitlements" >&2
+  exit 1
+fi
 plutil -lint Resources/Info.plist
 
 step "task checks passed"
