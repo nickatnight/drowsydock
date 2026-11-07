@@ -285,6 +285,48 @@ final class DockGeometryTests: XCTestCase {
     XCTAssertEqual(dock.perch(for: mascot).frame, CGRect(x: 0, y: 836, width: 64, height: 64))
   }
 
+  func testOnATallSideDockThePerchStaysBelowTheMenuBar() {
+    let belowTheMenuBar = DisplayLayout.Display(
+      frame: laptop,
+      visibleFrame: CGRect(x: 50, y: 0, width: 1390, height: 875)
+    )
+    let dock = DockGeometry(
+      listFrame: ax(0, 10, 50, 840),
+      iconFrames: [ax(5, 15, 40, 40)],
+      layout: DisplayLayout(primary: belowTheMenuBar)
+    )
+
+    XCTAssertEqual(dock.perch(for: mascot).frame, CGRect(x: 0, y: 811, width: 64, height: 64))
+  }
+
+  func testThePerchOfALeftDockStaysOverTheDockOutsideTheVisibleFrame() {
+    let besideTheDock = DisplayLayout.Display(
+      frame: laptop,
+      visibleFrame: CGRect(x: 70, y: 0, width: 1370, height: 875)
+    )
+    let dock = DockGeometry(
+      listFrame: ax(0, 200, 70, 500),
+      iconFrames: [ax(5, 205, 60, 60)],
+      layout: DisplayLayout(primary: besideTheDock)
+    )
+
+    XCTAssertEqual(dock.perch(for: mascot).frame, CGRect(x: 3, y: 700, width: 64, height: 64))
+  }
+
+  func testThePerchOfABottomDockStaysOnTheDockEdgeBelowTheVisibleFrame() {
+    let aboveTheDock = DisplayLayout.Display(
+      frame: laptop,
+      visibleFrame: CGRect(x: 0, y: 75, width: 1440, height: 800)
+    )
+    let dock = DockGeometry(
+      listFrame: ax(370, 830, 700, 70),
+      iconFrames: [ax(1000, 834, 60, 60)],
+      layout: DisplayLayout(primary: aboveTheDock)
+    )
+
+    XCTAssertEqual(dock.perch(for: mascot).frame, CGRect(x: 996, y: 70, width: 64, height: 64))
+  }
+
   func testThePerchStaysOnTheDisplayWhenANarrowRightDockWouldPushItPastTheEdge() {
     let dock = DockGeometry(
       listFrame: ax(1390, 200, 50, 500),

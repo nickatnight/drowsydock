@@ -96,7 +96,7 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.accessibilityChanged(isGranted: true)
 
-    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite), on: bottomDock))
   }
 
   // MARK: - Dock reads
@@ -108,7 +108,10 @@ final class DockTrackerTests: XCTestCase {
 
     XCTAssertEqual(
       tracker.presentation,
-      .shown(DockPerch(frame: CGRect(x: 996, y: 70, width: 64, height: 64), facing: .left))
+      .shown(
+        DockPerch(frame: CGRect(x: 996, y: 70, width: 64, height: 64), facing: .left),
+        on: bottomDock
+      )
     )
   }
 
@@ -127,7 +130,7 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.dockRead(bottomDock)
 
-    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite), on: bottomDock))
   }
 
   func testAFailedReadHidesTheOverlay() {
@@ -239,14 +242,14 @@ final class DockTrackerTests: XCTestCase {
     tracker.pointerMoved(to: awayFromTheDock)
 
     XCTAssertFalse(tracker.runsFrameChecks)
-    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite), on: bottomDock))
   }
 
   func testFrameChecksRunWhileThePointerIsOverTheDock() {
     let tracker = trackerHoveringOverTheDock()
 
     XCTAssertTrue(tracker.runsFrameChecks)
-    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite), on: bottomDock))
   }
 
   func testFrameChecksStopWhenThePointerLeaves() {
@@ -275,7 +278,7 @@ final class DockTrackerTests: XCTestCase {
 
     XCTAssertTrue(tracker.runsFrameChecks)
     XCTAssertFalse(tracker.awaitsSettledRead)
-    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite), on: bottomDock))
   }
 
   func testThePointerReturningNearTheDockWhileSettlingResumesFrameChecks() {
@@ -314,7 +317,7 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.frameChecked(magnifiedDock)
 
-    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite), on: bottomDock))
   }
 
   func testTheOverlayFadesBackInWhenTheDockReturnsToRest() {
@@ -323,7 +326,7 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.frameChecked(bottomDock)
 
-    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite), on: bottomDock))
   }
 
   func testATriggeredReadWhileMagnifiedKeepsTheRestingPerch() {
@@ -331,7 +334,7 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.dockRead(magnifiedDock)
 
-    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite), on: bottomDock))
     XCTAssertTrue(tracker.runsFrameChecks)
   }
 
@@ -340,7 +343,7 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.frameChecked(smallerDock)
 
-    XCTAssertEqual(tracker.presentation, .shown(smallerDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .shown(smallerDock.perch(for: sprite), on: smallerDock))
   }
 
   func testAReadWhileHoveringThatFindsALeftDockShowsTheLeftPerch() {
@@ -353,12 +356,12 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.dockRead(leftDock)
 
-    XCTAssertEqual(tracker.presentation, .shown(leftDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .shown(leftDock.perch(for: sprite), on: leftDock))
   }
 
   func testAReadWhileHoveringThatFindsTheDockOnAnotherDisplayMovesThePerch() {
     let external = CGRect(x: 1440, y: 0, width: 1920, height: 1080)
-    let twoDisplays = DisplayLayout(primary: laptop.primary, others: [external])
+    let twoDisplays = DisplayLayout(primary: laptop.primary.frame, others: [external])
     let dockOnLaptop = DockGeometry(
       listFrame: AXRect(CGRect(x: 370, y: 830, width: 700, height: 70)),
       iconFrames: [],
@@ -375,7 +378,9 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.dockRead(tallerDockOnExternal)
 
-    XCTAssertEqual(tracker.presentation, .shown(tallerDockOnExternal.perch(for: sprite)))
+    XCTAssertEqual(
+      tracker.presentation,
+      .shown(tallerDockOnExternal.perch(for: sprite), on: tallerDockOnExternal))
   }
 
   func testAFailedTriggeredReadWhileHoveringKeepsTheOverlay() {
@@ -383,7 +388,7 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.dockRead(nil)
 
-    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite), on: bottomDock))
     XCTAssertTrue(tracker.runsFrameChecks)
   }
 
@@ -393,7 +398,7 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.frameChecked(nil)
 
-    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite), on: bottomDock))
     XCTAssertTrue(tracker.runsFrameChecks)
   }
 
@@ -412,7 +417,65 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.frameChecked(magnifiedDock)
 
-    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite), on: bottomDock))
+  }
+
+  // MARK: - Uncovering the label of the icon under the perch
+
+  // The bottom Dock's last icon spans x 1000 to 1060 and AppKit y 6 to 66. The perch sits on top of
+  // it, from y 70 to 134. The Dock shows the icon's label right there.
+  private let overThePerchIcon = CGPoint(x: 1030, y: 30)
+  private let overThePerch = CGPoint(x: 1030, y: 110)
+
+  func testThePointerOverTheIconUnderThePerchFadesTheOverlayOut() {
+    var tracker = trackerHoveringOverTheDock()
+
+    tracker.pointerMoved(to: overThePerchIcon)
+
+    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite), on: bottomDock))
+  }
+
+  func testThePointerOverThePerchFadesTheOverlayOut() {
+    var tracker = trackerHoveringOverTheDock()
+
+    tracker.pointerMoved(to: overThePerch)
+
+    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite), on: bottomDock))
+  }
+
+  func testTheOverlayFadesBackInWhenThePointerMovesToAnotherIcon() {
+    var tracker = trackerHoveringOverTheDock()
+    tracker.pointerMoved(to: overThePerchIcon)
+
+    tracker.pointerMoved(to: overTheDock)
+
+    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite), on: bottomDock))
+  }
+
+  func testTheOverlayFadesBackInWhenThePointerLeavesFromThePerchIcon() {
+    var tracker = trackerHoveringOverTheDock()
+    tracker.pointerMoved(to: overThePerchIcon)
+
+    tracker.pointerMoved(to: awayFromTheDock)
+
+    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite), on: bottomDock))
+  }
+
+  func testOnALeftDockThePointerOverTheFirstIconFadesTheOverlayOut() {
+    let leftDock = DockGeometry(
+      listFrame: AXRect(CGRect(x: 0, y: 200, width: 70, height: 500)),
+      iconFrames: [
+        AXRect(CGRect(x: 5, y: 205, width: 60, height: 60)),
+        AXRect(CGRect(x: 5, y: 265, width: 60, height: 60)),
+      ],
+      layout: laptop
+    )
+    var tracker = trackerWithAccessibility()
+    tracker.dockRead(leftDock)
+
+    tracker.pointerMoved(to: CGPoint(x: 35, y: 665))
+
+    XCTAssertEqual(tracker.presentation, .fadedOut(leftDock.perch(for: sprite), on: leftDock))
   }
 
   // MARK: - Settling after the pointer leaves
@@ -423,7 +486,7 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.pointerMoved(to: awayFromTheDock)
 
-    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite), on: bottomDock))
   }
 
   func testAnUnmagnifiedDockStaysShownWhileSettling() {
@@ -431,7 +494,7 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.pointerMoved(to: awayFromTheDock)
 
-    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite), on: bottomDock))
   }
 
   func testAFailedSettledReadHidesTheOverlay() {
@@ -450,7 +513,7 @@ final class DockTrackerTests: XCTestCase {
 
     tracker.dockRead(smallerDock)
 
-    XCTAssertEqual(tracker.presentation, .shown(smallerDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .shown(smallerDock.perch(for: sprite), on: smallerDock))
     XCTAssertFalse(tracker.awaitsSettledRead)
   }
 
@@ -463,7 +526,7 @@ final class DockTrackerTests: XCTestCase {
 
     XCTAssertTrue(tracker.runsFrameChecks)
     XCTAssertFalse(tracker.awaitsSettledRead)
-    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite)))
+    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite), on: bottomDock))
   }
 
   // MARK: - Reading at once on a Dock event

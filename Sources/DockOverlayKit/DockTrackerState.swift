@@ -5,11 +5,12 @@ public enum OverlayPresentation: Equatable, Sendable {
   /// Nothing is drawn.
   case hidden
 
-  /// The overlay is drawn at the perch.
-  case shown(DockPerch)
+  /// The overlay is drawn at the perch on the Dock at this resting geometry.
+  case shown(DockPerch, on: DockGeometry)
 
-  /// The overlay stays at the perch but is faded out, because the pointer is magnifying the Dock.
-  case fadedOut(DockPerch)
+  /// The overlay stays at the perch but is faded out, because the pointer is magnifying the Dock
+  /// or is over the perch, where the Dock shows an icon's label.
+  case fadedOut(DockPerch, on: DockGeometry)
 }
 
 /// The Dock tracker's decisions, kept free of AppKit and Accessibility calls so they can be
@@ -44,6 +45,8 @@ public struct DockTrackerState: Equatable, Sendable {
   /// What the tracker knows about the Dock.
   public private(set) var phase = Phase.untrusted
 
+  private var pointer: CGPoint?
+
   /// Starts untrusted, with the overlay hidden.
   public init(spriteSize: CGSize) {
     self.spriteSize = spriteSize
@@ -55,10 +58,15 @@ public struct DockTrackerState: Equatable, Sendable {
     case .untrusted, .unavailable, .offScreen:
       return .hidden
     case .resting(let geometry):
-      return .shown(geometry.perch(for: spriteSize))
-    case .hovering(let geometry, let isMagnified), .settling(let geometry, let isMagnified):
+      return .shown(geometry.perch(for: spriteSize), on: geometry)
+    case .hovering(let geometry, let isMagnified):
       let perch = geometry.perch(for: spriteSize)
-      return isMagnified ? .fadedOut(perch) : .shown(perch)
+      let uncoversLabel = pointer.map(geometry.perchRegion(for: spriteSize).contains) ?? false
+      return isMagnified || uncoversLabel
+        ? .fadedOut(perch, on: geometry) : .shown(perch, on: geometry)
+    case .settling(let geometry, let isMagnified):
+      let perch = geometry.perch(for: spriteSize)
+      return isMagnified ? .fadedOut(perch, on: geometry) : .shown(perch, on: geometry)
     }
   }
 
@@ -120,6 +128,7 @@ public struct DockTrackerState: Equatable, Sendable {
 
   /// Records where the pointer is, in AppKit global coordinates.
   public mutating func pointerMoved(to point: CGPoint) {
+    pointer = point
     switch phase {
     case .resting(let geometry) where geometry.hoverRegion.contains(point):
       phase = .hovering(geometry, isMagnified: false)

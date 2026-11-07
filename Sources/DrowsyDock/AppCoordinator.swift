@@ -1,5 +1,6 @@
 import AppKit
 import DockOverlayKit
+import DrowsyDockCore
 import Observation
 import os
 
@@ -12,8 +13,6 @@ final class AppCoordinator {
   )
 
   private static let dockLogger = Logger(subsystem: "com.drowsydock.DrowsyDock", category: "dock")
-
-  static let mascotSize = CGSize(width: 64, height: 64)
 
   // macOS posts this, undocumented, whenever an app's Accessibility grant changes. It is a hint:
   // TCC may not report the new grant at once, so the grant is checked again a moment later.
@@ -30,8 +29,12 @@ final class AppCoordinator {
 
   init() {
     isAccessibilityGranted = AccessibilityPermission.isGranted
-    let overlay = OverlayWindow(contentView: Self.debugOutline())
-    dockTracker = DockTracker(spriteSize: Self.mascotSize) { presentation in
+    let overlay = MascotOverlay()
+    overlay.show(battery.session.tracker.phase.mood)
+    battery.onPhaseChange = { phase in
+      overlay.show(phase.mood)
+    }
+    dockTracker = DockTracker(spriteSize: MascotOverlay.spriteSize) { presentation in
       overlay.present(presentation)
     }
     Self.logger.notice("Accessibility granted: \(self.isAccessibilityGranted, privacy: .public)")
@@ -65,7 +68,7 @@ final class AppCoordinator {
   func logDockGeometry() {
     do {
       let geometry = try DockReader.read()
-      let perch = geometry.perch(for: Self.mascotSize)
+      let perch = geometry.perch(for: MascotOverlay.spriteSize)
       Self.dockLogger.notice(
         """
         Dock geometry: \(String(describing: geometry), privacy: .public) \
@@ -95,13 +98,5 @@ final class AppCoordinator {
     isAccessibilityGranted = isGranted
     Self.logger.notice("Accessibility granted: \(isGranted, privacy: .public)")
     dockTracker.accessibilityChanged(isGranted: isGranted)
-  }
-
-  private static func debugOutline() -> NSView {
-    let view = NSView()
-    view.wantsLayer = true
-    view.layer?.borderColor = NSColor.systemPink.cgColor
-    view.layer?.borderWidth = 2
-    return view
   }
 }

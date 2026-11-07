@@ -18,23 +18,47 @@ public struct AXRect: Equatable, Sendable {
 /// The frames of the connected displays in AppKit global coordinates: origin at the bottom-left of
 /// the primary display, with y growing upward.
 public struct DisplayLayout: Equatable, Sendable {
+  /// One display's frames, as `NSScreen` reports them.
+  public struct Display: Equatable, Sendable {
+    /// The whole display.
+    public let frame: CGRect
+
+    /// The display without the menu bar and the Dock.
+    public let visibleFrame: CGRect
+
+    /// Creates a display from `NSScreen.frame` and `NSScreen.visibleFrame`.
+    public init(frame: CGRect, visibleFrame: CGRect) {
+      self.frame = frame
+      self.visibleFrame = visibleFrame
+    }
+  }
+
   /// The display with the menu bar, whose top-left corner is the Accessibility origin.
-  public let primary: CGRect
+  public let primary: Display
 
   /// Every other display.
-  public let others: [CGRect]
+  public let others: [Display]
 
   /// Creates a layout from `NSScreen.screens`: its first element is the primary display.
-  public init(primary: CGRect, others: [CGRect] = []) {
+  public init(primary: Display, others: [Display] = []) {
     self.primary = primary
     self.others = others
+  }
+
+  /// Creates a layout of displays with no menu bar or Dock, where each visible frame is the whole
+  /// frame.
+  public init(primary: CGRect, others: [CGRect] = []) {
+    self.init(
+      primary: Display(frame: primary, visibleFrame: primary),
+      others: others.map { Display(frame: $0, visibleFrame: $0) }
+    )
   }
 
   /// Returns the AppKit global frame of a rectangle that the Accessibility API reported.
   public func appKitRect(_ rect: AXRect) -> CGRect {
     CGRect(
       x: rect.rect.minX,
-      y: primary.maxY - rect.rect.maxY,
+      y: primary.frame.maxY - rect.rect.maxY,
       width: rect.rect.width,
       height: rect.rect.height
     )
@@ -42,10 +66,11 @@ public struct DisplayLayout: Equatable, Sendable {
 
   /// Returns the display that holds the centre of `rect`, or the nearest display when the centre
   /// lies on none of them, as it does for an auto-hidden Dock.
-  func display(holding rect: CGRect) -> CGRect {
+  func display(holding rect: CGRect) -> Display {
     let center = CGPoint(x: rect.midX, y: rect.midY)
     return others.reduce(primary) { nearest, display in
-      distance(from: center, to: display) < distance(from: center, to: nearest) ? display : nearest
+      distance(from: center, to: display.frame) < distance(from: center, to: nearest.frame)
+        ? display : nearest
     }
   }
 

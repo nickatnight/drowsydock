@@ -31,23 +31,33 @@ public final class OverlayWindow {
 
   private static let fadeDuration: TimeInterval = 0.2
 
-  /// Shows the window at the perch, fades it out there, or hides it.
-  public func present(_ presentation: OverlayPresentation) {
-    switch presentation {
-    case .hidden:
-      window.orderOut(nil)
-    case .shown(let perch):
-      place(at: perch)
-      fade(to: 1)
-    case .fadedOut(let perch):
-      place(at: perch)
-      fade(to: 0)
-    }
+  /// Whether the window is on screen and not faded out.
+  public private(set) var isShowing = false
+
+  /// Shows the window at `frame`, in AppKit global coordinates, fading it in if it was hidden or
+  /// faded out.
+  public func show(at frame: CGRect) {
+    place(at: frame)
+    fade(to: 1)
+    isShowing = true
   }
 
-  private func place(at perch: DockPerch) {
-    if window.frame != perch.frame {
-      window.setFrame(perch.frame, display: true)
+  /// Keeps the window at `frame` but fades it out.
+  public func fadeOut(at frame: CGRect) {
+    place(at: frame)
+    fade(to: 0)
+    isShowing = false
+  }
+
+  /// Takes the window off screen at once.
+  public func hide() {
+    window.orderOut(nil)
+    isShowing = false
+  }
+
+  private func place(at frame: CGRect) {
+    if window.frame != frame {
+      window.setFrame(frame, display: true)
     }
     if !window.isVisible {
       window.alphaValue = 0

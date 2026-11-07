@@ -15,6 +15,9 @@ final class BatteryMonitor {
   private(set) var session: BatterySession
   private(set) var isLowPowerModeOn: Bool
 
+  /// Called after each change of the tracker's phase, with the new phase.
+  @ObservationIgnored var onPhaseChange: ((DrowsinessTracker.Phase) -> Void)?
+
   @ObservationIgnored private var powerChanges: IOKitPowerSource.Subscription?
   @ObservationIgnored private var wakingTask: Task<Void, Never>?
 
@@ -57,6 +60,9 @@ final class BatteryMonitor {
     change()
     scheduleEndOfWakingIfEntered(from: previousPhase)
     logStatusIfChanged(from: previousLogLine)
+    if session.tracker.phase != previousPhase {
+      onPhaseChange?(session.tracker.phase)
+    }
   }
 
   private func scheduleEndOfWakingIfEntered(from previousPhase: DrowsinessTracker.Phase) {

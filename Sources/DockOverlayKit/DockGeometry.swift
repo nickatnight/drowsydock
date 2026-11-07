@@ -46,6 +46,10 @@ public struct DockGeometry: Equatable, Sendable {
   /// The frame of the display that holds the Dock.
   public let screenFrame: CGRect
 
+  /// The visible frame of the display that holds the Dock: its frame without the menu bar and the
+  /// Dock.
+  public let visibleScreenFrame: CGRect
+
   /// The screen edge the Dock sits on.
   public let orientation: DockOrientation
 
@@ -54,7 +58,9 @@ public struct DockGeometry: Equatable, Sendable {
   public init(listFrame: AXRect, iconFrames: [AXRect], layout: DisplayLayout) {
     frame = layout.appKitRect(listFrame)
     self.iconFrames = iconFrames.map(layout.appKitRect)
-    screenFrame = layout.display(holding: frame)
+    let display = layout.display(holding: frame)
+    screenFrame = display.frame
+    visibleScreenFrame = display.visibleFrame
     orientation = Self.orientation(of: frame, on: screenFrame)
   }
 
@@ -68,25 +74,39 @@ public struct DockGeometry: Equatable, Sendable {
   ///
   /// On a bottom Dock it sits on the top edge at the trailing end, inside the last icon. On a side
   /// Dock it sits on the top end, centred above the first icon and facing into the screen. The
-  /// frame is kept on the Dock's display.
+  /// frame is kept on the Dock's display and below its menu bar. It may sit outside the rest of the
+  /// visible frame, because the Dock itself lies outside it.
   public func perch(for size: CGSize) -> DockPerch {
     let origin: CGPoint
     let facing: DockPerch.Facing
+    let anchor = perchIcon
     switch orientation {
     case .bottom:
-      let anchor = iconFrames.last ?? frame
       origin = CGPoint(x: anchor.maxX - size.width, y: frame.maxY)
       facing = .left
     case .left, .right:
-      let anchor = iconFrames.first ?? frame
       origin = CGPoint(x: anchor.midX - size.width / 2, y: frame.maxY)
       facing = orientation == .left ? .right : .left
     }
     let clamped = CGPoint(
       x: min(max(origin.x, screenFrame.minX), screenFrame.maxX - size.width),
-      y: min(max(origin.y, screenFrame.minY), screenFrame.maxY - size.height)
+      y: min(max(origin.y, screenFrame.minY), visibleScreenFrame.maxY - size.height)
     )
     return DockPerch(frame: CGRect(origin: clamped, size: size), facing: facing)
+  }
+
+  /// The perch for a sprite of the given size together with the icon it sits on. While the pointer
+  /// is here, the Dock shows that icon's label, which the sprite would cover.
+  public func perchRegion(for size: CGSize) -> CGRect {
+    perch(for: size).frame.union(perchIcon)
+  }
+
+  // The icon the perch sits on: the trailing icon of a bottom Dock, the top icon of a side Dock.
+  private var perchIcon: CGRect {
+    switch orientation {
+    case .bottom: iconFrames.last ?? frame
+    case .left, .right: iconFrames.first ?? frame
+    }
   }
 
   /// The area around the resting Dock where the pointer may be over the Dock, even while it is
