@@ -40,36 +40,38 @@ final class BatteryMonitor {
   }
 
   func simulate(_ simulation: BatterySimulation) {
-    update { session.simulate(simulation) }
+    changeStatus { session.simulate(simulation) }
   }
 
   private func powerSourceDidChange() {
     Self.logger.debug("Power source notification")
     let reading = IOKitPowerSource.readBattery()
-    update {
+    changeStatus {
       isLowPowerModeOn = IOKitPowerSource.isLowPowerModeOn
       session.receive(reading)
     }
   }
 
-  private func update(_ change: () -> Void) {
-    let previousLine = logLine
+  private func changeStatus(_ change: () -> Void) {
     let previousPhase = session.tracker.phase
+    let previousLogLine = logLine
     change()
-    if session.tracker.phase == .waking && previousPhase != .waking {
-      scheduleEndOfWaking()
-    }
-    if logLine != previousLine {
-      Self.logger.notice("Changed: \(self.logLine, privacy: .public)")
-    }
+    scheduleEndOfWakingIfEntered(from: previousPhase)
+    logStatusIfChanged(from: previousLogLine)
   }
 
-  private func scheduleEndOfWaking() {
+  private func scheduleEndOfWakingIfEntered(from previousPhase: DrowsinessTracker.Phase) {
+    guard session.tracker.phase == .waking, previousPhase != .waking else { return }
     wakingTask?.cancel()
     wakingTask = Task { [weak self] in
       guard (try? await Task.sleep(for: Self.wakingDuration)) != nil, let self else { return }
-      update { session.finishWaking() }
+      changeStatus { session.finishWaking() }
     }
+  }
+
+  private func logStatusIfChanged(from previousLogLine: String) {
+    guard logLine != previousLogLine else { return }
+    Self.logger.notice("Changed: \(self.logLine, privacy: .public)")
   }
 
   private var logLine: String {
