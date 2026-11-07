@@ -27,6 +27,10 @@ struct MenuContent: View {
         }
       }
       .pickerStyle(.menu)
+
+      Button("Log Dock geometry") {
+        coordinator.logDockGeometry()
+      }
     }
 
     Divider()

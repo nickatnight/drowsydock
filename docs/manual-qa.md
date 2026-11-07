@@ -74,3 +74,17 @@ Start these checks without the grant: `tccutil reset Accessibility com.drowsydoc
 | 4.2 | Choose `Grant Accessibility…`. | macOS shows its "would like to control this computer" alert, and System Settings opens at Privacy & Security ▸ Accessibility with DrowsyDock in the list. |
 | 4.3 | Turn DrowsyDock on in that list, then open the menu again. Don't relaunch. | The item reads `Accessibility: Granted`, and the log shows `Accessibility granted: true`. |
 | 4.4 | Turn DrowsyDock off in the list, then open the menu again. | The item is back to `Grant Accessibility…`, and the overlay disappears. |
+
+## Dock geometry (slice 5, `DockReader`)
+
+`DockReader` reads the frames of the Dock's icon list and items over the Accessibility API and builds a `DockGeometry` (tested in `DockGeometryTests`). It needs the grant. Watch the log with category `dock`. Without the grant, Debug ▸ Log Dock geometry logs `Dock geometry unavailable: accessibility(attribute: "AXChildren", code: -25211)`.
+
+To compare numbers, read the Dock's on-screen frame with Accessibility Inspector (Xcode ▸ Open Developer Tool), or measure it with Cmd-Shift-4. Logged frames are AppKit global coordinates, in points, with the origin at the bottom-left of the main display.
+
+| # | Check | Expected |
+|---|---|---|
+| 5.1 | With a bottom Dock on the main display, choose Debug ▸ Log Dock geometry. | `orientation: …bottom`, `hidden: false`. `frame` starts at y = 0 and matches the Dock's width and height. `iconFrames` has one entry per Dock item, with no separators. `screenFrame` is the main display's frame. |
+| 5.2 | Move the Dock to the left, then the right (System Settings ▸ Desktop & Dock ▸ Position on screen), and log again each time. | `orientation` reads `left`, then `right`. `perch` sits above the topmost icon, facing `right` on a left Dock and `left` on a right Dock. |
+| 5.3 | With a second display, move the Dock to it (move the pointer to that display's bottom edge and wait), then log. | `screenFrame` is the second display's frame. On a display arranged above or to the left of the main one, the frame has a y above the main display's height or a negative x. |
+| 5.4 | Turn on "Automatically hide and show the Dock", move the pointer away so the Dock hides, then log from the menu. | `hidden: true`. The frame lies partly or fully below (or beside) its display. |
+| 5.5 | With the Dock visible, compare `perch` with the screen. | On a bottom Dock, a 64-point square whose bottom edge is the Dock's top edge and whose right edge is the last icon's right edge. |
