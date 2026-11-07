@@ -156,7 +156,7 @@ final class DrowsinessTrackerTests: XCTestCase {
 
   func testThresholdChangeRederivesUpward() {
     var tracker = DrowsinessTracker(reading: onBattery(45))
-    let lower = Thresholds(drowsy: 40, yawning: 30, noddingOff: 20, asleep: 10)!
+    let lower = Thresholds(drowsyBelow: 40, yawningBelow: 30, noddingOffBelow: 20, asleepBelow: 10)!
 
     tracker.setThresholds(lower)
 
@@ -167,14 +167,16 @@ final class DrowsinessTrackerTests: XCTestCase {
   func testThresholdChangeRederivesDownward() {
     var tracker = DrowsinessTracker(reading: onBattery(55))
 
-    tracker.setThresholds(Thresholds(drowsy: 60, yawning: 30, noddingOff: 20, asleep: 10)!)
+    tracker.setThresholds(
+      Thresholds(drowsyBelow: 60, yawningBelow: 30, noddingOffBelow: 20, asleepBelow: 10)!)
 
     XCTAssertEqual(tracker.phase, .discharging(.drowsy))
   }
 
   func testNewThresholdsApplyToLaterReadings() {
     var tracker = DrowsinessTracker(reading: onBattery(70))
-    tracker.setThresholds(Thresholds(drowsy: 60, yawning: 50, noddingOff: 40, asleep: 30)!)
+    tracker.setThresholds(
+      Thresholds(drowsyBelow: 60, yawningBelow: 50, noddingOffBelow: 40, asleepBelow: 30)!)
 
     tracker.update(onBattery(45))
 
@@ -184,7 +186,8 @@ final class DrowsinessTrackerTests: XCTestCase {
   func testThresholdChangeOnExternalPowerStaysAwake() {
     var tracker = DrowsinessTracker(reading: charging(15))
 
-    tracker.setThresholds(Thresholds(drowsy: 90, yawning: 80, noddingOff: 70, asleep: 60)!)
+    tracker.setThresholds(
+      Thresholds(drowsyBelow: 90, yawningBelow: 80, noddingOffBelow: 70, asleepBelow: 60)!)
 
     XCTAssertEqual(tracker.phase, .onExternalPower)
   }

@@ -26,23 +26,27 @@ final class ThresholdsTests: XCTestCase {
   }
 
   func testAcceptsStrictlyDescendingValuesInsideOneToNinetyNine() {
-    XCTAssertNotNil(Thresholds(drowsy: 99, yawning: 3, noddingOff: 2, asleep: 1))
+    XCTAssertNotNil(
+      Thresholds(drowsyBelow: 99, yawningBelow: 3, noddingOffBelow: 2, asleepBelow: 1))
   }
 
   func testRejectsEqualNeighbours() {
-    XCTAssertNil(Thresholds(drowsy: 50, yawning: 50, noddingOff: 20, asleep: 10))
+    XCTAssertNil(
+      Thresholds(drowsyBelow: 50, yawningBelow: 50, noddingOffBelow: 20, asleepBelow: 10))
   }
 
   func testRejectsAscendingNeighbours() {
-    XCTAssertNil(Thresholds(drowsy: 50, yawning: 30, noddingOff: 10, asleep: 20))
+    XCTAssertNil(
+      Thresholds(drowsyBelow: 50, yawningBelow: 30, noddingOffBelow: 10, asleepBelow: 20))
   }
 
   func testRejectsValuesAboveNinetyNine() {
-    XCTAssertNil(Thresholds(drowsy: 100, yawning: 30, noddingOff: 20, asleep: 10))
+    XCTAssertNil(
+      Thresholds(drowsyBelow: 100, yawningBelow: 30, noddingOffBelow: 20, asleepBelow: 10))
   }
 
   func testRejectsValuesBelowOne() {
-    XCTAssertNil(Thresholds(drowsy: 50, yawning: 30, noddingOff: 20, asleep: 0))
+    XCTAssertNil(Thresholds(drowsyBelow: 50, yawningBelow: 30, noddingOffBelow: 20, asleepBelow: 0))
   }
 
   func testStatesOrderFromAwakeToAsleep() {

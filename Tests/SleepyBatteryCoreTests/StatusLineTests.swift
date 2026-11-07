@@ -5,7 +5,8 @@ final class StatusLineTests: XCTestCase {
   func testDischargingShowsPercentagePowerStateAndMood() {
     let tracker = DrowsinessTracker(
       reading: BatteryReading(percentage: 63, powerState: .discharging),
-      thresholds: Thresholds(drowsy: 70, yawning: 30, noddingOff: 20, asleep: 10)!
+      thresholds: Thresholds(
+        drowsyBelow: 70, yawningBelow: 30, noddingOffBelow: 20, asleepBelow: 10)!
     )
 
     XCTAssertEqual(

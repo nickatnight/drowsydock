@@ -9,10 +9,10 @@ public enum DrowsinessState: Int, CaseIterable, Comparable, Sendable {
   /// Creates the state a discharging battery at `percentage` maps to under `thresholds`.
   public init(percentage: Int, thresholds: Thresholds) {
     switch percentage {
-    case thresholds.drowsy...: self = .awake
-    case thresholds.yawning...: self = .drowsy
-    case thresholds.noddingOff...: self = .yawning
-    case thresholds.asleep...: self = .noddingOff
+    case thresholds.drowsyBelow...: self = .awake
+    case thresholds.yawningBelow...: self = .drowsy
+    case thresholds.noddingOffBelow...: self = .yawning
+    case thresholds.asleepBelow...: self = .noddingOff
     default: self = .asleep
     }
   }

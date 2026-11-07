@@ -1,45 +1,52 @@
-/// The battery percentages at which the mascot enters each sleepier state while discharging.
-///
-/// Each value is the lowest percentage that still counts as the state above it. With the
-/// defaults, 50% is `awake` and 49% is `drowsy`.
+/// The battery percentages below which a discharging battery makes the mascot sleepier.
 public struct Thresholds: Sendable, Equatable {
-  /// The lowest percentage that is still `awake`.
-  public let drowsy: Int
+  /// Below this percentage the mascot is at least `drowsy`.
+  public let drowsyBelow: Int
 
-  /// The lowest percentage that is still `drowsy`.
-  public let yawning: Int
+  /// Below this percentage the mascot is at least `yawning`.
+  public let yawningBelow: Int
 
-  /// The lowest percentage that is still `yawning`.
-  public let noddingOff: Int
+  /// Below this percentage the mascot is at least `noddingOff`.
+  public let noddingOffBelow: Int
 
-  /// The lowest percentage that is still `noddingOff`. Anything below is `asleep`.
-  public let asleep: Int
+  /// Below this percentage the mascot is `asleep`.
+  public let asleepBelow: Int
 
   /// The spec's defaults: 50, 30, 20 and 10.
   public static let `default` = Thresholds(
-    validatedDrowsy: 50,
-    yawning: 30,
-    noddingOff: 20,
-    asleep: 10
+    validatedDrowsyBelow: 50,
+    yawningBelow: 30,
+    noddingOffBelow: 20,
+    asleepBelow: 10
   )
 
   /// Creates thresholds, or returns `nil` unless the values are strictly descending and each lies
   /// in 1...99.
-  public init?(drowsy: Int, yawning: Int, noddingOff: Int, asleep: Int) {
+  public init?(drowsyBelow: Int, yawningBelow: Int, noddingOffBelow: Int, asleepBelow: Int) {
     guard
-      (1...99).contains(asleep),
-      (1...99).contains(drowsy),
-      drowsy > yawning,
-      yawning > noddingOff,
-      noddingOff > asleep
+      (1...99).contains(asleepBelow),
+      (1...99).contains(drowsyBelow),
+      drowsyBelow > yawningBelow,
+      yawningBelow > noddingOffBelow,
+      noddingOffBelow > asleepBelow
     else { return nil }
-    self.init(validatedDrowsy: drowsy, yawning: yawning, noddingOff: noddingOff, asleep: asleep)
+    self.init(
+      validatedDrowsyBelow: drowsyBelow,
+      yawningBelow: yawningBelow,
+      noddingOffBelow: noddingOffBelow,
+      asleepBelow: asleepBelow
+    )
   }
 
-  private init(validatedDrowsy drowsy: Int, yawning: Int, noddingOff: Int, asleep: Int) {
-    self.drowsy = drowsy
-    self.yawning = yawning
-    self.noddingOff = noddingOff
-    self.asleep = asleep
+  private init(
+    validatedDrowsyBelow drowsyBelow: Int,
+    yawningBelow: Int,
+    noddingOffBelow: Int,
+    asleepBelow: Int
+  ) {
+    self.drowsyBelow = drowsyBelow
+    self.yawningBelow = yawningBelow
+    self.noddingOffBelow = noddingOffBelow
+    self.asleepBelow = asleepBelow
   }
 }
