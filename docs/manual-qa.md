@@ -138,7 +138,7 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 
 ## The cat (slice 8, `CatRenderer`, `MascotScene`, `DockCanvasScene` and `MascotOverlay`)
 
-`CatRenderer` draws an original apricot cat in SpriteKit shapes (cream muzzle, paws and belly, a ginger forehead patch, rosy cheeks, a curled tail) and puts it into the `MascotPose` for its state (tested in `MascotPoseTests`). `MascotScene` holds the cat in the perch window. `DockCanvasScene` draws the veil in a second, Dock-sized window, which `MascotOverlay` orders out whenever the veil is off. After each change, each scene renders two frames and pauses its `SKView`. These checks need the grant. Take a screenshot of each pose (Cmd-Shift-4, then Space and click the cat's window) and attach it to the QA record.
+`CatRenderer` draws an original apricot cat in SpriteKit shapes (cream muzzle, paws and belly, a ginger forehead patch, rosy cheeks, a curled tail) and puts it into the `MascotPose` for its state (tested in `MascotPoseTests`). `MascotScene` holds the cat in the perch window. `DockCanvasScene` draws the veil in a second, Dock-sized window, which `MascotOverlay` orders out whenever the veil is off. After each change, each scene renders one frame and pauses its `SceneHostView`. These checks need the grant. Take a screenshot of each pose (Cmd-Shift-4, then Space and click the cat's window) and attach it to the QA record.
 
 | # | Choose Debug ▸ Simulate battery ▸ … | Expected |
 |---|---|---|

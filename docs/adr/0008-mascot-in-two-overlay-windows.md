@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (job 003, plan slice 8). ADR 0011 replaces `SKView` with `SceneHostView`; the paused-rendering rule below stands.
+Accepted (job 003, plan slice 8). ADR 0011 replaces `SKView` with `SceneHostView`; the paused-rendering rule below stands. The polish pass cut the two frames per change to one, after an on-screen test showed the same pixels.
 
 ## Context
 
