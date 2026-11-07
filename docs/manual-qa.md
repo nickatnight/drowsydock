@@ -190,3 +190,18 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 | 10.6 | 40%, then quickly 25%, 15% and 5% (within a second) | The yawn plays to its end, then one crossfade straight to the asleep pose. No nod-off plays in between. |
 | 10.7 | 80%, then 5%, then hover the Trash in the middle of the crossfade | The cat fades out and comes back in the asleep pose, without replaying the crossfade. |
 | 10.8 | With the Dock auto-hidden and off screen, choose 25%, then show the Dock | The cat appears in the yawning pose at once, without replaying the yawn. |
+
+## The whole Dock nods off (slice 11, `CrowdEffectNode`, `DockCanvasScene`, `MascotOverlay` and `AppCoordinator`)
+
+`CrowdEffectRule` (tested in `CrowdEffectRuleTests`) decides when the effect plays: on entering `asleep` while discharging, once per discharge cycle. Only AC power arms it again. `CrowdWave` (tested in `CrowdWaveTests`) times the wave: 0.15 s between icons, sped up on a crowded Dock so the whole wave takes at most 4 s. `DockGeometry.iconFramesAlongDock` orders the icons (tested in `DockGeometryTests`). `CrowdEffectNode` draws the wave in the Dock window. `AppCoordinator` logs `The whole Dock nods off` (category `mascot`) when it plays, or `… but the overlay isn't showing` when the rule fires while the cat is hidden or faded. The Settings toggle and quiet hours arrive in plan slices 12 and 13. These checks need the grant.
+
+| # | Choose Debug ▸ Simulate battery ▸ … | Expected |
+|---|---|---|
+| 11.1 | 15%, then 5% | As the cat crossfades to sleep and the veil fades in, a wave runs left to right along the Dock: each icon darkens for 0.3 s and puffs a small blue "z" that drifts up and fades. The whole wave ends within 4 s (about 2.5 s for 11 icons). The log shows `The whole Dock nods off` once. |
+| 11.2 | After 11.1: 15%, then 5% again | No wave and no new log line. |
+| 11.3 | After 11.2: Charging, wait for `Awake`, then 5% | The wave plays again, with one new log line. |
+| 11.4 | Charging, then 5%, then 5% again (pick it twice) | One wave only. |
+| 11.5 | With a left Dock, Charging, then 5% | The wave runs from the top icon down, and the "z"s drift right, into the screen. On a right Dock they drift left. |
+| 11.6 | Turn on Dock auto-hide and let the Dock hide. Choose Charging, wait for `Awake`, then 5%. Show the Dock. | No wave, and the log shows `… but the overlay isn't showing`. The cat appears asleep. Choosing 15% and 5% with the Dock shown plays nothing until the next charge. |
+| 11.7 | Charging, then 5%, then hover the Trash in the middle of the wave | The wave stops at once and doesn't resume when the pointer leaves. |
+| 11.8 | Launch the app with the battery simulated or really below 10% | No wave at launch. |

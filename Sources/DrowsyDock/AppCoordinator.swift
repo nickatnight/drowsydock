@@ -14,6 +14,11 @@ final class AppCoordinator {
 
   private static let dockLogger = Logger(subsystem: "com.drowsydock.DrowsyDock", category: "dock")
 
+  private static let mascotLogger = Logger(
+    subsystem: "com.drowsydock.DrowsyDock",
+    category: "mascot"
+  )
+
   // macOS posts this, undocumented, whenever an app's Accessibility grant changes. It is a hint:
   // TCC may not report the new grant at once, so the grant is checked again a moment later.
   private static let accessibilityListChanged = Notification.Name("com.apple.accessibility.api")
@@ -26,16 +31,18 @@ final class AppCoordinator {
   @ObservationIgnored private var accessibilityObserver: (any NSObjectProtocol)?
   @ObservationIgnored private var grantRecheck: Task<Void, Never>?
   @ObservationIgnored private let dockTracker: DockTracker
+  @ObservationIgnored private let overlay = MascotOverlay()
+  @ObservationIgnored private var crowdEffect: CrowdEffectRule
 
   init() {
     isAccessibilityGranted = AccessibilityPermission.isGranted
-    let overlay = MascotOverlay()
-    overlay.show(battery.session.tracker.phase.mood)
-    battery.onPhaseChange = { phase in
-      overlay.show(phase.mood)
-    }
-    dockTracker = DockTracker(spriteSize: MascotOverlay.spriteSize) { presentation in
+    crowdEffect = CrowdEffectRule(startingIn: battery.session.tracker.phase)
+    dockTracker = DockTracker(spriteSize: MascotOverlay.spriteSize) { [overlay] presentation in
       overlay.present(presentation)
+    }
+    overlay.show(battery.session.tracker.phase.mood)
+    battery.onPhaseChange = { [weak self] phase in
+      self?.batteryPhaseDidChange(phase)
     }
     Self.logger.notice("Accessibility granted: \(self.isAccessibilityGranted, privacy: .public)")
 
@@ -80,6 +87,17 @@ final class AppCoordinator {
       Self.dockLogger.error(
         "Dock geometry unavailable: \(String(describing: error), privacy: .public)"
       )
+    }
+  }
+
+  private func batteryPhaseDidChange(_ phase: DrowsinessTracker.Phase) {
+    overlay.show(phase.mood)
+    // The crowd-effect setting and quiet hours arrive in plan slices 12 and 13.
+    guard crowdEffect.phaseChanged(to: phase) else { return }
+    if overlay.playCrowdEffect() {
+      Self.mascotLogger.notice("The whole Dock nods off")
+    } else {
+      Self.mascotLogger.notice("The whole Dock would nod off, but the overlay isn't showing")
     }
   }
 

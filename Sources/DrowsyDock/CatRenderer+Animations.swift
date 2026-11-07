@@ -62,7 +62,7 @@ extension CatRenderer {
   ) {
     let from = pose
     pose = target
-    let duration = Self.seconds(animation.duration)
+    let duration = animation.duration.inSeconds
     switch animation {
     case .crossfade:
       blend(to: target, over: duration)
@@ -277,11 +277,6 @@ extension CatRenderer {
   private static func eased(_ action: SKAction) -> SKAction {
     action.timingMode = .easeInEaseOut
     return action
-  }
-
-  private static func seconds(_ duration: Duration) -> TimeInterval {
-    let (seconds, attoseconds) = duration.components
-    return Double(seconds) + Double(attoseconds) / 1e18
   }
 
   // MARK: - One-shots

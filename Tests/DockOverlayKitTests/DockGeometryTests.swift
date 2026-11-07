@@ -327,6 +327,39 @@ final class DockGeometryTests: XCTestCase {
     XCTAssertEqual(dock.perch(for: mascot).frame, CGRect(x: 996, y: 70, width: 64, height: 64))
   }
 
+  // MARK: - Icons along the Dock
+
+  func testOnABottomDockTheIconsRunLeftToRight() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 830, 700, 70),
+      iconFrames: [ax(1000, 834, 60, 60), ax(380, 834, 60, 60), ax(700, 834, 60, 60)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.iconFramesAlongDock.map(\.minX), [380, 700, 1000])
+  }
+
+  func testOnALeftDockTheIconsRunTopToBottom() {
+    let dock = DockGeometry(
+      listFrame: ax(0, 200, 70, 500),
+      iconFrames: [ax(5, 400, 60, 60), ax(5, 205, 60, 60), ax(5, 600, 60, 60)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    // AX y 205, 400 and 600 are AppKit y 635, 440 and 240 on a 900-point display.
+    XCTAssertEqual(dock.iconFramesAlongDock.map(\.minY), [635, 440, 240])
+  }
+
+  func testOnARightDockTheIconsRunTopToBottom() {
+    let dock = DockGeometry(
+      listFrame: ax(1370, 200, 70, 500),
+      iconFrames: [ax(1375, 600, 60, 60), ax(1375, 205, 60, 60)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.iconFramesAlongDock.map(\.minY), [635, 240])
+  }
+
   func testThePerchStaysOnTheDisplayWhenANarrowRightDockWouldPushItPastTheEdge() {
     let dock = DockGeometry(
       listFrame: ax(1390, 200, 50, 500),

@@ -1,15 +1,18 @@
+import DockOverlayKit
 import SpriteKit
 
 /// A SpriteKit scene that covers the whole Dock, for effects drawn over it: the veil that dims
-/// the Dock while the cat is asleep. Like `MascotScene`, it pauses its view whenever nothing
-/// changes.
+/// the Dock while the cat is asleep, and the crowd effect. Like `MascotScene`, it pauses its view
+/// whenever nothing moves.
 @MainActor
 final class DockCanvasScene: SKScene {
   private static let framesPerChange = 2
 
   private let veil = SKShapeNode()
+  private let crowd = CrowdEffectNode()
   private var dockFrame = CGRect.zero
   private var framesToDraw = 0
+  private var isPlayingCrowdEffect = false
 
   override init() {
     super.init(size: CGSize(width: 1, height: 1))
@@ -20,6 +23,7 @@ final class DockCanvasScene: SKScene {
     veil.strokeColor = .clear
     veil.alpha = 0
     addChild(veil)
+    addChild(crowd.node)
   }
 
   required init?(coder: NSCoder) {
@@ -48,6 +52,30 @@ final class DockCanvasScene: SKScene {
     redraw()
   }
 
+  /// Plays the crowd effect over `iconFrames`, given in this scene's coordinates and in wave
+  /// order, then calls `completion`.
+  func playCrowdEffect(
+    over iconFrames: [CGRect],
+    orientation: DockOrientation,
+    completion: @escaping @MainActor () -> Void
+  ) {
+    isPlayingCrowdEffect = true
+    view?.isPaused = false
+    crowd.play(over: iconFrames, orientation: orientation) { [weak self] in
+      self?.isPlayingCrowdEffect = false
+      self?.redraw()
+      completion()
+    }
+  }
+
+  /// Stops the crowd effect at once.
+  func stopCrowdEffect() {
+    guard isPlayingCrowdEffect else { return }
+    isPlayingCrowdEffect = false
+    crowd.stop()
+    redraw()
+  }
+
   // The window resizes with the Dock, and a paused view would keep showing its old frame.
   override func didChangeSize(_ oldSize: CGSize) {
     super.didChangeSize(oldSize)
@@ -59,6 +87,7 @@ final class DockCanvasScene: SKScene {
       framesToDraw -= 1
       return
     }
+    guard !isPlayingCrowdEffect else { return }
     view?.isPaused = true
   }
 

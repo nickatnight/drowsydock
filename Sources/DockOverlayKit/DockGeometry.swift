@@ -95,6 +95,15 @@ public struct DockGeometry: Equatable, Sendable {
     return DockPerch(frame: CGRect(origin: clamped, size: size), facing: facing)
   }
 
+  /// The icon frames in the order the eye runs along the Dock: left to right on a bottom Dock, top
+  /// to bottom on a side Dock.
+  public var iconFramesAlongDock: [CGRect] {
+    switch orientation {
+    case .bottom: iconFrames.sorted { $0.minX < $1.minX }
+    case .left, .right: iconFrames.sorted { $0.maxY > $1.maxY }
+    }
+  }
+
   /// The perch for a sprite of the given size together with the icon it sits on. While the pointer
   /// is here, the Dock shows that icon's label, which the sprite would cover.
   public func perchRegion(for size: CGSize) -> CGRect {

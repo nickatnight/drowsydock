@@ -2,8 +2,8 @@ import DockOverlayKit
 import DrowsyDockCore
 import SpriteKit
 
-/// Shows the cat on the Dock: the cat in a small window at the perch, and the veil in a second
-/// window over the whole Dock.
+/// Shows the cat on the Dock: the cat in a small window at the perch, and the veil and the crowd
+/// effect in a second window over the whole Dock.
 ///
 /// Two windows rather than one Dock-sized window, so that an animating cat redraws only its own
 /// small canvas. The Dock window is ordered out whenever it has nothing to draw.
@@ -24,6 +24,7 @@ final class MascotOverlay {
   private let canvasWindow: OverlayWindow
   private var presentation = OverlayPresentation.hidden
   private var mood: MascotMood?
+  private var isCrowdEffectPlaying = false
 
   init() {
     catWindow = OverlayWindow(contentView: Self.transparentView(presenting: catScene))
@@ -40,6 +41,21 @@ final class MascotOverlay {
   func show(_ mood: MascotMood?) {
     self.mood = mood
     update()
+  }
+
+  /// Plays the crowd effect over the Dock's icons. Returns `false`, playing nothing, when the
+  /// overlay isn't fully shown, because nobody would see it.
+  func playCrowdEffect() -> Bool {
+    guard mood != nil, case .shown(_, let dock) = presentation else { return false }
+    isCrowdEffectPlaying = true
+    update()
+    let canvas = Self.canvasFrame(around: dock)
+    let icons = dock.iconFramesAlongDock.map { $0.offsetBy(dx: -canvas.minX, dy: -canvas.minY) }
+    canvasScene.playCrowdEffect(over: icons, orientation: dock.orientation) { [weak self] in
+      self?.isCrowdEffectPlaying = false
+      self?.update()
+    }
+    return true
   }
 
   private func update() {
@@ -66,16 +82,27 @@ final class MascotOverlay {
     catScene.show(mood, facing: perch.facing)
     place(catWindow, at: perch.frame, isFaded: isFaded)
 
+    if isFaded {
+      stopCrowdEffect()
+    }
     let pose = MascotPose(for: mood.settledState)
-    guard pose.veilOpacity > 0 else {
+    guard pose.veilOpacity > 0 || isCrowdEffectPlaying else {
       canvasWindow.hide(fading: true)
       return
     }
-    let canvas = dock.frame.insetBy(dx: -Self.canvasMargin, dy: -Self.canvasMargin)
-      .intersection(dock.screenFrame)
+    let canvas = Self.canvasFrame(around: dock)
     canvasScene.layOut(dockFrame: dock.frame.offsetBy(dx: -canvas.minX, dy: -canvas.minY))
     canvasScene.setVeil(opacity: pose.veilOpacity)
     place(canvasWindow, at: canvas, isFaded: isFaded)
+  }
+
+  private static func canvasFrame(around dock: DockGeometry) -> CGRect {
+    dock.frame.insetBy(dx: -canvasMargin, dy: -canvasMargin).intersection(dock.screenFrame)
+  }
+
+  private func stopCrowdEffect() {
+    isCrowdEffectPlaying = false
+    canvasScene.stopCrowdEffect()
   }
 
   private func place(_ window: OverlayWindow, at frame: CGRect, isFaded: Bool) {
@@ -87,6 +114,7 @@ final class MascotOverlay {
   }
 
   private func hide() {
+    stopCrowdEffect()
     catScene.setActive(false)
     catWindow.hide()
     canvasWindow.hide()

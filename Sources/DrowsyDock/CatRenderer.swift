@@ -505,7 +505,7 @@ final class CatRenderer {
 
   // Draws `parts` once into a cached texture, and again only when one of them changes. Moving,
   // scaling or fading the group itself reuses the cache.
-  private static func rasterized(_ parts: [SKNode]) -> SKEffectNode {
+  static func rasterized(_ parts: [SKNode]) -> SKEffectNode {
     let group = SKEffectNode()
     group.shouldRasterize = true
     for part in parts {
