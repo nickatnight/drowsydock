@@ -23,7 +23,6 @@ public final class DockTracker {
   // preference change reads the Dock again.
   private static let relaunchRetryDelays: [Duration] = [0.25, 0.5, 1, 2, 4].map { .seconds($0) }
 
-  private static let dockBundleIdentifier = "com.apple.dock"
   private static let dockPreferencesChanged = Notification.Name("com.apple.dock.prefchanged")
 
   private static let listNotifications = [
@@ -75,10 +74,24 @@ public final class DockTracker {
   private func startTracking() {
     guard !isTracking else { return }
     isTracking = true
-    observe(NotificationCenter.default, NSApplication.didChangeScreenParametersNotification)
-    observe(NSWorkspace.shared.notificationCenter, NSWorkspace.activeSpaceDidChangeNotification)
-    observe(DistributedNotificationCenter.default(), Self.dockPreferencesChanged)
-    observeDockRelaunch()
+    let workspace = NSWorkspace.shared.notificationCenter
+    for (center, name) in [
+      (NotificationCenter.default, NSApplication.didChangeScreenParametersNotification),
+      (workspace, NSWorkspace.activeSpaceDidChangeNotification),
+      (DistributedNotificationCenter.default(), Self.dockPreferencesChanged),
+    ] {
+      observe(center, name) { [weak self] _ in
+        MainActor.assumeIsolated { self?.dockMayHaveChanged() }
+      }
+    }
+    observe(workspace, NSWorkspace.didLaunchApplicationNotification) { [weak self] notification in
+      let application =
+        notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+      let bundleIdentifier = application?.bundleIdentifier
+      MainActor.assumeIsolated {
+        if bundleIdentifier == DockReader.dockBundleIdentifier { self?.dockRelaunched() }
+      }
+    }
     pointerMonitor = NSEvent.addGlobalMonitorForEvents(
       matching: [.mouseMoved, .leftMouseDragged]
     ) { [weak self] _ in
@@ -104,28 +117,12 @@ public final class DockTracker {
     listObserver = nil
   }
 
-  private func observe(_ center: NotificationCenter, _ name: Notification.Name) {
-    let token = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-      MainActor.assumeIsolated { self?.dockMayHaveChanged() }
-    }
-    notificationTokens.append((center, token))
-  }
-
-  private func observeDockRelaunch() {
-    let center = NSWorkspace.shared.notificationCenter
-    let token = center.addObserver(
-      forName: NSWorkspace.didLaunchApplicationNotification,
-      object: nil,
-      queue: .main
-    ) { [weak self] notification in
-      let application =
-        notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-      let bundleIdentifier = application?.bundleIdentifier
-      MainActor.assumeIsolated {
-        guard bundleIdentifier == Self.dockBundleIdentifier else { return }
-        self?.dockRelaunched()
-      }
-    }
+  private func observe(
+    _ center: NotificationCenter,
+    _ name: Notification.Name,
+    handler: @escaping @Sendable (Notification) -> Void
+  ) {
+    let token = center.addObserver(forName: name, object: nil, queue: .main, using: handler)
     notificationTokens.append((center, token))
   }
 

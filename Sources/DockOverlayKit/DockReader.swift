@@ -20,7 +20,7 @@ public enum DockReader {
     case accessibility(attribute: String, code: Int32)
   }
 
-  private static let dockBundleIdentifier = "com.apple.dock"
+  static let dockBundleIdentifier = "com.apple.dock"
   private static let separatorSubrole = "AXSeparatorDockItem"
 
   /// Reads the frames of the Dock's icon list and items, and the display layout.
