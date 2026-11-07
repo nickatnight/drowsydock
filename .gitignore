@@ -10,3 +10,4 @@ xcuserdata/
 *.mobileprovision
 *.provisionprofile
 .env*
+!.env.example

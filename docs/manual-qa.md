@@ -43,6 +43,7 @@ Each `Changed:` line is a status change. `Power source notification` is logged a
 | 3.7 | Check that no timer polls the battery: run `sample DrowsyDock 5` while idle on battery. | The main thread sits in `mach_msg` (run-loop wait). No timer callbacks appear. |
 | 3.8 | On a Mac with no battery (Mac mini, iMac, Mac Studio), open the menu. | The first line reads `No battery detected`. |
 | 3.8a | Sleep the Mac, wake it, then unplug. (This overlaps slice 15.) | The unplug is still logged within 2 s, so the IOKit notification survives sleep. |
+| 3.8b | Placeholder until a slice first releases an `IOKitPowerSource.Subscription` (likely slice 15). Release it while plugging the charger in or pulling it out, so the release can race an IOKit callback. | No crash, no `Changed:` line after the release, and `leaks DrowsyDock` reports 0 leaks. Nothing releases a subscription yet, so this row can't run today. |
 
 ## Debug ▸ Simulate battery (slice 3, `MenuContent`)
 
