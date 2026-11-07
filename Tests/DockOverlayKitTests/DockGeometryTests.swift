@@ -109,6 +109,44 @@ final class DockGeometryTests: XCTestCase {
     XCTAssertEqual(dock.orientation, .right)
   }
 
+  func testALeftDockOnADisplayToTheRightOfThePrimary() {
+    let external = CGRect(x: 1440, y: 0, width: 1920, height: 1080)
+    let dock = DockGeometry(
+      listFrame: ax(1440, 100, 70, 500),
+      iconFrames: [ax(1445, 105, 60, 60)],
+      layout: DisplayLayout(primary: laptop, others: [external])
+    )
+
+    XCTAssertEqual(dock.screenFrame, external)
+    XCTAssertEqual(dock.orientation, .left)
+    XCTAssertEqual(dock.perch(for: mascot).facing, .right)
+  }
+
+  func testARightDockOnADisplayWithANegativeOrigin() {
+    let leftOfLaptop = CGRect(x: -1920, y: 0, width: 1920, height: 1080)
+    let dock = DockGeometry(
+      listFrame: ax(-70, 100, 70, 500),
+      iconFrames: [ax(-65, 105, 60, 60)],
+      layout: DisplayLayout(primary: laptop, others: [leftOfLaptop])
+    )
+
+    XCTAssertEqual(dock.screenFrame, leftOfLaptop)
+    XCTAssertEqual(dock.orientation, .right)
+    XCTAssertEqual(dock.perch(for: mascot).facing, .left)
+  }
+
+  func testWithThreeDisplaysTheDockBelongsToTheNearestNotTheLastCloserThanThePrimary() {
+    let middle = CGRect(x: 1440, y: 0, width: 1920, height: 1080)
+    let farRight = CGRect(x: 3360, y: 0, width: 1920, height: 1080)
+    let dock = DockGeometry(
+      listFrame: ax(2800, 830, 500, 70),
+      iconFrames: [],
+      layout: DisplayLayout(primary: laptop, others: [middle, farRight])
+    )
+
+    XCTAssertEqual(dock.screenFrame, middle)
+  }
+
   func testADockStraddlingTwoDisplaysBelongsToTheOneHoldingItsCentre() {
     let external = CGRect(x: 1440, y: 0, width: 1920, height: 1080)
     let dock = DockGeometry(
@@ -175,6 +213,16 @@ final class DockGeometryTests: XCTestCase {
     XCTAssertFalse(dock.isHidden)
   }
 
+  func testADockTwoPointsPastTheDisplayEdgeIsHidden() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 832, 700, 70),
+      iconFrames: [],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertTrue(dock.isHidden)
+  }
+
   // MARK: - Perch
 
   func testOnABottomDockThePerchSitsOnTheTopEdgeInsideTheLastIcon() {
@@ -235,5 +283,15 @@ final class DockGeometryTests: XCTestCase {
     )
 
     XCTAssertEqual(dock.perch(for: mascot).frame, CGRect(x: 0, y: 836, width: 64, height: 64))
+  }
+
+  func testThePerchStaysOnTheDisplayWhenANarrowRightDockWouldPushItPastTheEdge() {
+    let dock = DockGeometry(
+      listFrame: ax(1390, 200, 50, 500),
+      iconFrames: [ax(1395, 205, 40, 40)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.perch(for: mascot).frame, CGRect(x: 1376, y: 700, width: 64, height: 64))
   }
 }

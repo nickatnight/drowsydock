@@ -40,6 +40,9 @@ final class DockTrackerTests: XCTestCase {
 
   private let awayFromTheDock = CGPoint(x: 700, y: 600)
   private let overTheDock = CGPoint(x: 700, y: 30)
+  // Above the resting Dock's top edge (y 70) but inside its hover region (up to y 198), where a
+  // magnified icon can be.
+  private let nearTheDock = CGPoint(x: 700, y: 150)
 
   private func trackerHoveringOverTheDock() -> DockTrackerState {
     var tracker = trackerWithAccessibility()
@@ -118,6 +121,15 @@ final class DockTrackerTests: XCTestCase {
     XCTAssertEqual(tracker.presentation, .hidden)
   }
 
+  func testTheOverlayReturnsWhenAnAutoHiddenDockComesBackOnScreen() {
+    var tracker = trackerWithAccessibility()
+    tracker.dockRead(autoHiddenDock)
+
+    tracker.dockRead(bottomDock)
+
+    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite)))
+  }
+
   func testAFailedReadHidesTheOverlay() {
     var tracker = trackerWithAccessibility()
     tracker.dockRead(bottomDock)
@@ -156,6 +168,16 @@ final class DockTrackerTests: XCTestCase {
     )
 
     XCTAssertTrue(DockGeometry.isMagnified(current: magnifiedLeftDock, resting: restingLeftDock))
+  }
+
+  func testGrowthOfTwoPointsIsMagnification() {
+    let twoPointsTaller = DockGeometry(
+      listFrame: AXRect(CGRect(x: 370, y: 828, width: 700, height: 72)),
+      iconFrames: [AXRect(CGRect(x: 1000, y: 834, width: 60, height: 60))],
+      layout: laptop
+    )
+
+    XCTAssertTrue(DockGeometry.isMagnified(current: twoPointsTaller, resting: bottomDock))
   }
 
   func testAGrownIconInAnUnchangedListIsMagnified() {
@@ -234,6 +256,35 @@ final class DockTrackerTests: XCTestCase {
 
     XCTAssertFalse(tracker.runsFrameChecks)
     XCTAssertTrue(tracker.awaitsSettledRead)
+  }
+
+  func testFrameChecksRunWhileThePointerIsNearTheDockAboveItsFrame() {
+    var tracker = trackerWithAccessibility()
+    tracker.dockRead(bottomDock)
+
+    tracker.pointerMoved(to: nearTheDock)
+
+    XCTAssertTrue(tracker.runsFrameChecks)
+  }
+
+  func testThePointerOverAMagnifiedIconAboveTheFrameKeepsTheDockHovered() {
+    var tracker = trackerHoveringOverTheDock()
+    tracker.frameChecked(magnifiedDock)
+
+    tracker.pointerMoved(to: nearTheDock)
+
+    XCTAssertTrue(tracker.runsFrameChecks)
+    XCTAssertFalse(tracker.awaitsSettledRead)
+    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite)))
+  }
+
+  func testThePointerReturningNearTheDockWhileSettlingResumesFrameChecks() {
+    var tracker = trackerHoveringOverTheDock()
+    tracker.pointerMoved(to: awayFromTheDock)
+
+    tracker.pointerMoved(to: nearTheDock)
+
+    XCTAssertTrue(tracker.runsFrameChecks)
   }
 
   func testNoFrameChecksRunWithoutTheGrantWhereverThePointerIs() {
@@ -327,6 +378,15 @@ final class DockTrackerTests: XCTestCase {
     XCTAssertEqual(tracker.presentation, .shown(tallerDockOnExternal.perch(for: sprite)))
   }
 
+  func testAFailedTriggeredReadWhileHoveringKeepsTheOverlay() {
+    var tracker = trackerHoveringOverTheDock()
+
+    tracker.dockRead(nil)
+
+    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite)))
+    XCTAssertTrue(tracker.runsFrameChecks)
+  }
+
   func testAFailedFrameCheckChangesNothing() {
     var tracker = trackerHoveringOverTheDock()
     tracker.frameChecked(magnifiedDock)
@@ -364,6 +424,23 @@ final class DockTrackerTests: XCTestCase {
     tracker.pointerMoved(to: awayFromTheDock)
 
     XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite)))
+  }
+
+  func testAnUnmagnifiedDockStaysShownWhileSettling() {
+    var tracker = trackerHoveringOverTheDock()
+
+    tracker.pointerMoved(to: awayFromTheDock)
+
+    XCTAssertEqual(tracker.presentation, .shown(bottomDock.perch(for: sprite)))
+  }
+
+  func testAFailedSettledReadHidesTheOverlay() {
+    var tracker = trackerHoveringOverTheDock()
+    tracker.pointerMoved(to: awayFromTheDock)
+
+    tracker.dockRead(nil)
+
+    XCTAssertEqual(tracker.presentation, .hidden)
   }
 
   func testTheSettledReadShowsTheOverlayAtTheNewPerch() {

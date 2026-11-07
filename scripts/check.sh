@@ -105,9 +105,10 @@ unexplained_suppressions='
   function is_format_directive(line) {
     return line ~ /^[[:space:]]*\/\/[[:space:]]*swift-format-ignore/
   }
-  # A plain // comment with words in it. A /// doc comment or a directive is not a reason.
+  # A plain // comment with words in it. A /// doc comment, a directive or a MARK is not a reason.
   function is_reason(line) {
-    return line ~ /^[[:space:]]*\/\/[^\/]/ && line !~ /swift-format-ignore/ && line ~ /[[:alpha:]]/
+    return line ~ /^[[:space:]]*\/\/[^\/]/ && line !~ /swift-format-ignore/ &&
+      line !~ /^[[:space:]]*\/\/[[:space:]]*MARK:/ && line ~ /[[:alpha:]]/
   }
   function has_trailing_reason(line) { return line ~ /(^|[^\/])\/\/[^\/]*[[:alpha:]]/ }
   function report() { print FILENAME ":" FNR ": " $0; found = 1 }

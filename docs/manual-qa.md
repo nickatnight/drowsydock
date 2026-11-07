@@ -72,7 +72,7 @@ Start these checks without the grant: `tccutil reset Accessibility com.drowsydoc
 |---|---|---|
 | 4.1 | Without the grant, open the menu. | Below the battery line: `Grant Accessibility…`. No overlay is drawn anywhere. The log shows `Accessibility granted: false`. |
 | 4.2 | Choose `Grant Accessibility…`. | macOS shows its "would like to control this computer" alert, and System Settings opens at Privacy & Security ▸ Accessibility with DrowsyDock in the list. |
-| 4.3 | Turn DrowsyDock on in that list, then open the menu again. Don't relaunch. | The item reads `Accessibility: Granted`, and the log shows `Accessibility granted: true`. |
+| 4.3 | Turn DrowsyDock on in that list, then open the menu again. Don't relaunch. | The item reads `Accessibility: Granted`, and the log shows `Accessibility granted: true`. Within 1 s the pink outline appears on the Dock, and the log shows `Observing the Dock list for:`. |
 | 4.4 | Turn DrowsyDock off in the list, then open the menu again. | The item is back to `Grant Accessibility…`, and the overlay disappears. |
 
 ## Dock geometry (slice 5, `DockReader`)
@@ -86,7 +86,9 @@ To compare numbers, read the Dock's on-screen frame with Accessibility Inspector
 | 5.1 | With a bottom Dock on the main display, choose Debug ▸ Log Dock geometry. | `orientation: …bottom`, `hidden: false`. `frame` starts at y = 0 and matches the Dock's width and height. `iconFrames` has one entry per Dock item, with no separators. `screenFrame` is the main display's frame. |
 | 5.2 | Move the Dock to the left, then the right (System Settings ▸ Desktop & Dock ▸ Position on screen), and log again each time. | `orientation` reads `left`, then `right`. `perch` sits above the topmost icon, facing `right` on a left Dock and `left` on a right Dock. |
 | 5.3 | With a second display, move the Dock to it (move the pointer to that display's bottom edge and wait), then log. | `screenFrame` is the second display's frame. On a display arranged above or to the left of the main one, the frame has a y above the main display's height or a negative x. |
+| 5.3a | With the Dock on a second display arranged to the right of the main one, set Position on screen to Left and log, then Right and log. Repeat with a display arranged to the left of the main one. | `orientation` reads `left` and then `right` on every display, never the opposite. `perch` faces `right` on a left Dock and `left` on a right Dock. |
 | 5.4 | Turn on "Automatically hide and show the Dock", move the pointer away so the Dock hides, then log from the menu. | `hidden: true`. The frame lies partly or fully below (or beside) its display. |
+| 5.4a | Arrange two displays vertically (one above the other), put the Dock at the bottom of the upper display, turn on auto-hide and let the Dock hide. Log, and look at the top of the lower display. | `hidden: true`, and no outline anywhere, including at the top of the lower display. The pure logic would call a hidden frame that lands on the lower display visible. If the log shows that (`hidden: false` with the frame on the lower display), file it, so a unit test can pin the fix. |
 | 5.5 | With the Dock visible, compare `perch` with the screen. | On a bottom Dock, a 64-point square whose bottom edge is the Dock's top edge and whose right edge is the last icon's right edge. |
 
 ## Overlay window (slice 6, `OverlayWindow`)
@@ -107,7 +109,7 @@ To compare numbers, read the Dock's on-screen frame with Accessibility Inspector
 
 `DockTracker` re-reads the Dock on Accessibility notifications from its list, display changes (`NSApplication.didChangeScreenParametersNotification`), `com.apple.dock.prefchanged`, Space changes and a Dock relaunch. Each event triggers a read at once and another 0.5 s later. While the pointer is within 128 points of the Dock, a once-a-second frame check also runs, which catches magnification. `DockTrackerState` makes every decision (tested in `DockTrackerTests`). `AppDelegate` owns the `AppCoordinator` and starts tracking in `applicationDidFinishLaunching`. Logs: category `dock`, with `--level debug` for `Frame checks started` and `Frame checks stopped`.
 
-Checkpoint B (Milestone 2) passes when 7.1 to 7.9 pass with the debug outline. These checks need the grant.
+Checkpoint B (Milestone 2) passes when 7.1 to 7.12 (including 7.5a and 7.5b) pass with the debug outline. These checks need the grant.
 
 | # | Check | Expected |
 |---|---|---|
@@ -117,7 +119,12 @@ Checkpoint B (Milestone 2) passes when 7.1 to 7.9 pass with the debug outline. T
 | 7.3 | With two displays, move the Dock to the other display (pointer at its bottom edge). | The outline moves to that display within 1 s. |
 | 7.4 | Turn on "Automatically hide and show the Dock" and move the pointer away. | Within 1 s of the Dock hiding, the outline is hidden and the log shows `Overlay: hidden`. If it shows while the Dock is revealed, it must hide again within 1 s of the Dock hiding. Turn auto-hide off: the outline returns within 1 s. |
 | 7.5 | Turn on Magnification, hover over the icons, then move the pointer up and away. | The outline fades out while the Dock is magnified. It fades back in within 1 s of the Dock shrinking back, at the same perch. |
+| 7.5a | With Magnification on, magnify the icons, then move the pointer straight up just above the icons (still within about 100 points of the Dock) so the Dock shrinks back while the pointer stays near it. | The outline fades back in within 1 s, from the once-a-second frame check, without the pointer leaving the area. |
+| 7.5b | Turn Magnification off and hover over the icons. | The outline never fades. The log may show `Frame checks started`, but no `Overlay: fadedOut` line. |
 | 7.6 | Leave the pointer away from the Dock, then run `sample DrowsyDock 5`. | No timer fires: no `__CFRUNLOOP_IS_CALLING_OUT_TO_A_TIMER_CALLBACK_FUNCTION__` frames, and the main thread waits in `mach_msg`. The log's last frame-check line is `Frame checks stopped`. Rest the pointer on the Dock: `Frame checks started`. |
 | 7.7 | Make an app full screen, then leave it again. | In the full-screen Space the outline is hidden while the Dock is hidden. It returns within 1 s of leaving full screen. Switching between ordinary Spaces leaves it in place. |
 | 7.8 | Run `killall Dock`. | The Dock relaunches. The log shows `The Dock relaunched` or `The Dock list was destroyed`; note which one, or both. The outline returns once the Dock's icons are back, within 1 s of them appearing. The tracker retries after 0.25, 0.5, 1, 2 and 4 s, so a Dock still missing after 7.75 s leaves the outline hidden until the next display, Space or Dock preference change. |
 | 7.9 | With the pointer away from the Dock, run the idle CPU measurement from CONSTRAINTS.md. | The average is at most 1.0%. |
+| 7.10 | Change the main display's resolution or scaled size (System Settings ▸ Displays). | Within 1 s of the change the outline is back at the Dock's perch. This change moves `primary.maxY`, which every Accessibility-to-AppKit conversion uses. |
+| 7.11 | With two displays, drag one to a new position in Displays ▸ Arrange. | Within 1 s the outline is back at the perch on the display holding the Dock. |
+| 7.12 | Unplug the display that holds the Dock. | The Dock moves to the remaining display, and within 1 s of it settling the outline is at its perch there. |

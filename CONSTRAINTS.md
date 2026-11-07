@@ -4,7 +4,7 @@ Last reviewed: 2026-11-06 (draft, emgee job 001-foundation, from the skill defau
 
 ## Floor (always enforced)
 
-- No new suppressions: `// swift-format-ignore`, `@preconcurrency` imports, `nonisolated(unsafe)` or `@unchecked Sendable` unless a one-line comment explains why the type is safe.
+- No new suppressions: `// swift-format-ignore`, `@preconcurrency` imports, `nonisolated(unsafe)` or `@unchecked Sendable` unless a one-line comment explains why the type is safe. The comment is a plain `//` line directly above, or a `//` comment after the code on the same line. For `// swift-format-ignore` only the line above counts. A `///` doc comment or a `// MARK:` line is not an explanation.
 - No unimplemented stubs: `fatalError("TODO")` or `fatalError("not implemented")`, an empty `catch {}`, or `try!` outside tests.
 - No skipped or deleted tests without a reason in the commit message.
 - No secrets in source: no certificates, `.p12` files, notarytool credentials or Apple IDs.
