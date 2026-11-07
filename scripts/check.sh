@@ -255,7 +255,9 @@ coverage_exempt_files_are_in_manual_qa
 step "Secrets"
 # gitleaks matches text, so binary signing material needs its own check.
 signing_files="$(git ls-files --cached --others --exclude-standard -- \
-  '*.p12' '*.cer' '*.p8' '*.mobileprovision' '*.provisionprofile')"
+  ':(icase)*.p12' ':(icase)*.pfx' ':(icase)*.cer' ':(icase)*.der' ':(icase)*.p8' \
+  ':(icase)*.pem' ':(icase)*.key' ':(icase)*.keychain' ':(icase)*.keychain-db' \
+  ':(icase)*.mobileprovision' ':(icase)*.provisionprofile')"
 if [[ -n $signing_files ]]; then
   echo "Secrets: signing material must never be committed:" >&2
   echo "$signing_files" >&2
@@ -285,6 +287,11 @@ coverage_gate
 step "Bundle"
 scripts/bundle.sh
 codesign --verify --strict build/DrowsyDock.app
+signature="$(codesign -dv build/DrowsyDock.app 2>&1)"
+if ! grep -Eq '^CodeDirectory .*flags=0x[0-9a-f]+\([^)]*runtime' <<<"$signature"; then
+  echo "Bundle: the signature lacks the hardened runtime (codesign --options runtime)" >&2
+  exit 1
+fi
 plutil -lint Resources/Info.plist
 
 step "task checks passed"

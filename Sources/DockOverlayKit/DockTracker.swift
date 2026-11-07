@@ -9,6 +9,9 @@ import os
 /// Dock preference changes, Space changes and a Dock relaunch. The Dock posts nothing when it
 /// magnifies, so a once-a-second frame check runs, but only while the pointer is near the Dock.
 /// `DockTrackerState` makes every decision; this class only feeds it events and applies them.
+///
+/// It has no teardown on deinit, so it must live as long as the app. Calling
+/// `accessibilityChanged(isGranted: false)` stops every observer, monitor and timer.
 @MainActor
 public final class DockTracker {
   private static let frameCheckInterval: TimeInterval = 1
@@ -87,9 +90,9 @@ public final class DockTracker {
     observe(workspace, NSWorkspace.didLaunchApplicationNotification) { [weak self] notification in
       let application =
         notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-      let bundleIdentifier = application?.bundleIdentifier
+      let isDock = application.map(DockReader.isDock) ?? false
       MainActor.assumeIsolated {
-        if bundleIdentifier == DockReader.dockBundleIdentifier { self?.dockRelaunched() }
+        if isDock { self?.dockRelaunched() }
       }
     }
     pointerMonitor = NSEvent.addGlobalMonitorForEvents(
@@ -114,6 +117,8 @@ public final class DockTracker {
     followUpRead = nil
     relaunchRetry?.cancel()
     relaunchRetry = nil
+    frameCheckTimer?.invalidate()
+    frameCheckTimer = nil
     listObserver = nil
   }
 
@@ -207,7 +212,7 @@ public final class DockTracker {
     let presentation = state.presentation
     if presentation != appliedPresentation {
       appliedPresentation = presentation
-      logger.notice("Overlay: \(String(describing: presentation), privacy: .public)")
+      logger.debug("Overlay: \(String(describing: presentation), privacy: .public)")
       onPresentationChange(presentation)
     }
     updateFrameCheckTimer()
@@ -253,6 +258,7 @@ private final class DockListObserver {
   let notifications: [String]
 
   private let observer: AXObserver
+  private let list: AXUIElement
   private let callbackContext: Unmanaged<Callback>
 
   init(
@@ -283,10 +289,14 @@ private final class DockListObserver {
     }
     CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(created), .commonModes)
     observer = created
+    self.list = list
     self.callbackContext = callbackContext
   }
 
   deinit {
+    for notification in notifications {
+      AXObserverRemoveNotification(observer, list, notification as CFString)
+    }
     CFRunLoopSourceInvalidate(AXObserverGetRunLoopSource(observer))
     // The observer may be running the callback on the main thread right now, so free its context
     // on the main queue, after that callback returns. This holds because `init` adds the source

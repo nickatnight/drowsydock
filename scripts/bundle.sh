@@ -18,5 +18,7 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin_dir/DrowsyDock" "$app/Contents/MacOS/DrowsyDock"
 cp Resources/Info.plist "$app/Contents/Info.plist"
 
-codesign --force --sign "$sign_identity" "$app"
+# The hardened runtime makes dyld ignore DYLD_* variables, so no other process can inject code
+# into an app that holds the Accessibility grant.
+codesign --force --options runtime --sign "$sign_identity" "$app"
 echo "Built $app (signed with identity '$sign_identity')"

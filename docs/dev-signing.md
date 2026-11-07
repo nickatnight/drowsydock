@@ -6,6 +6,10 @@ A self-signed code-signing certificate keeps the signature's identity the same a
 
 The scripts never create certificates or touch the keychain. You run these steps yourself, once.
 
+## Hardened runtime
+
+`scripts/bundle.sh` signs with `--options runtime`, whatever the identity, and `scripts/check.sh task` fails if the signature lacks the `runtime` flag. With the hardened runtime, dyld ignores `DYLD_INSERT_LIBRARIES` and the other `DYLD_*` variables. A stable identity is safe only because of this: without it, any process running as you could launch DrowsyDock with an injected library and use its Accessibility grant without a prompt. Don't add the `com.apple.security.cs.allow-dyld-environment-variables` or `com.apple.security.cs.disable-library-validation` entitlements.
+
 ## Create the certificate
 
 1. Open Keychain Access and choose Keychain Access ▸ Certificate Assistant ▸ Create a Certificate….

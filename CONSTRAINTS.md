@@ -20,7 +20,7 @@ Last reviewed: 2026-11-06 (draft, emgee job 001-foundation, from the skill defau
 | Secrets | No findings | `gitleaks detect --redact --no-banner` | every edit |
 | Tests | All pass | `swift test` | task end (`check.sh task`) |
 | Coverage | Changed lines in `Sources/DrowsyDockCore/**` and the pure files of `Sources/DockOverlayKit/**` ≥ 80% covered. Why 80%: it forces a test for every rule without forcing tests for trivial initialisers. | `swift test --enable-code-coverage` → `xcrun llvm-cov export -format=lcov` intersected with `git diff` | task end |
-| Bundle | The app assembles, the signature verifies and the plist is valid | `scripts/bundle.sh && codesign --verify --strict build/DrowsyDock.app && plutil -lint Resources/Info.plist` | task end |
+| Bundle | The app assembles, the signature verifies with the hardened runtime, and the plist is valid. No entitlement may re-enable DYLD variables or disable library validation. | `scripts/bundle.sh && codesign --verify --strict build/DrowsyDock.app && codesign -dv build/DrowsyDock.app` (flags include `runtime`) `&& plutil -lint Resources/Info.plist` | task end |
 | Idle CPU (external) | Average ≤ 1.0% in `awake`, ≤ 3.0% in `noddingOff`/`asleep`, over 60 s. Why: a novelty app must never show up in Activity Monitor. 1% is below the noise of a typical menu-bar utility. Looping states get 3× that for a 30 fps loop. | `top -l 61 -s 1 -stats cpu -pid $(pgrep -x DrowsyDock) \| awk 'NR>1 && /^[0-9.]+[[:space:]]*$/ {s+=$1; n++} END {print s/n}'` | manual QA (needs the Accessibility grant) |
 
 Exempt from coverage: thin adapters over IOKit, AX, AppKit, SpriteKit and ServiceManagement. Each of these must have an entry in `docs/manual-qa.md` instead.

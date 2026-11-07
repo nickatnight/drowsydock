@@ -20,7 +20,13 @@ public enum DockReader {
     case accessibility(attribute: String, code: Int32)
   }
 
-  static let dockBundleIdentifier = "com.apple.dock"
+  // Another app could declare the Dock's bundle identifier, so the path must match too.
+  private nonisolated static let dockBundleIdentifier = "com.apple.dock"
+  private nonisolated static let dockPath = "/System/Library/CoreServices/Dock.app"
+
+  // The default is about 6 s. Every read runs on the main thread, so a busy or half-started Dock
+  // would freeze the app that long for each call. A healthy Dock answers well within this.
+  private static let messagingTimeout: Float = 0.5
   private static let separatorSubrole = "AXSeparatorDockItem"
 
   /// Reads the frames of the Dock's icon list and items, and the display layout.
@@ -39,14 +45,19 @@ public enum DockReader {
     )
   }
 
+  /// Whether `application` is the system Dock.
+  nonisolated static func isDock(_ application: NSRunningApplication) -> Bool {
+    application.bundleIdentifier == dockBundleIdentifier && application.bundleURL?.path == dockPath
+  }
+
   /// Returns the Dock's process identifier and its icon-list element.
   static func iconList() throws(Failure) -> (processIdentifier: pid_t, element: AXUIElement) {
-    guard
-      let dock = NSRunningApplication.runningApplications(
-        withBundleIdentifier: dockBundleIdentifier
-      ).first
-    else { throw .dockNotRunning }
+    let dock = NSRunningApplication.runningApplications(withBundleIdentifier: dockBundleIdentifier)
+      .first { isDock($0) }
+    guard let dock else { throw .dockNotRunning }
     let application = AXUIElementCreateApplication(dock.processIdentifier)
+    // Elements read from `application` inherit its timeout.
+    _ = AXUIElementSetMessagingTimeout(application, messagingTimeout)
     let children = try elements(kAXChildrenAttribute, of: application)
     let list = children.first { (try? string(kAXRoleAttribute, of: $0)) == kAXListRole }
     guard let list else { throw .noIconList }
@@ -80,10 +91,13 @@ public enum DockReader {
     _ attribute: String,
     of element: AXUIElement
   ) throws(Failure) -> [AXUIElement] {
-    guard let elements = try copy(attribute, of: element) as? [AXUIElement] else {
+    // A cast to `[AXUIElement]` wouldn't check the elements, because casts to CoreFoundation
+    // types are unchecked. So keep only the values whose type ID is an element's.
+    guard let values = try copy(attribute, of: element) as? [CFTypeRef] else {
       throw .accessibility(attribute: attribute, code: AXError.illegalArgument.rawValue)
     }
-    return elements
+    // The type ID filter makes each cast safe.
+    return values.filter { CFGetTypeID($0) == AXUIElementGetTypeID() }.map { $0 as! AXUIElement }
   }
 
   private static func string(_ attribute: String, of element: AXUIElement) throws(Failure) -> String
