@@ -18,7 +18,7 @@ case "$mode" in
 esac
 
 coverage_minimum=80
-adapter_imports='^import (AppKit|ApplicationServices|Cocoa|IOKit|ServiceManagement|SpriteKit|SwiftUI)'
+coverage_exempt_imports='^import (AppKit|ApplicationServices|Cocoa|IOKit|ServiceManagement|SpriteKit|SwiftUI)'
 
 step() { printf '\n==> %s\n' "$*"; }
 
@@ -28,7 +28,7 @@ gated_files() {
     [[ -e $file ]] && echo "$file"
   done
   for file in Sources/DockOverlayKit/*.swift; do
-    [[ -e $file ]] && ! grep -Eq "$adapter_imports" "$file" && echo "$file"
+    [[ -e $file ]] && ! grep -Eq "$coverage_exempt_imports" "$file" && echo "$file"
   done
   return 0
 }
