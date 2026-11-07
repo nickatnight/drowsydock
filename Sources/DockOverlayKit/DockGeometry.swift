@@ -32,7 +32,7 @@ public struct DockPerch: Equatable, Sendable {
 public struct DockGeometry: Equatable, Sendable {
   // Absorbs rounding between Accessibility frames and display frames, so that a Dock flush with
   // the display edge counts as on screen, and a half-point difference doesn't count as growth.
-  private static let edgeTolerance: CGFloat = 1
+  private static let roundingTolerance: CGFloat = 1
 
   // The largest magnified icon size that System Settings allows, in points.
   private static let largestMagnifiedIconSize: CGFloat = 128
@@ -60,8 +60,8 @@ public struct DockGeometry: Equatable, Sendable {
 
   /// Whether the Dock is off screen, as an auto-hidden Dock is until the pointer reaches the edge.
   public var isHidden: Bool {
-    let edge = Self.edgeTolerance
-    return frame.isEmpty || !screenFrame.insetBy(dx: -edge, dy: -edge).contains(frame)
+    let tolerance = Self.roundingTolerance
+    return frame.isEmpty || !screenFrame.insetBy(dx: -tolerance, dy: -tolerance).contains(frame)
   }
 
   /// Returns where a sprite of the given size perches.
@@ -106,7 +106,8 @@ public struct DockGeometry: Equatable, Sendable {
   }
 
   private static func grew(from resting: CGRect, to current: CGRect) -> Bool {
-    current.width > resting.width + edgeTolerance || current.height > resting.height + edgeTolerance
+    current.width > resting.width + roundingTolerance
+      || current.height > resting.height + roundingTolerance
   }
 
   // The Dock always holds at least Finder and the Trash, so a bottom Dock is wider than it is
