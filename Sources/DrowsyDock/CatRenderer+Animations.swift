@@ -6,12 +6,44 @@ extension CatRenderer {
   private static let floatingZName = "floatingZ"
   private static let sparkleName = "sparkle"
 
+  private typealias BlinkTiming = (close: Double, hold: Double, open: Double)
+
   private enum Timing {
-    static let blink = (close: 0.08, hold: 0.04, open: 0.12)
-    static let slowBlink = (close: 0.4, hold: 0.25, open: 0.45)
+    static let blink: BlinkTiming = (close: 0.08, hold: 0.04, open: 0.12)
+    static let slowBlink: BlinkTiming = (close: 0.4, hold: 0.25, open: 0.45)
     static let zSpawnInterval = 1.6
     static let zRise = 2.6
     static let breath = (inhale: 1.5, exhale: 1.7)
+    static let lashFade = 0.1
+  }
+
+  // The phases of the yawn and nod, in order. The mouth and the eyelids follow the head.
+  private enum YawnAndNod {
+    static let leanBack = 0.5
+    static let holdYawn = 0.9
+    static let straighten = 0.4
+    static let nodDown = 0.6
+    static let jerkUp = 0.22
+    static let length = leanBack + holdYawn + straighten + nodDown + jerkUp
+  }
+
+  // The nod-off's last phase, the settle, takes whatever `MascotAnimation.nodOff` leaves.
+  private enum NodOff {
+    static let droop = 1.3
+    static let jerk = 0.15
+    static let jerkOpenness = 0.35
+  }
+
+  // The wake-up holds the open eyes until a final blink that ends with `MascotAnimation.wakeUp`.
+  private enum WakeUp {
+    static let snapOpen = 0.08
+    static let earsUp = 0.12
+    static let pop = 0.15
+    static let headStraighten = 0.18
+    static let stretchDelay = 0.28
+    static let stretch = 0.35
+    static let firstSparkle = 0.5
+    static let sparkleInterval = 0.25
   }
 
   /// Plays `gesture` once, then calls `completion` on the main actor.
@@ -113,7 +145,7 @@ extension CatRenderer {
   }
 
   private func yawn(into target: MascotPose) {
-    let settle = 0.5
+    let settle = MascotAnimation.yawn.duration.inSeconds - YawnAndNod.length
     blend(to: target, over: settle)
     torso.run(
       .sequence([
@@ -125,106 +157,112 @@ extension CatRenderer {
   }
 
   private func nodOff(into target: MascotPose) {
+    let settleTime = MascotAnimation.nodOff.duration.inSeconds - NodOff.droop - NodOff.jerk
     let tilt = Self.radians(target.headTiltDegrees)
     let neck = Metrics.neck
     let droop = SKAction.group([
-      .rotate(toAngle: tilt + Self.radians(14), duration: 1.3),
-      .moveTo(y: neck.y - 2, duration: 1.3),
+      .rotate(toAngle: tilt + Self.radians(14), duration: NodOff.droop),
+      .moveTo(y: neck.y - 2, duration: NodOff.droop),
     ])
     let jerk = SKAction.group([
-      .rotate(toAngle: tilt - Self.radians(3), duration: 0.15),
-      .moveTo(y: neck.y + 0.6, duration: 0.15),
+      .rotate(toAngle: tilt - Self.radians(3), duration: NodOff.jerk),
+      .moveTo(y: neck.y + 0.6, duration: NodOff.jerk),
     ])
     let settle = SKAction.group([
-      .rotate(toAngle: tilt, duration: 0.6),
-      .moveTo(y: neck.y, duration: 0.6),
+      .rotate(toAngle: tilt, duration: settleTime),
+      .moveTo(y: neck.y, duration: settleTime),
     ])
     droop.timingMode = .easeIn
     jerk.timingMode = .easeOut
     settle.timingMode = .easeInEaseOut
     head.run(.sequence([droop, jerk, settle]), withKey: Self.animationKey)
 
+    let jerkOpenness = max(target.eyelidOpenness, NodOff.jerkOpenness)
     run(
       .sequence([
-        .moveTo(y: Self.lidEdge(at: 0), duration: 1.0),
-        .wait(forDuration: 0.3),
-        .moveTo(y: Self.lidEdge(at: max(target.eyelidOpenness, 0.35)), duration: 0.12),
-        Self.eased(.moveTo(y: Self.lidEdge(at: target.eyelidOpenness), duration: 0.6)),
+        .moveTo(y: Self.lidEdge(at: 0), duration: NodOff.droop),
+        .moveTo(y: Self.lidEdge(at: jerkOpenness), duration: NodOff.jerk),
+        Self.eased(.moveTo(y: Self.lidEdge(at: target.eyelidOpenness), duration: settleTime)),
       ]),
       on: lids
     )
-    run(.fadeIn(withDuration: 0.2), on: lashes)
+    run(.fadeIn(withDuration: Timing.lashFade), on: lashes)
     let droopEars = CGFloat(target.earDroop) * Metrics.maxEarDroop
-    ears[0].run(.rotate(toAngle: droopEars, duration: 1.3), withKey: Self.animationKey)
-    ears[1].run(.rotate(toAngle: -droopEars, duration: 1.3), withKey: Self.animationKey)
+    ears[0].run(.rotate(toAngle: droopEars, duration: NodOff.droop), withKey: Self.animationKey)
+    ears[1].run(.rotate(toAngle: -droopEars, duration: NodOff.droop), withKey: Self.animationKey)
     for (index, z) in zs.enumerated() {
       z.run(
         .sequence([
-          .wait(forDuration: 1.6),
-          .fadeAlpha(to: index < target.zCount ? 1 : 0, duration: 0.5),
+          .wait(forDuration: NodOff.droop + NodOff.jerk),
+          .fadeAlpha(to: index < target.zCount ? 1 : 0, duration: settleTime),
         ]),
         withKey: Self.animationKey
       )
     }
     snoreBubble.run(
-      .fadeAlpha(to: target.showsSnoreBubble ? 1 : 0, duration: 0.4),
+      .fadeAlpha(to: target.showsSnoreBubble ? 1 : 0, duration: NodOff.droop),
       withKey: Self.animationKey
     )
   }
 
   private func wakeUp(into target: MascotPose) {
-    let open = Self.lidEdge(at: target.eyelidOpenness)
+    let finalBlink = blinkActions(Timing.blink, endingAt: target.eyelidOpenness)
+    let holdOpen = MascotAnimation.wakeUp.duration.inSeconds - WakeUp.snapOpen - finalBlink.length
     run(
       .sequence([
-        .moveTo(y: open, duration: 0.08),
-        .wait(forDuration: 2.1),
-        .moveTo(y: Self.lidEdge(at: 0), duration: 0.08),
-        .wait(forDuration: 0.05),
-        .moveTo(y: open, duration: 0.12),
+        .moveTo(y: Self.lidEdge(at: target.eyelidOpenness), duration: WakeUp.snapOpen),
+        .wait(forDuration: holdOpen),
+        finalBlink.lid,
       ]),
       on: lids
     )
     run(
       .sequence([
-        .fadeAlpha(to: Self.lashAlpha(at: target.eyelidOpenness), duration: 0.06),
-        .wait(forDuration: 2.1),
-        .fadeIn(withDuration: 0.04),
-        .wait(forDuration: 0.15),
-        .fadeAlpha(to: Self.lashAlpha(at: target.eyelidOpenness), duration: 0.06),
+        .fadeAlpha(to: Self.lashAlpha(at: target.eyelidOpenness), duration: WakeUp.snapOpen),
+        .wait(forDuration: holdOpen),
+        finalBlink.lash,
       ]),
       on: lashes
     )
-    ears[0].run(.rotate(toAngle: 0, duration: 0.12), withKey: Self.animationKey)
-    ears[1].run(.rotate(toAngle: 0, duration: 0.12), withKey: Self.animationKey)
+    ears[0].run(.rotate(toAngle: 0, duration: WakeUp.earsUp), withKey: Self.animationKey)
+    ears[1].run(.rotate(toAngle: 0, duration: WakeUp.earsUp), withKey: Self.animationKey)
     head.run(
       .sequence([
-        Self.eased(.rotate(toAngle: Self.radians(target.headTiltDegrees), duration: 0.18)),
-        .wait(forDuration: 0.1),
-        .moveBy(x: 0, y: 2.5, duration: 0.35),
-        .moveBy(x: 0, y: -2.5, duration: 0.35),
+        Self.eased(
+          .rotate(
+            toAngle: Self.radians(target.headTiltDegrees),
+            duration: WakeUp.headStraighten
+          )
+        ),
+        .wait(forDuration: WakeUp.stretchDelay - WakeUp.headStraighten),
+        .moveBy(x: 0, y: 2.5, duration: WakeUp.stretch),
+        .moveBy(x: 0, y: -2.5, duration: WakeUp.stretch),
       ]),
       withKey: Self.animationKey
     )
-    run(.fadeOut(withDuration: 0.15), on: zs)
+    run(.fadeOut(withDuration: WakeUp.pop), on: zs)
     snoreBubble.run(
-      .group([.scale(to: 1.7, duration: 0.15), .fadeOut(withDuration: 0.15)]),
+      .group([.scale(to: 1.7, duration: WakeUp.pop), .fadeOut(withDuration: WakeUp.pop)]),
       withKey: Self.animationKey
     )
     let stretch = SKAction.group([
-      .scaleX(to: 0.94, duration: 0.35),
-      .scaleY(to: 1.12, duration: 0.35),
+      .scaleX(to: 0.94, duration: WakeUp.stretch),
+      .scaleY(to: 1.12, duration: WakeUp.stretch),
     ])
-    let relax = SKAction.group([.scaleX(to: 1, duration: 0.35), .scaleY(to: 1, duration: 0.35)])
+    let relax = SKAction.group([
+      .scaleX(to: 1, duration: WakeUp.stretch),
+      .scaleY(to: 1, duration: WakeUp.stretch),
+    ])
     stretch.timingMode = .easeOut
     relax.timingMode = .easeIn
     torso.run(
-      .sequence([.wait(forDuration: 0.28), stretch, relax]),
+      .sequence([.wait(forDuration: WakeUp.stretchDelay), stretch, relax]),
       withKey: Self.animationKey
     )
     for (index, spot) in [
       CGPoint(x: -19, y: 52), CGPoint(x: 20, y: 60), CGPoint(x: 23, y: 40),
     ].enumerated() {
-      spawnSparkle(at: spot, after: 0.5 + Double(index) * 0.25)
+      spawnSparkle(at: spot, after: WakeUp.firstSparkle + Double(index) * WakeUp.sparkleInterval)
     }
   }
 
@@ -263,86 +301,88 @@ extension CatRenderer {
 
   // MARK: - One-shots
 
-  private func blink(_ timing: (close: Double, hold: Double, open: Double)) -> TimeInterval {
+  private func blink(_ timing: BlinkTiming) -> TimeInterval {
+    let blink = blinkActions(timing, endingAt: pose.eyelidOpenness)
+    run(blink.lid, on: lids)
+    run(blink.lash, on: lashes)
+    return blink.length
+  }
+
+  // A blink from wherever the lids are, back to `openness`. The lash line shows while the eye is
+  // shut.
+  private func blinkActions(
+    _ timing: BlinkTiming,
+    endingAt openness: Double
+  ) -> (lid: SKAction, lash: SKAction, length: TimeInterval) {
     let close = SKAction.moveTo(y: Self.lidEdge(at: 0), duration: timing.close)
-    let open = SKAction.moveTo(y: Self.lidEdge(at: pose.eyelidOpenness), duration: timing.open)
+    let open = SKAction.moveTo(y: Self.lidEdge(at: openness), duration: timing.open)
     close.timingMode = .easeIn
     open.timingMode = .easeOut
-    let total = timing.close + timing.hold + timing.open
-    for lid in lids {
-      lid.run(
-        .sequence([close, .wait(forDuration: timing.hold), open]), withKey: Self.animationKey)
-    }
-    for lash in lashes {
-      lash.run(
-        .sequence([
-          .fadeIn(withDuration: timing.close / 2),
-          .wait(forDuration: total - timing.close / 2 - timing.open / 2),
-          .fadeAlpha(to: Self.lashAlpha(at: pose.eyelidOpenness), duration: timing.open / 2),
-        ]),
-        withKey: Self.animationKey
-      )
-    }
-    return total
+    let length = timing.close + timing.hold + timing.open
+    let lash = SKAction.sequence([
+      .fadeIn(withDuration: timing.close / 2),
+      .wait(forDuration: length - timing.close / 2 - timing.open / 2),
+      .fadeAlpha(to: Self.lashAlpha(at: openness), duration: timing.open / 2),
+    ])
+    return (.sequence([close, .wait(forDuration: timing.hold), open]), lash, length)
   }
 
   private func yawnAndNod() -> TimeInterval {
+    let phases = YawnAndNod.self
     let tilt = Self.radians(pose.headTiltDegrees)
-    let restingLids = Self.lidEdge(at: pose.eyelidOpenness)
     let neck = Metrics.neck
 
-    let leanBack = SKAction.rotate(toAngle: tilt - Self.radians(9), duration: 0.5)
-    let straighten = SKAction.rotate(toAngle: tilt, duration: 0.4)
+    let leanBack = SKAction.rotate(toAngle: tilt - Self.radians(9), duration: phases.leanBack)
+    let straighten = SKAction.rotate(toAngle: tilt, duration: phases.straighten)
     let nodDown = SKAction.group([
-      .rotate(toAngle: tilt + Self.radians(10), duration: 0.6),
-      .moveTo(y: neck.y - 2.5, duration: 0.6),
+      .rotate(toAngle: tilt + Self.radians(10), duration: phases.nodDown),
+      .moveTo(y: neck.y - 2.5, duration: phases.nodDown),
     ])
     let jerkUp = SKAction.group([
-      .rotate(toAngle: tilt, duration: 0.22),
-      .moveTo(y: neck.y, duration: 0.22),
+      .rotate(toAngle: tilt, duration: phases.jerkUp),
+      .moveTo(y: neck.y, duration: phases.jerkUp),
     ])
     leanBack.timingMode = .easeOut
     nodDown.timingMode = .easeIn
     jerkUp.timingMode = .easeOut
     head.run(
-      .sequence([leanBack, .wait(forDuration: 0.9), straighten, nodDown, jerkUp]),
+      .sequence([leanBack, .wait(forDuration: phases.holdYawn), straighten, nodDown, jerkUp]),
       withKey: Self.animationKey
     )
 
-    let mouthOpen = SKAction.group([.fadeIn(withDuration: 0.3), .scale(to: 1, duration: 0.5)])
+    let mouthOpen = SKAction.group([
+      .fadeIn(withDuration: phases.leanBack),
+      .scale(to: 1, duration: phases.leanBack),
+    ])
     let mouthClose = SKAction.group([
-      .fadeOut(withDuration: 0.35),
-      .scale(to: 0.3, duration: 0.4),
+      .fadeOut(withDuration: phases.straighten),
+      .scale(to: 0.3, duration: phases.straighten),
     ])
     openMouth.setScale(0.3)
     openMouth.run(
-      .sequence([mouthOpen, .wait(forDuration: 0.9), mouthClose]),
+      .sequence([mouthOpen, .wait(forDuration: phases.holdYawn), mouthClose]),
       withKey: Self.animationKey
     )
 
-    for lid in lids {
-      lid.run(
-        .sequence([
-          .moveTo(y: Self.lidEdge(at: 0), duration: 0.4),
-          .wait(forDuration: 1.2),
-          .moveTo(y: Self.lidEdge(at: pose.eyelidOpenness * 0.5), duration: 0.3),
-          .wait(forDuration: 0.5),
-          .moveTo(y: restingLids, duration: 0.2),
-        ]),
-        withKey: Self.animationKey
-      )
-    }
-    for lash in lashes {
-      lash.run(
-        .sequence([
-          .fadeIn(withDuration: 0.1),
-          .wait(forDuration: 2.5),
-          .fadeAlpha(to: Self.lashAlpha(at: pose.eyelidOpenness), duration: 0.1),
-        ]),
-        withKey: Self.animationKey
-      )
-    }
-    return 2.9
+    run(
+      .sequence([
+        .moveTo(y: Self.lidEdge(at: 0), duration: phases.leanBack),
+        .wait(forDuration: phases.holdYawn),
+        .moveTo(y: Self.lidEdge(at: pose.eyelidOpenness * 0.5), duration: phases.straighten),
+        .wait(forDuration: phases.nodDown),
+        .moveTo(y: Self.lidEdge(at: pose.eyelidOpenness), duration: phases.jerkUp),
+      ]),
+      on: lids
+    )
+    run(
+      .sequence([
+        .fadeIn(withDuration: Timing.lashFade),
+        .wait(forDuration: phases.length - 2 * Timing.lashFade),
+        .fadeAlpha(to: Self.lashAlpha(at: pose.eyelidOpenness), duration: Timing.lashFade),
+      ]),
+      on: lashes
+    )
+    return phases.length
   }
 
   // MARK: - Loops
