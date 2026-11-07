@@ -18,6 +18,9 @@ case "$mode" in
 esac
 
 coverage_minimum=80
+# The coverage gate covers the files in these targets that import no adapter framework. Every
+# other file under Sources is exempt and needs a manual-QA entry instead.
+gated_targets=(Sources/DrowsyDockCore Sources/DockOverlayKit)
 # An import may carry attributes (`@preconcurrency`, `@_exported`, `@_spi(Name)`) and a kind
 # (`import class AppKit.NSColor`).
 coverage_exempt_imports='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?(AppKit|ApplicationServices|Cocoa|IOKit|ServiceManagement|SpriteKit|SwiftUI)([.[:space:]]|$)'
@@ -56,11 +59,14 @@ swift_files_under() {
 }
 
 is_gated() {
-  case $1 in
-    Sources/DrowsyDockCore/*) return 0 ;;
-    Sources/DockOverlayKit/*) ! found grep -Eq "$coverage_exempt_imports" "$1" ;;
-    *) return 1 ;;
-  esac
+  local target
+  for target in "${gated_targets[@]}"; do
+    if [[ $1 == "$target"/* ]]; then
+      ! found grep -Eq "$coverage_exempt_imports" "$1"
+      return
+    fi
+  done
+  return 1
 }
 
 gated_files() {

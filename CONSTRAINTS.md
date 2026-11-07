@@ -25,7 +25,7 @@ Last reviewed: 2026-11-06 (draft, emgee job 001-foundation, from the skill defau
 
 Exempt from coverage: thin adapters over IOKit, AX, AppKit, SpriteKit and ServiceManagement. Each of these must have an entry in `docs/manual-qa.md` instead.
 
-`scripts/check.sh` (`is_gated`) gates `Sources/DrowsyDockCore` and the `Sources/DockOverlayKit` files that import none of those frameworks. It treats every other file under `Sources` as exempt. So a job that adds a pure library target adds it to `is_gated` and to the Coverage row above in the same change.
+`gated_targets` in `scripts/check.sh` lists the gated targets, today `Sources/DrowsyDockCore` and `Sources/DockOverlayKit`. The gate covers their files that import none of those frameworks, and treats every other file under `Sources` as exempt. So a job that adds a pure library target adds it to `gated_targets` and to the Coverage row above in the same change.
 
 ## Measured, not yet enforced
 
