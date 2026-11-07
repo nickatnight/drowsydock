@@ -14,7 +14,22 @@ Read CONSTRAINTS.md before writing code. Do not weaken it to make a change pass.
 
 ## Commands
 
-(Filled in by the foundation job once the package exists.)
+```
+Build:   swift build -Xswiftc -warnings-as-errors
+Test:    swift test
+Cover:   swift test --enable-code-coverage
+Format:  swift format lint --strict --recursive Sources Tests
+Bundle:  scripts/bundle.sh                 # → build/SleepyBattery.app, universal, ad-hoc signed
+Run:     open build/SleepyBattery.app
+Quit:    pkill -x SleepyBattery
+Logs:    log stream --predicate 'subsystem == "com.drowsydock.SleepyBattery"'
+Checks:  scripts/check.sh fast | task
+```
+
+- `scripts/check.sh fast` runs after every edit: compile with warnings as errors, format lint and the secret scan (commits plus uncommitted files).
+- `scripts/check.sh task` runs before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate and the signed bundle. The gate diffs against the merge base with `$CHECK_BASE` (default `main`).
+- `scripts/bundle.sh` signs with `$SIGN_IDENTITY`, default `-` (ad hoc). No signing identity exists yet. Scripts never create certificates or touch the keychain.
+- `swift format --in-place --recursive Sources Tests` fixes most format findings.
 
 ## Swift style
 

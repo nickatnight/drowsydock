@@ -30,7 +30,7 @@ Exempt from coverage: thin adapters over IOKit, AX, AppKit, SpriteKit and Servic
 | Metric | Today | Direction |
 |---|---|---|
 | Project coverage of `SleepyBatteryCore` | n/a (no code yet). Record after slice 3. | must not fall |
-| Release binary size | n/a. Record after slice 1. | must not grow by more than 20% without a reason |
+| Release binary size | 112,176 bytes after slice 1 (universal arm64 + x86_64, `stat -f %z build/SleepyBattery.app/Contents/MacOS/SleepyBattery`). `lipo -detailed_info`: the arm64 slice is 63,024 bytes and the x86_64 slice 30,608. The other 18,544 bytes are fat-file alignment padding. The arm64 slice is larger because its segments round up to 16 KB pages. SwiftUI, AppKit and the Swift runtime link dynamically, so the binary holds only the app's own code. | must not grow by more than 20% without a reason |
 
 ## Not applicable
 
