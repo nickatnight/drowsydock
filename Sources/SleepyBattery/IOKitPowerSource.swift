@@ -1,6 +1,6 @@
+import DrowsyDockCore
 import Foundation
 import IOKit.ps
-import SleepyBatteryCore
 
 enum IOKitPowerSource {
   static var isLowPowerModeOn: Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }

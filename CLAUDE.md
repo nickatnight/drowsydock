@@ -7,7 +7,7 @@ Read CONSTRAINTS.md before writing code. Do not weaken it to make a change pass.
 ## Layout
 
 - `Sources/DockOverlayKit/`: Dock geometry (AX), overlay window, Accessibility permission. Shared with future Dock apps, so keep it free of battery or mascot knowledge.
-- `Sources/SleepyBatteryCore/`: pure logic and value types. No AppKit, SpriteKit, IOKit or AX imports. Everything here is unit-tested.
+- `Sources/DrowsyDockCore/`: pure logic and value types. No AppKit, SpriteKit, IOKit or AX imports. Everything here is unit-tested.
 - `Sources/SleepyBattery/`: the executable. SwiftUI menu bar and settings, the IOKit adapter, the SpriteKit scene, wiring.
 - `Tests/`: XCTest, one target per library.
 - `docs/manual-qa.md`: checks that need a real Dock, a real charger or an Accessibility grant.
@@ -27,7 +27,7 @@ Logs:    log stream --predicate 'subsystem == "com.drowsydock.SleepyBattery"'
 Checks:  scripts/check.sh fast | task
 ```
 
-- `scripts/check.sh fast` runs after every edit. It compiles with warnings as errors and runs the format lint. It checks the CONSTRAINTS floor rules and keeps `SleepyBatteryCore` free of UI and hardware imports. It requires every coverage-exempt file to be named in `docs/manual-qa.md`. Last comes the secret scan (commits, uncommitted files and signing-material file types).
+- `scripts/check.sh fast` runs after every edit. It compiles with warnings as errors and runs the format lint. It checks the CONSTRAINTS floor rules and keeps `DrowsyDockCore` free of UI and hardware imports. It requires every coverage-exempt file to be named in `docs/manual-qa.md`. Last comes the secret scan (commits, uncommitted files and signing-material file types).
 - `scripts/check.sh task` runs before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate and the signed bundle. The gate diffs against the merge base with `$CHECK_BASE` (default `main`).
 - `scripts/bundle.sh` signs with `$SIGN_IDENTITY`, default `-` (ad hoc). No signing identity exists yet. Scripts never create certificates or touch the keychain.
 - `swift format --in-place --recursive Sources Tests` fixes most format findings.

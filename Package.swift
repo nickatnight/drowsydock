@@ -11,12 +11,12 @@ let package = Package(
   dependencies: [],
   targets: [
     .target(name: "DockOverlayKit"),
-    .target(name: "SleepyBatteryCore"),
+    .target(name: "DrowsyDockCore"),
     .executableTarget(
       name: "SleepyBattery",
-      dependencies: ["DockOverlayKit", "SleepyBatteryCore"]
+      dependencies: ["DockOverlayKit", "DrowsyDockCore"]
     ),
     .testTarget(name: "DockOverlayKitTests", dependencies: ["DockOverlayKit"]),
-    .testTarget(name: "SleepyBatteryCoreTests", dependencies: ["SleepyBatteryCore"]),
+    .testTarget(name: "DrowsyDockCoreTests", dependencies: ["DrowsyDockCore"]),
   ]
 )

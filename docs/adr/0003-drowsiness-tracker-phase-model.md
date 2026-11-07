@@ -18,7 +18,7 @@ Separate flags such as `isCharging` and `wasDischarging` would have to stay in s
 
 ## Decision
 
-`DrowsinessTracker` is a value type in `SleepyBatteryCore`. Its `Phase` enum has four cases:
+`DrowsinessTracker` is a value type in `DrowsyDockCore`. Its `Phase` enum has four cases:
 
 ```
 noBattery

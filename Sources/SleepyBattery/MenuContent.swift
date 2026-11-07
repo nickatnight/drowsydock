@@ -1,5 +1,5 @@
 import AppKit
-import SleepyBatteryCore
+import DrowsyDockCore
 import SwiftUI
 
 struct MenuContent: View {

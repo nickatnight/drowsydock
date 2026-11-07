@@ -12,7 +12,7 @@ The app's decisions are which state matches a battery reading, when to wake, and
 
 The package has three targets:
 
-- **`SleepyBatteryCore`** (library) holds value types and pure rules, such as `DrowsinessTracker`, `Thresholds`, `PowerSourceParser`, `BatterySession` and `StatusLine`. It must not import AppKit, ApplicationServices, Cocoa, IOKit, ServiceManagement, SpriteKit or SwiftUI.
+- **`DrowsyDockCore`** (library) holds value types and pure rules, such as `DrowsinessTracker`, `Thresholds`, `PowerSourceParser`, `BatterySession` and `StatusLine`. It must not import AppKit, ApplicationServices, Cocoa, IOKit, ServiceManagement, SpriteKit or SwiftUI.
 - **`DockOverlayKit`** (library) holds Dock geometry, the overlay window and the Accessibility permission. It has no battery or mascot knowledge, so it can move to its own package later without a refactor.
 - **`SleepyBattery`** (executable) holds thin adapters: the SwiftUI menu, the IOKit subscription, and the wiring.
 

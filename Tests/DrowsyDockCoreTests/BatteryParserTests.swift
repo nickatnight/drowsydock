@@ -1,5 +1,5 @@
+import DrowsyDockCore
 import Foundation
-import SleepyBatteryCore
 import XCTest
 
 final class BatteryParserTests: XCTestCase {

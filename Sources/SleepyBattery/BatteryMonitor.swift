@@ -1,5 +1,5 @@
+import DrowsyDockCore
 import Observation
-import SleepyBatteryCore
 import os
 
 @MainActor

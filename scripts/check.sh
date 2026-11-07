@@ -38,7 +38,7 @@ swift_files_under() {
 
 gated_files() {
   local file
-  swift_files_under Sources/SleepyBatteryCore
+  swift_files_under Sources/DrowsyDockCore
   while IFS= read -r file; do
     grep -Eq "$coverage_exempt_imports" "$file" || echo "$file"
   done < <(swift_files_under Sources/DockOverlayKit)
@@ -71,8 +71,8 @@ floor_rules() {
     echo "Floor: suppression without an explaining comment" >&2
     failed=1
   fi
-  if grep -rnE "$coverage_exempt_imports" Sources/SleepyBatteryCore; then
-    echo "Boundary: SleepyBatteryCore must not import system UI or hardware frameworks" >&2
+  if grep -rnE "$coverage_exempt_imports" Sources/DrowsyDockCore; then
+    echo "Boundary: DrowsyDockCore must not import system UI or hardware frameworks" >&2
     failed=1
   fi
   if ! grep -Eq '^  dependencies: \[\],?$' Package.swift; then

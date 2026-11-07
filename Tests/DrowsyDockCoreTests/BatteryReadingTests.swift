@@ -1,4 +1,4 @@
-import SleepyBatteryCore
+import DrowsyDockCore
 import XCTest
 
 final class BatteryReadingTests: XCTestCase {
