@@ -20,10 +20,15 @@ final class AppCoordinator {
   private(set) var isAccessibilityGranted: Bool
 
   @ObservationIgnored private var menuObserver: (any NSObjectProtocol)?
+  @ObservationIgnored private var dockTracker = DockTrackerState(spriteSize: mascotSize)
+  @ObservationIgnored private let overlay = OverlayWindow(contentView: debugOutline())
 
   init() {
     isAccessibilityGranted = AccessibilityPermission.isGranted
     Self.logger.notice("Accessibility granted: \(self.isAccessibilityGranted, privacy: .public)")
+    dockTracker.accessibilityChanged(isGranted: isAccessibilityGranted)
+    // Runs once the app's run loop is going, so the window is ordered front after launch.
+    Task { [weak self] in self?.placeOverlay() }
 
     // The spec re-checks the grant each time the menu opens. NSMenu posts this for the
     // MenuBarExtra's menu, too.
@@ -63,5 +68,33 @@ final class AppCoordinator {
     guard isGranted != isAccessibilityGranted else { return }
     isAccessibilityGranted = isGranted
     Self.logger.notice("Accessibility granted: \(isGranted, privacy: .public)")
+    dockTracker.accessibilityChanged(isGranted: isGranted)
+    placeOverlay()
+  }
+
+  private func placeOverlay() {
+    if isAccessibilityGranted {
+      do {
+        dockTracker.dockRead(try DockReader.read())
+      } catch {
+        Self.dockLogger.error(
+          "Dock geometry unavailable: \(String(describing: error), privacy: .public)"
+        )
+        dockTracker.dockRead(nil)
+      }
+    }
+    overlay.present(dockTracker.presentation)
+    Self.dockLogger.notice(
+      "Overlay: \(String(describing: self.dockTracker.presentation), privacy: .public)"
+    )
+  }
+
+  // Marks the perch until the mascot replaces it (plan slice 8).
+  private static func debugOutline() -> NSView {
+    let view = NSView()
+    view.wantsLayer = true
+    view.layer?.borderColor = NSColor.systemPink.cgColor
+    view.layer?.borderWidth = 2
+    return view
   }
 }

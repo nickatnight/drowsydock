@@ -88,3 +88,16 @@ To compare numbers, read the Dock's on-screen frame with Accessibility Inspector
 | 5.3 | With a second display, move the Dock to it (move the pointer to that display's bottom edge and wait), then log. | `screenFrame` is the second display's frame. On a display arranged above or to the left of the main one, the frame has a y above the main display's height or a negative x. |
 | 5.4 | Turn on "Automatically hide and show the Dock", move the pointer away so the Dock hides, then log from the menu. | `hidden: true`. The frame lies partly or fully below (or beside) its display. |
 | 5.5 | With the Dock visible, compare `perch` with the screen. | On a bottom Dock, a 64-point square whose bottom edge is the Dock's top edge and whose right edge is the last icon's right edge. |
+
+## Overlay window (slice 6, `OverlayWindow`)
+
+`OverlayWindow` is a borderless, clear, click-through window at the Dock's window level + 1 that joins every Space. Until the mascot exists, `AppCoordinator` draws a pink 64-point outline at the perch from `DockTrackerState` (tested in `DockTrackerTests`). These checks need the grant.
+
+| # | Check | Expected |
+|---|---|---|
+| 6.1 | With the grant and a bottom Dock, launch the app. | A pink square outline sits on the Dock's top edge, its right edge in line with the last icon's right edge. The log shows `Overlay: shown(…)`. |
+| 6.2 | Click the Dock icon under the outline, then drag a file onto it. | The click opens that item and the drop lands on it, as if the outline weren't there. |
+| 6.3 | Click on the desktop and in other apps' windows where the outline overlaps them. | The click goes to whatever is under the outline. The outline never takes focus or shows in Cmd-Tab or Mission Control's window list. |
+| 6.4 | Switch between Spaces (Ctrl-Left/Right arrow). | The outline stays on the Dock in every Space and doesn't slide with the Space animation. |
+| 6.5 | Make an app full screen (green button), then move the pointer to the bottom edge to reveal the Dock. | The outline never covers the full-screen app while the Dock is hidden. Slice 7's checks cover hiding and re-showing. |
+| 6.6 | Without the grant, launch the app. | No outline anywhere, and the log shows `Overlay: hidden`. |
