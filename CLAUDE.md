@@ -1,20 +1,36 @@
 # drowsydock
 
-Sleepy Battery: a macOS menu-bar app (Swift 6, macOS 14+, Apple frameworks only). An original cat perches on the Dock and gets drowsier as the battery drains. It is drawn in a click-through overlay window and tracks the Dock through the Accessibility API.
+DrowsyDock: a macOS menu-bar app (Swift 6, macOS 14+, Apple frameworks only). An original cat perches on the Dock and gets drowsier as the battery drains. It is drawn in a click-through overlay window and tracks the Dock through the Accessibility API.
 
 Read CONSTRAINTS.md before writing code. Do not weaken it to make a change pass.
 
 ## Layout
 
 - `Sources/DockOverlayKit/`: Dock geometry (AX), overlay window, Accessibility permission. Shared with future Dock apps, so keep it free of battery or mascot knowledge.
-- `Sources/SleepyBatteryCore/`: pure logic and value types. No AppKit, SpriteKit, IOKit or AX imports. Everything here is unit-tested.
-- `Sources/SleepyBattery/`: the executable. SwiftUI menu bar and settings, the IOKit adapter, the SpriteKit scene, wiring.
+- `Sources/DrowsyDockCore/`: pure logic and value types. No AppKit, SpriteKit, IOKit or AX imports. Everything here is unit-tested.
+- `Sources/DrowsyDock/`: the executable. SwiftUI menu bar and settings, the IOKit adapter, the SpriteKit scene, wiring.
 - `Tests/`: XCTest, one target per library.
 - `docs/manual-qa.md`: checks that need a real Dock, a real charger or an Accessibility grant.
+- `docs/adr/`: architecture decision records. Read them before changing the build setup (0001), the target split (0002) or the tracker's phases (0003). Supersede an ADR with a new one; don't edit its decision.
 
 ## Commands
 
-(Filled in by the foundation job once the package exists.)
+```
+Build:   swift build -Xswiftc -warnings-as-errors
+Test:    swift test
+Cover:   swift test --enable-code-coverage
+Format:  swift format lint --strict --recursive Sources Tests
+Bundle:  scripts/bundle.sh                 # → build/DrowsyDock.app, universal, ad-hoc signed
+Run:     open build/DrowsyDock.app
+Quit:    pkill -x DrowsyDock
+Logs:    log stream --predicate 'subsystem == "com.drowsydock.DrowsyDock"'
+Checks:  scripts/check.sh fast | task
+```
+
+- `scripts/check.sh fast` runs after every edit. It compiles with warnings as errors and runs the format lint. It checks the CONSTRAINTS floor rules and keeps `DrowsyDockCore` free of UI and hardware imports. It requires every coverage-exempt file to be named in `docs/manual-qa.md`. Last comes the secret scan (commits, uncommitted files and signing-material file types).
+- `scripts/check.sh task` runs before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate and the signed bundle. The gate diffs against the merge base with `$CHECK_BASE` (default `main`).
+- `scripts/bundle.sh` signs with `$SIGN_IDENTITY`, default `-` (ad hoc). No signing identity exists yet. Scripts never create certificates or touch the keychain.
+- `swift format --in-place --recursive Sources Tests` fixes most format findings.
 
 ## Swift style
 
