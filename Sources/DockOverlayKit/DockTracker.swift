@@ -6,8 +6,9 @@ import os
 /// the caller what the overlay should show.
 ///
 /// Reads happen on events: Accessibility notifications from the Dock's list, display changes,
-/// Dock preference changes, Space changes and a Dock relaunch. The Dock posts nothing when it
-/// magnifies, so a once-a-second frame check runs, but only while the pointer is near the Dock.
+/// Dock preference changes, Space changes, and the Dock reappearing in
+/// `NSWorkspace.runningApplications` after a relaunch. The Dock posts nothing when it magnifies,
+/// so a once-a-second frame check runs, but only while the pointer is near the Dock.
 /// `DockTrackerState` makes every decision; this class only feeds it events and applies them.
 ///
 /// It has no teardown on deinit, so it must live as long as the app. Calling
@@ -47,6 +48,7 @@ public final class DockTracker {
   private var isTracking = false
   private var notificationTokens: [(center: NotificationCenter, token: any NSObjectProtocol)] = []
   private var pointerMonitor: Any?
+  private var runningApplications: NSKeyValueObservation?
   private var frameCheckTimer: Timer?
   private var followUpRead: Task<Void, Never>?
   private var listRecovery: Task<Void, Never>?
@@ -88,13 +90,13 @@ public final class DockTracker {
         MainActor.assumeIsolated { self?.dockMayHaveChanged() }
       }
     }
-    observe(workspace, NSWorkspace.didLaunchApplicationNotification) { [weak self] notification in
-      let application =
-        notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-      let isDock = application.map(DockReader.isDock) ?? false
-      MainActor.assumeIsolated {
-        if isDock { self?.recoverDockList(because: "The Dock relaunched") }
-      }
+    // NSWorkspace posts no launch notification for an LSUIElement app such as the Dock, but its
+    // runningApplications property changes for every app, and only on the main run loop.
+    runningApplications = NSWorkspace.shared.observe(\.runningApplications, options: [.new]) {
+      [weak self] _, change in
+      let dockLaunched = change.newValue?.contains { DockReader.isDock($0) } ?? false
+      guard dockLaunched else { return }
+      MainActor.assumeIsolated { self?.recoverDockList(because: "The Dock relaunched") }
     }
     pointerMonitor = NSEvent.addGlobalMonitorForEvents(
       matching: [.mouseMoved, .leftMouseDragged]
@@ -110,6 +112,8 @@ public final class DockTracker {
       center.removeObserver(token)
     }
     notificationTokens = []
+    runningApplications?.invalidate()
+    runningApplications = nil
     if let pointerMonitor {
       NSEvent.removeMonitor(pointerMonitor)
     }
@@ -132,10 +136,11 @@ public final class DockTracker {
     notificationTokens.append((center, token))
   }
 
-  // While frame checks run, they and the follow-up read cover the change. Reading on every
-  // notification could turn into a read per animation frame if the Dock posts them while magnifying.
+  // While the pointer is near the Dock or has just left it, the Dock may be magnified or shrinking
+  // back, so an immediate read could store the wrong geometry, and reading on every notification
+  // could become a read per animation frame. The frame checks and the follow-up read cover it.
   private func dockMayHaveChanged() {
-    if !state.runsFrameChecks {
+    if !state.runsFrameChecks, !state.awaitsSettledRead {
       readDock()
     }
     scheduleFollowUpRead(after: Self.followUpReadDelay)
@@ -194,16 +199,17 @@ public final class DockTracker {
     }
   }
 
+  // Re-installs the observer when the Dock's pid changed, in case a relaunch went unnoticed.
   private func installListObserverIfNeeded() {
-    guard listObserver == nil else { return }
     do {
       let list = try DockReader.iconList()
+      guard listObserver?.processIdentifier != list.processIdentifier else { return }
       listObserver = try DockListObserver(
         processIdentifier: list.processIdentifier,
         list: list.element,
         notifications: Self.listNotifications
-      ) { [weak self] notification in
-        if notification == kAXUIElementDestroyedNotification {
+      ) { [weak self] isListDestroyed in
+        if isListDestroyed {
           self?.recoverDockList(because: "The Dock list was destroyed")
         } else {
           self?.dockMayHaveChanged()
@@ -262,10 +268,20 @@ public final class DockTracker {
 /// `DockListObserver` is not main-actor isolated, so its `deinit` may read these non-Sendable
 /// handles. A main-actor class could not, because its `deinit` is nonisolated in Swift 6.0.
 private final class DockListObserver {
-  private final class Callback: Sendable {
-    let onNotification: @MainActor @Sendable (String) -> Void
+  // Never mutated, and its AX references are used only on the main thread: by the callback, and by
+  // the deferred release in DockListObserver.deinit, which runs on the main queue.
+  private final class Callback: @unchecked Sendable {
+    let observer: AXObserver
+    let list: AXUIElement
+    let onNotification: @MainActor @Sendable (_ isListDestroyed: Bool) -> Void
 
-    init(_ onNotification: @escaping @MainActor @Sendable (String) -> Void) {
+    init(
+      observer: AXObserver,
+      list: AXUIElement,
+      onNotification: @escaping @MainActor @Sendable (Bool) -> Void
+    ) {
+      self.observer = observer
+      self.list = list
       self.onNotification = onNotification
     }
   }
@@ -273,51 +289,59 @@ private final class DockListObserver {
   /// The notifications the Dock accepted. It rejects the ones it never posts.
   let notifications: [String]
 
-  private let observer: AXObserver
-  private let list: AXUIElement
+  /// The Dock process this observer listens to.
+  let processIdentifier: pid_t
+
   private let callbackContext: Unmanaged<Callback>
 
   init(
     processIdentifier: pid_t,
     list: AXUIElement,
     notifications: [String],
-    onNotification: @escaping @MainActor @Sendable (String) -> Void
+    onNotification: @escaping @MainActor @Sendable (_ isListDestroyed: Bool) -> Void
   ) throws(DockReader.Failure) {
     var created: AXObserver?
     let error = AXObserverCreate(
       processIdentifier,
-      { _, _, notification, context in
+      { _, element, notification, context in
         guard let context else { return }
         let callback = Unmanaged<Callback>.fromOpaque(context).takeUnretainedValue()
-        let name = notification as String
+        // The registration on the list may also report its items being destroyed, such as the
+        // icon of an app that quit. Only the list's own destruction kills the observer.
+        let isListDestroyed =
+          notification as String == kAXUIElementDestroyedNotification
+          && CFEqual(element, callback.list)
         // The observer's source is added to the main run loop below, so callbacks arrive on the
         // main thread.
-        MainActor.assumeIsolated { callback.onNotification(name) }
+        MainActor.assumeIsolated { callback.onNotification(isListDestroyed) }
       },
       &created
     )
     guard error == .success, let created else {
       throw .accessibility(attribute: "AXObserverCreate", code: error.rawValue)
     }
-    let callbackContext = Unmanaged.passRetained(Callback(onNotification))
+    let callbackContext = Unmanaged.passRetained(
+      Callback(observer: created, list: list, onNotification: onNotification)
+    )
     self.notifications = notifications.filter { notification in
       AXObserverAddNotification(created, list, notification as CFString, callbackContext.toOpaque())
         == .success
     }
     CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(created), .commonModes)
-    observer = created
-    self.list = list
+    self.processIdentifier = processIdentifier
     self.callbackContext = callbackContext
   }
 
   deinit {
+    let callback = callbackContext.takeUnretainedValue()
     for notification in notifications {
-      AXObserverRemoveNotification(observer, list, notification as CFString)
+      AXObserverRemoveNotification(callback.observer, callback.list, notification as CFString)
     }
-    CFRunLoopSourceInvalidate(AXObserverGetRunLoopSource(observer))
-    // The observer may be running the callback on the main thread right now, so free its context
-    // on the main queue, after that callback returns. This holds because `init` adds the source
-    // only to the main run loop.
+    CFRunLoopSourceInvalidate(AXObserverGetRunLoopSource(callback.observer))
+    // The observer may be running the callback on the main thread right now, for example when the
+    // callback itself dropped this object. The context owns the observer, so releasing the
+    // context on the main queue frees both after that callback returns. This holds because `init`
+    // adds the source only to the main run loop.
     let callbackContext = callbackContext
     DispatchQueue.main.async { callbackContext.release() }
   }
