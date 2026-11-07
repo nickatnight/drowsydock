@@ -422,8 +422,15 @@ final class DockTrackerTests: XCTestCase {
 
   // MARK: - Uncovering the label of the icon under the perch
 
-  private let overThePerchIcon = CGPoint(x: 1030, y: 30)
-  private let overThePerch = CGPoint(x: 1030, y: 110)
+  private var overThePerchIcon: CGPoint {
+    let icon = bottomDock.iconFrames.last!
+    return CGPoint(x: icon.midX, y: icon.midY)
+  }
+
+  private var overThePerch: CGPoint {
+    let perch = bottomDock.perch(for: sprite).frame
+    return CGPoint(x: perch.midX, y: perch.midY)
+  }
 
   func testThePointerOverTheIconUnderThePerchFadesTheOverlayOut() {
     var tracker = trackerHoveringOverTheDock()

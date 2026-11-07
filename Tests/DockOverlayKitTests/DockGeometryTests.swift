@@ -330,33 +330,44 @@ final class DockGeometryTests: XCTestCase {
   // MARK: - Icons along the Dock
 
   func testOnABottomDockTheIconsRunLeftToRight() {
+    let layout = DisplayLayout(primary: laptop)
+    let left = ax(380, 834, 60, 60)
+    let middle = ax(700, 834, 60, 60)
+    let right = ax(1000, 834, 60, 60)
     let dock = DockGeometry(
       listFrame: ax(370, 830, 700, 70),
-      iconFrames: [ax(1000, 834, 60, 60), ax(380, 834, 60, 60), ax(700, 834, 60, 60)],
-      layout: DisplayLayout(primary: laptop)
+      iconFrames: [right, left, middle],
+      layout: layout
     )
 
-    XCTAssertEqual(dock.iconFramesAlongDock.map(\.minX), [380, 700, 1000])
+    XCTAssertEqual(dock.iconFramesAlongDock, [left, middle, right].map(layout.appKitRect))
   }
 
   func testOnALeftDockTheIconsRunTopToBottom() {
+    let layout = DisplayLayout(primary: laptop)
+    let top = ax(5, 205, 60, 60)
+    let middle = ax(5, 400, 60, 60)
+    let bottom = ax(5, 600, 60, 60)
     let dock = DockGeometry(
       listFrame: ax(0, 200, 70, 500),
-      iconFrames: [ax(5, 400, 60, 60), ax(5, 205, 60, 60), ax(5, 600, 60, 60)],
-      layout: DisplayLayout(primary: laptop)
+      iconFrames: [middle, top, bottom],
+      layout: layout
     )
 
-    XCTAssertEqual(dock.iconFramesAlongDock.map(\.minY), [635, 440, 240])
+    XCTAssertEqual(dock.iconFramesAlongDock, [top, middle, bottom].map(layout.appKitRect))
   }
 
   func testOnARightDockTheIconsRunTopToBottom() {
+    let layout = DisplayLayout(primary: laptop)
+    let top = ax(1375, 205, 60, 60)
+    let bottom = ax(1375, 600, 60, 60)
     let dock = DockGeometry(
       listFrame: ax(1370, 200, 70, 500),
-      iconFrames: [ax(1375, 600, 60, 60), ax(1375, 205, 60, 60)],
-      layout: DisplayLayout(primary: laptop)
+      iconFrames: [bottom, top],
+      layout: layout
     )
 
-    XCTAssertEqual(dock.iconFramesAlongDock.map(\.minY), [635, 240])
+    XCTAssertEqual(dock.iconFramesAlongDock, [top, bottom].map(layout.appKitRect))
   }
 
   func testThePerchStaysOnTheDisplayWhenANarrowRightDockWouldPushItPastTheEdge() {
