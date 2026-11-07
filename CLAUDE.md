@@ -11,7 +11,7 @@ Read CONSTRAINTS.md before writing code. Do not weaken it to make a change pass.
 - `Sources/DrowsyDock/`: the executable. SwiftUI menu bar and settings, the IOKit adapter, the SpriteKit scene, wiring.
 - `Tests/`: XCTest, one target per library.
 - `docs/manual-qa.md`: checks that need a real Dock, a real charger or an Accessibility grant.
-- `docs/adr/`: architecture decision records. Read them before changing the build setup (0001), the target split (0002) or the tracker's phases (0003). Supersede an ADR with a new one; don't edit its decision.
+- `docs/adr/`: architecture decision records. Read them before changing the build setup (0001), the target split (0002), the drowsiness tracker's phases (0003), the Dock tracker's phases and triggers (0004), signing (0005) or the Accessibility coordinate handling (0006). Supersede an ADR with a new one; don't edit its decision.
 
 ## Commands
 
@@ -28,8 +28,8 @@ Checks:  scripts/check.sh fast | task
 ```
 
 - `scripts/check.sh fast` runs after every edit. It compiles with warnings as errors and runs the format lint. It checks the CONSTRAINTS floor rules and keeps `DrowsyDockCore` free of UI and hardware imports. It requires every coverage-exempt file to be named in `docs/manual-qa.md`. Last comes the secret scan (commits, uncommitted files and signing-material file types).
-- `scripts/check.sh task` runs before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate and the signed bundle. The gate diffs against the merge base with `$CHECK_BASE` (default `main`).
-- `scripts/bundle.sh` signs with `$SIGN_IDENTITY`, default `-` (ad hoc). No signing identity exists yet. Scripts never create certificates or touch the keychain.
+- `scripts/check.sh task` runs before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate and the signed bundle. The bundle must carry the hardened runtime and none of the entitlements that weaken it (ADR 0005). The gate diffs against the merge base with `$CHECK_BASE` (default `main`).
+- `scripts/bundle.sh` signs with `$SIGN_IDENTITY`, default `-` (ad hoc), always with `--options runtime`. No signing identity exists yet. Scripts never create certificates or touch the keychain.
 - `swift format --in-place --recursive Sources Tests` fixes most format findings.
 
 ## Swift style
