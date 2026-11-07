@@ -26,7 +26,7 @@ Logs:    log stream --predicate 'subsystem == "com.drowsydock.SleepyBattery"'
 Checks:  scripts/check.sh fast | task
 ```
 
-- `scripts/check.sh fast` runs after every edit: compile with warnings as errors, format lint and the secret scan (commits plus uncommitted files).
+- `scripts/check.sh fast` runs after every edit. It compiles with warnings as errors and runs the format lint. It checks the CONSTRAINTS floor rules and keeps `SleepyBatteryCore` free of UI and hardware imports. It requires every coverage-exempt file to be named in `docs/manual-qa.md`. Last comes the secret scan (commits, uncommitted files and signing-material file types).
 - `scripts/check.sh task` runs before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate and the signed bundle. The gate diffs against the merge base with `$CHECK_BASE` (default `main`).
 - `scripts/bundle.sh` signs with `$SIGN_IDENTITY`, default `-` (ad hoc). No signing identity exists yet. Scripts never create certificates or touch the keychain.
 - `swift format --in-place --recursive Sources Tests` fixes most format findings.
