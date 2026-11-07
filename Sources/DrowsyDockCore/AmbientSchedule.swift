@@ -1,19 +1,23 @@
-/// Something the cat does on its own while it rests in a state.
-public enum AmbientAction: Equatable, Sendable {
+/// A short action the cat plays once while it rests in an idle state.
+public enum AmbientGesture: Equatable, Sendable {
   case blink
   case slowBlink
   case yawnAndNod
+}
+
+/// An action the cat repeats for as long as it rests in a sleepy state.
+public enum AmbientLoop: Equatable, Sendable {
   case floatingZs
   case snore
 }
 
-/// What the cat does next while resting: one action after a pause, or one action on a loop.
+/// What the cat does next while resting: a gesture after a pause, or a loop.
 public enum AmbientBehaviour: Equatable, Sendable {
-  /// Wait for `after`, play the action once, then ask `AmbientSchedule` again.
-  case oneShot(AmbientAction, after: Duration)
+  /// Wait for `after`, play the gesture once, then ask `AmbientSchedule` again.
+  case oneShot(AmbientGesture, after: Duration)
 
-  /// Play the action over and over until the state changes.
-  case loop(AmbientAction)
+  /// Play the loop until the state changes.
+  case loop(AmbientLoop)
 }
 
 /// Decides what the cat does between state changes, and when.

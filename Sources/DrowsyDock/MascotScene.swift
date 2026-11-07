@@ -19,7 +19,7 @@ final class MascotScene: SKScene {
   private var isActive = false
   private var isPlayingOneShot = false
   private var isLooping = false
-  private var nextAmbientAction: Task<Void, Never>?
+  private var nextGesture: Task<Void, Never>?
   private var generator = SystemRandomNumberGenerator()
 
   override init() {
@@ -111,22 +111,22 @@ final class MascotScene: SKScene {
       return
     }
     switch AmbientSchedule.next(for: state, using: &generator) {
-    case .oneShot(let action, let pause):
-      nextAmbientAction = Task { [weak self] in
+    case .oneShot(let gesture, let pause):
+      nextGesture = Task { [weak self] in
         guard (try? await Task.sleep(for: pause)) != nil else { return }
-        self?.playOneShot(action)
+        self?.play(gesture)
       }
-    case .loop(let action):
+    case .loop(let loop):
       isLooping = true
-      cat.loop(action)
+      cat.loop(loop)
       run(atFramesPerSecond: Self.loopFramesPerSecond)
     }
   }
 
-  private func playOneShot(_ action: AmbientAction) {
+  private func play(_ gesture: AmbientGesture) {
     isPlayingOneShot = true
     run(atFramesPerSecond: Self.oneShotFramesPerSecond)
-    cat.play(action) { [weak self] in
+    cat.play(gesture) { [weak self] in
       guard let self else { return }
       isPlayingOneShot = false
       redraw()
@@ -135,8 +135,8 @@ final class MascotScene: SKScene {
   }
 
   private func stopEverything() {
-    nextAmbientAction?.cancel()
-    nextAmbientAction = nil
+    nextGesture?.cancel()
+    nextGesture = nil
     isPlayingOneShot = false
     isLooping = false
     cat.stopAnimations()

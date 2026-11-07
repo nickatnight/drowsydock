@@ -14,19 +14,16 @@ extension CatRenderer {
     static let breath = (inhale: 1.5, exhale: 1.7)
   }
 
-  /// Plays `action` once, then calls `completion` on the main actor.
-  func play(_ action: AmbientAction, completion: @escaping @MainActor () -> Void) {
+  /// Plays `gesture` once, then calls `completion` on the main actor.
+  func play(_ gesture: AmbientGesture, completion: @escaping @MainActor () -> Void) {
     let duration: TimeInterval
-    switch action {
+    switch gesture {
     case .blink:
       duration = blink(Timing.blink)
     case .slowBlink:
       duration = blink(Timing.slowBlink)
     case .yawnAndNod:
       duration = yawnAndNod()
-    case .floatingZs, .snore:
-      loop(action)
-      return
     }
     node.run(
       .sequence([
@@ -37,14 +34,12 @@ extension CatRenderer {
     )
   }
 
-  func loop(_ action: AmbientAction) {
-    switch action {
+  func loop(_ loop: AmbientLoop) {
+    switch loop {
     case .floatingZs:
       floatZs()
     case .snore:
       snore()
-    case .blink, .slowBlink, .yawnAndNod:
-      play(action) {}
     }
   }
 
