@@ -1,6 +1,8 @@
+import AppKit
 import DockOverlayKit
 import DrowsyDockCore
 import SpriteKit
+import os
 
 /// Shows the cat on the Dock: the cat in a small window at the perch, and the veil and the crowd
 /// effect in a second window over the whole Dock.
@@ -15,8 +17,7 @@ final class MascotOverlay {
   // Room around the Dock for effects that rise above the icons.
   private static let canvasMargin: CGFloat = 48
 
-  // The spec's cap for looping states. Short one-shots run at the same rate.
-  private static let framesPerSecond = 30
+  private static let logger = Logger(subsystem: "com.drowsydock.DrowsyDock", category: "mascot")
 
   private let catScene = MascotScene()
   private let catWindow: OverlayWindow
@@ -27,8 +28,12 @@ final class MascotOverlay {
   private var isCrowdEffectPlaying = false
 
   init() {
-    catWindow = OverlayWindow(contentView: Self.transparentView(presenting: catScene))
-    canvasWindow = OverlayWindow(contentView: Self.transparentView(presenting: canvasScene))
+    let catHost = SceneHostView(scene: catScene)
+    let canvasHost = SceneHostView(scene: canvasScene)
+    catScene.host = catHost
+    canvasScene.host = canvasHost
+    catWindow = OverlayWindow(contentView: catHost ?? Self.noMetalView())
+    canvasWindow = OverlayWindow(contentView: canvasHost ?? Self.noMetalView())
   }
 
   /// Moves, fades or hides the overlay as the Dock tracker decides.
@@ -120,11 +125,10 @@ final class MascotOverlay {
     canvasWindow.hide()
   }
 
-  private static func transparentView(presenting scene: SKScene) -> SKView {
-    let view = SKView()
-    view.allowsTransparency = true
-    view.preferredFramesPerSecond = framesPerSecond
-    view.presentScene(scene)
-    return view
+  // Every Mac that runs macOS 14 has a Metal device, so this shouldn't happen. If it does, the
+  // overlay stays empty rather than crashing the menu-bar app.
+  private static func noMetalView() -> NSView {
+    logger.error("No Metal device, so the cat can't be drawn")
+    return NSView()
   }
 }

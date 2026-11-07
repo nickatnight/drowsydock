@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (job 003, plan slice 9)
+Accepted (job 003, plan slice 9). ADR 0011 supersedes the `SKView` and the 30 fps loops: its measurements, taken with the display awake, replace the ones below, which ran while the display was asleep and left out `SKView`'s display link.
 
 ## Context
 

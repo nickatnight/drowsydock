@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (job 003, plan slice 8)
+Accepted (job 003, plan slice 8). ADR 0011 replaces `SKView` with `SceneHostView`; the paused-rendering rule below stands.
 
 ## Context
 

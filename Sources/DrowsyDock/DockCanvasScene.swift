@@ -8,6 +8,9 @@ import SpriteKit
 final class DockCanvasScene: SKScene {
   private static let framesPerChange = 2
 
+  /// The view that draws this scene. Set by `MascotOverlay`.
+  weak var host: SceneHostView?
+
   private let veil = SKShapeNode()
   private let crowd = CrowdEffectNode()
   private var dockFrame = CGRect.zero
@@ -18,7 +21,8 @@ final class DockCanvasScene: SKScene {
     super.init(size: CGSize(width: 1, height: 1))
     backgroundColor = .clear
     anchorPoint = .zero
-    scaleMode = .resizeFill
+    // SceneHostView keeps the scene's size equal to the view's, in points.
+    scaleMode = .fill
     veil.fillColor = .black
     veil.strokeColor = .clear
     veil.alpha = 0
@@ -60,7 +64,7 @@ final class DockCanvasScene: SKScene {
     completion: @escaping @MainActor () -> Void
   ) {
     isPlayingCrowdEffect = true
-    view?.isPaused = false
+    host?.isPaused = false
     crowd.play(over: iconFrames, orientation: orientation) { [weak self] in
       self?.isPlayingCrowdEffect = false
       self?.redraw()
@@ -88,11 +92,11 @@ final class DockCanvasScene: SKScene {
       return
     }
     guard !isPlayingCrowdEffect else { return }
-    view?.isPaused = true
+    host?.isPaused = true
   }
 
   private func redraw() {
     framesToDraw = Self.framesPerChange
-    view?.isPaused = false
+    host?.isPaused = false
   }
 }
