@@ -5,8 +5,15 @@ build/
 xcuserdata/
 .DS_Store
 *.p12
+*.pfx
 *.cer
+*.der
 *.p8
+*.pem
+*.key
+*.keychain
+*.keychain-db
 *.mobileprovision
 *.provisionprofile
 .env*
+!.env.example

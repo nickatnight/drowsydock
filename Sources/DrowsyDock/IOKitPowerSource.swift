@@ -17,8 +17,8 @@ enum IOKitPowerSource {
     return PowerSourceParser.reading(from: descriptions)
   }
 
-  /// It is not main-actor isolated, so its `deinit` may read these non-Sendable handles. A
-  /// main-actor class could not, because its `deinit` is nonisolated in Swift 6.0.
+  /// `Subscription` is not main-actor isolated, so its `deinit` may read these non-Sendable
+  /// handles. A main-actor class could not, because its `deinit` is nonisolated in Swift 6.0.
   final class Subscription {
     enum SubscriptionError: Error {
       case runLoopSourceUnavailable
@@ -72,7 +72,8 @@ enum IOKitPowerSource {
       CFRunLoopSourceInvalidate(runLoopSource)
       NotificationCenter.default.removeObserver(lowPowerObserver)
       // IOKit may be running the callback on the main thread right now, so free its context on
-      // the main queue, after that callback returns.
+      // the main queue, after that callback returns. This holds because `init` adds the source
+      // only to the main run loop, so IOKit never calls back on another thread.
       let callbackContext = callbackContext
       DispatchQueue.main.async { callbackContext.release() }
     }
