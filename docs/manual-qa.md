@@ -104,7 +104,7 @@ To compare numbers, read the Dock's on-screen frame with Accessibility Inspector
 
 ## Following the Dock (slice 7, `DockTracker`)
 
-`DockTracker` re-reads the Dock on Accessibility notifications from its list, display changes (`NSApplication.didChangeScreenParametersNotification`), `com.apple.dock.prefchanged`, Space changes and a Dock relaunch. Each event triggers a read at once and another 0.5 s later. While the pointer is within 128 points of the Dock, a once-a-second frame check also runs, which catches magnification. `DockTrackerState` makes every decision (tested in `DockTrackerTests`). Logs: category `dock`, with `--level debug` for `Frame checks started` and `Frame checks stopped`.
+`DockTracker` re-reads the Dock on Accessibility notifications from its list, display changes (`NSApplication.didChangeScreenParametersNotification`), `com.apple.dock.prefchanged`, Space changes and a Dock relaunch. Each event triggers a read at once and another 0.5 s later. While the pointer is within 128 points of the Dock, a once-a-second frame check also runs, which catches magnification. `DockTrackerState` makes every decision (tested in `DockTrackerTests`). `AppDelegate` owns the `AppCoordinator` and starts tracking in `applicationDidFinishLaunching`. Logs: category `dock`, with `--level debug` for `Frame checks started` and `Frame checks stopped`.
 
 Checkpoint B (Milestone 2) passes when 7.1 to 7.9 pass with the debug outline. These checks need the grant.
 

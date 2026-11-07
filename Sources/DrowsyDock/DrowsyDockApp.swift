@@ -2,11 +2,11 @@ import SwiftUI
 
 @main
 struct DrowsyDockApp: App {
-  @State private var coordinator = AppCoordinator()
+  @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
   var body: some Scene {
     MenuBarExtra("DrowsyDock", systemImage: "moon.zzz") {
-      MenuContent(coordinator: coordinator)
+      MenuContent(coordinator: appDelegate.coordinator)
     }
   }
 }

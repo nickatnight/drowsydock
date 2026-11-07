@@ -19,13 +19,15 @@ final class AppCoordinator {
   private(set) var isAccessibilityGranted: Bool
 
   @ObservationIgnored private var menuObserver: (any NSObjectProtocol)?
-  @ObservationIgnored private let overlay = OverlayWindow(contentView: debugOutline())
-  @ObservationIgnored private var dockTracker: DockTracker?
+  @ObservationIgnored private let dockTracker: DockTracker
 
   init() {
     isAccessibilityGranted = AccessibilityPermission.isGranted
+    let overlay = OverlayWindow(contentView: Self.debugOutline())
+    dockTracker = DockTracker(spriteSize: Self.mascotSize) { presentation in
+      overlay.present(presentation)
+    }
     Self.logger.notice("Accessibility granted: \(self.isAccessibilityGranted, privacy: .public)")
-    Task { [weak self] in self?.startDockTracking() }
 
     // NSMenu posts this for the MenuBarExtra's menu, too.
     menuObserver = NotificationCenter.default.addObserver(
@@ -35,6 +37,10 @@ final class AppCoordinator {
     ) { [weak self] _ in
       MainActor.assumeIsolated { self?.refreshAccessibility() }
     }
+  }
+
+  func startDockTracking() {
+    dockTracker.accessibilityChanged(isGranted: isAccessibilityGranted)
   }
 
   func grantAccessibility() {
@@ -64,15 +70,7 @@ final class AppCoordinator {
     guard isGranted != isAccessibilityGranted else { return }
     isAccessibilityGranted = isGranted
     Self.logger.notice("Accessibility granted: \(isGranted, privacy: .public)")
-    dockTracker?.accessibilityChanged(isGranted: isGranted)
-  }
-
-  private func startDockTracking() {
-    let tracker = DockTracker(spriteSize: Self.mascotSize) { [overlay] presentation in
-      overlay.present(presentation)
-    }
-    tracker.accessibilityChanged(isGranted: isAccessibilityGranted)
-    dockTracker = tracker
+    dockTracker.accessibilityChanged(isGranted: isGranted)
   }
 
   private static func debugOutline() -> NSView {
