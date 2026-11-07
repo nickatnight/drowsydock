@@ -3,10 +3,20 @@ import DrowsyDockCore
 import SwiftUI
 
 struct MenuContent: View {
-  let monitor: BatteryMonitor
+  let coordinator: AppCoordinator
+
+  private var monitor: BatteryMonitor { coordinator.battery }
 
   var body: some View {
     Text(monitor.statusText)
+
+    if coordinator.isAccessibilityGranted {
+      Text("Accessibility: Granted")
+    } else {
+      Button("Grant Accessibility…") {
+        coordinator.grantAccessibility()
+      }
+    }
 
     Divider()
 

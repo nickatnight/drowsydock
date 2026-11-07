@@ -61,3 +61,16 @@ On launch the Simulate battery picker shows a check mark on Real. The check mark
 | 3.16 | 5%, then Real | The real battery's line, re-derived (not stuck at Asleep) |
 
 The choices in reverse order (5% up to 80%) must show the same states. A simulated level is a jump, not a discharge.
+
+## Accessibility (slice 4, `AccessibilityPermission` and `AppCoordinator`)
+
+`AccessibilityPermission` wraps `AXIsProcessTrustedWithOptions` and opens System Settings. `AppCoordinator` holds the grant and re-checks it each time the menu opens (`NSMenu.didBeginTrackingNotification`). An ad-hoc signed build loses the grant on every rebuild. Sign with the "DrowsyDock Dev" certificate from `docs/dev-signing.md` to keep it.
+
+Start these checks without the grant: `tccutil reset Accessibility com.drowsydock.DrowsyDock`, then launch the app.
+
+| # | Check | Expected |
+|---|---|---|
+| 4.1 | Without the grant, open the menu. | Below the battery line: `Grant Accessibility…`. No overlay is drawn anywhere. The log shows `Accessibility granted: false`. |
+| 4.2 | Choose `Grant Accessibility…`. | macOS shows its "would like to control this computer" alert, and System Settings opens at Privacy & Security ▸ Accessibility with DrowsyDock in the list. |
+| 4.3 | Turn DrowsyDock on in that list, then open the menu again. Don't relaunch. | The item reads `Accessibility: Granted`, and the log shows `Accessibility granted: true`. |
+| 4.4 | Turn DrowsyDock off in the list, then open the menu again. | The item is back to `Grant Accessibility…`, and the overlay disappears. |
