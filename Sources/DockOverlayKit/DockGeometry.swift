@@ -31,8 +31,12 @@ public struct DockPerch: Equatable, Sendable {
 /// The Dock's frames in AppKit global coordinates, and the display it is on.
 public struct DockGeometry: Equatable, Sendable {
   // Absorbs rounding between Accessibility frames and display frames, so that a Dock flush with
-  // the display edge counts as on screen.
+  // the display edge counts as on screen, and a half-point difference doesn't count as growth.
   private static let edgeTolerance: CGFloat = 1
+
+  // The largest magnified icon size that System Settings allows, in points. A pointer this far
+  // from the resting Dock may still be over a magnified icon.
+  private static let largestMagnifiedIconSize: CGFloat = 128
 
   /// The frame of the Dock's icon list.
   public let frame: CGRect
@@ -84,6 +88,26 @@ public struct DockGeometry: Equatable, Sendable {
       y: min(max(origin.y, screenFrame.minY), screenFrame.maxY - size.height)
     )
     return DockPerch(frame: CGRect(origin: clamped, size: size), facing: facing)
+  }
+
+  /// The area around the resting Dock where the pointer may be over the Dock, even while it is
+  /// magnified.
+  public var hoverRegion: CGRect {
+    frame.insetBy(dx: -Self.largestMagnifiedIconSize, dy: -Self.largestMagnifiedIconSize)
+  }
+
+  /// Returns whether `current` is the Dock at `resting`, magnified by the pointer.
+  ///
+  /// Magnification only grows the list or its icons. A Dock that shrank, or whose icons were
+  /// added or removed, has a new resting geometry instead.
+  public static func isMagnified(current: DockGeometry, resting: DockGeometry) -> Bool {
+    if grew(from: resting.frame, to: current.frame) { return true }
+    guard current.iconFrames.count == resting.iconFrames.count else { return false }
+    return zip(resting.iconFrames, current.iconFrames).contains { grew(from: $0, to: $1) }
+  }
+
+  private static func grew(from resting: CGRect, to current: CGRect) -> Bool {
+    current.width > resting.width + edgeTolerance || current.height > resting.height + edgeTolerance
   }
 
   // The Dock always holds at least Finder and the Trash, so a bottom Dock is wider than it is

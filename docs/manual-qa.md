@@ -101,3 +101,22 @@ To compare numbers, read the Dock's on-screen frame with Accessibility Inspector
 | 6.4 | Switch between Spaces (Ctrl-Left/Right arrow). | The outline stays on the Dock in every Space and doesn't slide with the Space animation. |
 | 6.5 | Make an app full screen (green button), then move the pointer to the bottom edge to reveal the Dock. | The outline never covers the full-screen app while the Dock is hidden. Slice 7's checks cover hiding and re-showing. |
 | 6.6 | Without the grant, launch the app. | No outline anywhere, and the log shows `Overlay: hidden`. |
+
+## Following the Dock (slice 7, `DockTracker`)
+
+`DockTracker` re-reads the Dock on Accessibility notifications from its list, display changes (`NSApplication.didChangeScreenParametersNotification`), `com.apple.dock.prefchanged`, Space changes and a Dock relaunch. Each event triggers a read at once and another 0.5 s later. While the pointer is within 128 points of the Dock, a once-a-second frame check also runs, which catches magnification. `DockTrackerState` makes every decision (tested in `DockTrackerTests`). Logs: category `dock`, with `--level debug` for `Frame checks started` and `Frame checks stopped`.
+
+Checkpoint B (Milestone 2) passes when 7.1 to 7.9 pass with the debug outline. These checks need the grant.
+
+| # | Check | Expected |
+|---|---|---|
+| 7.0 | Launch with the grant and read the log. | `Observing the Dock list for: [...]` lists the notifications the Dock accepted. Note them here, because the Dock may reject some. |
+| 7.1 | In System Settings ▸ Desktop & Dock, set Position on screen to Left, then Right, then Bottom. | Within 1 s of each change, the outline moves to the new perch: above the topmost icon on a side Dock, on the top edge inside the last icon on a bottom Dock. |
+| 7.2 | Drag the Size slider, and add or remove a Dock item. | The outline follows the Dock's new top edge and last icon within 1 s of each change. |
+| 7.3 | With two displays, move the Dock to the other display (pointer at its bottom edge). | The outline moves to that display within 1 s. |
+| 7.4 | Turn on "Automatically hide and show the Dock" and move the pointer away. | Within 1 s of the Dock hiding, the outline is hidden and the log shows `Overlay: hidden`. If it shows while the Dock is revealed, it must hide again within 1 s of the Dock hiding. Turn auto-hide off: the outline returns within 1 s. |
+| 7.5 | Turn on Magnification, hover over the icons, then move the pointer up and away. | The outline fades out while the Dock is magnified. It fades back in within 1 s of the Dock shrinking back, at the same perch. |
+| 7.6 | Leave the pointer away from the Dock, then run `sample DrowsyDock 5`. | No timer fires: no `__CFRUNLOOP_IS_CALLING_OUT_TO_A_TIMER_CALLBACK_FUNCTION__` frames, and the main thread waits in `mach_msg`. The log's last frame-check line is `Frame checks stopped`. Rest the pointer on the Dock: `Frame checks started`. |
+| 7.7 | Make an app full screen, then leave it again. | In the full-screen Space the outline is hidden while the Dock is hidden. It returns within 1 s of leaving full screen. Switching between ordinary Spaces leaves it in place. |
+| 7.8 | Run `killall Dock`. | The Dock relaunches. The log shows `The Dock relaunched`, and the outline returns within about 3 s. |
+| 7.9 | With the pointer away from the Dock, run the idle CPU measurement from CONSTRAINTS.md. | The average is at most 1.0%. |
