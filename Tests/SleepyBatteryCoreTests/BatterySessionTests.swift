@@ -54,11 +54,20 @@ final class BatterySessionTests: XCTestCase {
     ]
     var session = BatterySession(realReading: onBattery(60))
 
-    for (percentage, state) in expected.reversed() {
+    for (percentage, state) in expected {
       session.simulate(.discharging(percentage: percentage))
 
       XCTAssertEqual(session.tracker.phase, .discharging(state), "\(percentage)%")
     }
+  }
+
+  func testSwitchingToAHigherSimulatedLevelRederivesInsteadOfStayingSleepier() {
+    var session = BatterySession(realReading: onBattery(60))
+    session.simulate(.discharging(percentage: 5))
+
+    session.simulate(.discharging(percentage: 80))
+
+    XCTAssertEqual(session.tracker.phase, .discharging(.awake))
   }
 
   func testSimulatingNoBatteryReportsNoBattery() {
