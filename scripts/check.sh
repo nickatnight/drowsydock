@@ -205,11 +205,12 @@ coverage_gate() {
   # lcov paths may use the logical or the physical (symlink-resolved) checkout path. The changed
   # lines come first; `FILENAME == ARGV[1]` still holds when that file is empty, unlike NR == FNR.
   LOGICAL="$PWD/" PHYSICAL="$(pwd -P)/" MINIMUM="$coverage_minimum" awk -F '\t' '
+    BEGIN { logical = ENVIRON["LOGICAL"]; physical = ENVIRON["PHYSICAL"]; minimum = ENVIRON["MINIMUM"] }
     FILENAME == ARGV[1] { changed[$1 SUBSEP $2] = 1; changed_files[$1] = 1; next }
     /^SF:/ {
       file = substr($0, 4)
-      if (index(file, ENVIRON["PHYSICAL"]) == 1) file = substr(file, length(ENVIRON["PHYSICAL"]) + 1)
-      else if (index(file, ENVIRON["LOGICAL"]) == 1) file = substr(file, length(ENVIRON["LOGICAL"]) + 1)
+      if (index(file, physical) == 1) file = substr(file, length(physical) + 1)
+      else if (index(file, logical) == 1) file = substr(file, length(logical) + 1)
       else next
       under_root++
       recorded[file] = 1
@@ -224,7 +225,7 @@ coverage_gate() {
     }
     END {
       if (under_root == 0) {
-        print "Coverage gate: no lcov file lies under " ENVIRON["PHYSICAL"] "; the path mapping is broken."
+        print "Coverage gate: no lcov file lies under " physical "; the path mapping is broken."
         exit 2
       }
       for (f in changed_files) {
@@ -235,9 +236,9 @@ coverage_gate() {
       if (unrecorded) exit 1
       if (total == 0) { print "No executable changed lines in gated files."; exit 0 }
       percent = hit * 100 / total
-      printf "Changed-line coverage: %d/%d = %.1f%% (minimum %d%%)\n", hit, total, percent, ENVIRON["MINIMUM"]
+      printf "Changed-line coverage: %d/%d = %.1f%% (minimum %d%%)\n", hit, total, percent, minimum
       for (f in missed) print "  uncovered " f ":" missed[f]
-      exit (percent < ENVIRON["MINIMUM"])
+      exit (percent < minimum)
     }' "$changed" "$lcov"
 }
 
