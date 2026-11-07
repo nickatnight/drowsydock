@@ -2,13 +2,11 @@ import DockOverlayKit
 import SpriteKit
 
 /// A SpriteKit scene that covers the whole Dock, for effects drawn over it: the veil that dims
-/// the Dock while the cat is asleep, and the crowd effect. Like `MascotScene`, it pauses its view
-/// whenever nothing moves.
+/// the Dock while the cat is asleep, and the crowd effect.
 @MainActor
 final class DockCanvasScene: SKScene {
   private static let framesPerChange = 2
 
-  /// The view that draws this scene. Set by `MascotOverlay`.
   weak var host: SceneHostView?
 
   private let veil = SKShapeNode()
@@ -21,7 +19,6 @@ final class DockCanvasScene: SKScene {
     super.init(size: CGSize(width: 1, height: 1))
     backgroundColor = .clear
     anchorPoint = .zero
-    // SceneHostView keeps the scene's size equal to the view's, in points.
     scaleMode = .fill
     veil.fillColor = .black
     veil.strokeColor = .clear
@@ -38,7 +35,6 @@ final class DockCanvasScene: SKScene {
   func layOut(dockFrame: CGRect) {
     guard dockFrame != self.dockFrame else { return }
     self.dockFrame = dockFrame
-    // The Dock's background has rounded ends; this radius roughly follows them.
     let radius = min(dockFrame.width, dockFrame.height) * 0.28
     veil.path = CGPath(
       roundedRect: dockFrame,
@@ -72,7 +68,6 @@ final class DockCanvasScene: SKScene {
     }
   }
 
-  /// Stops the crowd effect at once.
   func stopCrowdEffect() {
     guard isPlayingCrowdEffect else { return }
     isPlayingCrowdEffect = false
@@ -80,7 +75,6 @@ final class DockCanvasScene: SKScene {
     redraw()
   }
 
-  // The window resizes with the Dock, and a paused view would keep showing its old frame.
   override func didChangeSize(_ oldSize: CGSize) {
     super.didChangeSize(oldSize)
     redraw()

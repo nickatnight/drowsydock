@@ -60,7 +60,6 @@ public struct AnimationDirector: Equatable, Sendable {
     case .waking:
       return .play(.wakeUp)
     case .drowsiness(let state) where state == from.settledState:
-      // The wake-up already ends in the awake pose.
       return .cut
     case .drowsiness(.yawning):
       return .play(.yawn)

@@ -21,13 +21,10 @@ public enum AmbientBehaviour: Equatable, Sendable {
 /// Idle states play a short action after a random pause, so the scene can stay paused in
 /// between. Only `noddingOff` and `asleep` loop.
 public enum AmbientSchedule {
-  // The spec: an awake cat blinks every 8 to 20 s.
   private static let awakeBlinkSeconds = 8.0...20.0
 
-  // Slow blinks take about three times as long, so they come a little less often.
   private static let drowsyBlinkSeconds = 10.0...20.0
 
-  // The spec: a yawning cat yawns and nods about every 45 s.
   private static let yawnSeconds = 40.0...50.0
 
   /// Returns what the cat does next in `state`, drawing any pause from `generator`.

@@ -12,8 +12,7 @@ final class CatRenderer {
   /// The canvas the cat and its "z"s fit in, in points.
   static let canvasSize = CGSize(width: 64, height: 80)
 
-  /// Where `node` sits on the canvas when the cat faces left. Off-centre, so the "z"s have room
-  /// behind the head.
+  /// Where `node` sits on the canvas when the cat faces left.
   static let anchorFacingLeft = CGPoint(x: 29, y: 1)
 
   enum Palette {
@@ -46,11 +45,8 @@ final class CatRenderer {
     ]
   }
 
-  /// The cat's root node.
   let node = SKNode()
 
-  // The parts that animations move. Everything that breathes sits in the torso, which scales from
-  // the paws up.
   let torso = SKNode()
   let head = SKNode()
   let ears: [SKNode]
@@ -174,7 +170,6 @@ final class CatRenderer {
     apply(pose)
   }
 
-  /// Puts the cat into `pose` at once.
   func apply(_ pose: MascotPose) {
     self.pose = pose
     torso.yScale = 1
@@ -197,8 +192,6 @@ final class CatRenderer {
     snoreBubble.alpha = pose.showsSnoreBubble ? 1 : 0
   }
 
-  /// Turns the cat to face `facing` by mirroring it. The "z"s are mirrored back, so they still
-  /// read as the letter.
   func face(_ facing: DockPerch.Facing) {
     switch facing {
     case .left:
@@ -218,16 +211,12 @@ final class CatRenderer {
 
   // MARK: - Geometry helpers
 
-  /// Returns the height of a lid's lower edge for an eye open by `openness`: on the top of the
-  /// eye at 1, at its bottom at 0.
   static func lidEdge(at openness: Double) -> CGFloat {
     let open = CGFloat(min(max(openness, 0), 1))
     let eyeTop = Metrics.eyeCentres[0].y + Metrics.eyeSize.height / 2
     return eyeTop - (1 - open) * Metrics.eyeSize.height
   }
 
-  /// Returns the lash line's opacity: hidden while the eye is wide open, so the open eye has no
-  /// line above it.
   static func lashAlpha(at openness: Double) -> CGFloat {
     openness > 0.97 ? 0 : 1
   }
@@ -282,7 +271,6 @@ final class CatRenderer {
   }
 
   private static func facePath() -> CGPath {
-    // Wider than tall, with fuller cheeks below the eyes.
     let path = CGMutablePath()
     path.move(to: CGPoint(x: 0, y: 27))
     path.addCurve(
@@ -356,9 +344,6 @@ final class CatRenderer {
     return eye
   }
 
-  // A fur-coloured lid that slides down over the eye. Above the eye it lies on fur of the same
-  // colour, so only its lower edge shows. The lash line marks that edge once the eye starts to
-  // close.
   private static func lid() -> (SKNode, SKShapeNode) {
     let size = Metrics.lidSize
     let curve = Metrics.lidCurve

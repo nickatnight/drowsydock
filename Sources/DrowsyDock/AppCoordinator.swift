@@ -54,7 +54,6 @@ final class AppCoordinator {
     ) { [weak self] _ in
       MainActor.assumeIsolated { self?.refreshAccessibility() }
     }
-    // Opening the menu stays the fallback in case this notification is never posted.
     accessibilityObserver = DistributedNotificationCenter.default().addObserver(
       forName: Self.accessibilityListChanged,
       object: nil,
@@ -92,7 +91,6 @@ final class AppCoordinator {
 
   private func batteryPhaseDidChange(_ phase: DrowsinessTracker.Phase) {
     overlay.show(phase.mood)
-    // The crowd-effect setting and quiet hours arrive in plan slices 12 and 13.
     guard crowdEffect.phaseChanged(to: phase) else { return }
     if overlay.playCrowdEffect() {
       Self.mascotLogger.notice("The whole Dock nods off")

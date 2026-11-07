@@ -1,9 +1,6 @@
 import DrowsyDockCore
 import SpriteKit
 
-/// The cat's animations: ambient actions while it rests, and the one-shots that carry it from one
-/// mood to the next. Every action runs under one key, so `stopAnimations()` can cancel them all
-/// and put the cat back into its pose. Only one animation runs at a time.
 extension CatRenderer {
   private static let animationKey = "animation"
   private static let floatingZName = "floatingZ"
@@ -17,8 +14,7 @@ extension CatRenderer {
     static let breath = (inhale: 1.5, exhale: 1.7)
   }
 
-  /// Plays `action` once, then calls `completion` on the main actor. A looping action starts its
-  /// loop instead and never completes.
+  /// Plays `action` once, then calls `completion` on the main actor.
   func play(_ action: AmbientAction, completion: @escaping @MainActor () -> Void) {
     let duration: TimeInterval
     switch action {
@@ -41,7 +37,6 @@ extension CatRenderer {
     )
   }
 
-  /// Starts `action` on a loop until `stopAnimations()`.
   func loop(_ action: AmbientAction) {
     switch action {
     case .floatingZs:
@@ -53,8 +48,7 @@ extension CatRenderer {
     }
   }
 
-  /// Plays `animation`, ending in `target`, then calls `completion` on the main actor. The cat
-  /// rests in `target` from the start, so stopping the animation early lands there too.
+  /// Plays `animation`, ending in `target`, then calls `completion` on the main actor.
   func play(
     _ animation: MascotAnimation,
     to target: MascotPose,
@@ -81,7 +75,6 @@ extension CatRenderer {
     )
   }
 
-  /// Cancels every animation and puts the cat back into its pose.
   func stopAnimations() {
     var parts: [SKNode] = [node, torso, head, snoreBubble, openMouth]
     parts += ears
@@ -100,7 +93,6 @@ extension CatRenderer {
 
   // MARK: - Transitions
 
-  // Moves every posed part to `target` together.
   private func blend(to target: MascotPose, over duration: TimeInterval) {
     run(
       Self.eased(.moveTo(y: Self.lidEdge(at: target.eyelidOpenness), duration: duration)), on: lids)
@@ -125,7 +117,6 @@ extension CatRenderer {
     )
   }
 
-  // Settles into the yawning pose, then yawns and nods.
   private func yawn(into target: MascotPose) {
     let settle = 0.5
     blend(to: target, over: settle)
@@ -138,7 +129,6 @@ extension CatRenderer {
     )
   }
 
-  // The head droops forward as the eyes fall shut, jerks back up, and settles in the new pose.
   private func nodOff(into target: MascotPose) {
     let tilt = Self.radians(target.headTiltDegrees)
     let neck = Metrics.neck
@@ -187,8 +177,6 @@ extension CatRenderer {
     )
   }
 
-  // The eyes snap open and the snore bubble pops, the cat stretches tall, sparkles twinkle around
-  // its head, and it ends with a happy blink.
   private func wakeUp(into target: MascotPose) {
     let open = Self.lidEdge(at: target.eyelidOpenness)
     run(
@@ -303,8 +291,6 @@ extension CatRenderer {
     return total
   }
 
-  // Leans back with the mouth wide and the eyes squeezed shut, then nods forward, jerks back up
-  // and settles. About 3 s.
   private func yawnAndNod() -> TimeInterval {
     let tilt = Self.radians(pose.headTiltDegrees)
     let restingLids = Self.lidEdge(at: pose.eyelidOpenness)
@@ -366,7 +352,6 @@ extension CatRenderer {
 
   // MARK: - Loops
 
-  // "z"s rise from behind the head one after another, and the head bobs gently.
   private func floatZs() {
     hideStaticZs()
     let spawn = SKAction.run(
@@ -384,7 +369,6 @@ extension CatRenderer {
     head.run(.repeatForever(.sequence([down, up])), withKey: Self.animationKey)
   }
 
-  // The body rises on each breath in. On each breath out the snore bubble swells and a "z" rises.
   private func snore() {
     hideStaticZs()
     let breath = Timing.breath
@@ -421,8 +405,6 @@ extension CatRenderer {
   private func spawnFloatingZ(size: CGFloat) {
     let z = Self.z(size: size)
     z.setScale(0.6)
-    // The holder carries the mirroring, so the letter reads the right way round when the cat
-    // faces right.
     let holder = SKNode()
     holder.name = Self.floatingZName
     holder.xScale = node.xScale

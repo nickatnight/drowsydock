@@ -12,7 +12,6 @@ public struct CrowdWave: Equatable, Sendable {
   /// How long an icon stays dimmed, at the start of its effect.
   public static let dimDuration = Duration.milliseconds(300)
 
-  // Slow enough to read as a wave, quick enough that a 12-icon Dock finishes in under 3 s.
   private static let preferredStagger = Duration.milliseconds(150)
 
   /// The number of icons the wave runs over.

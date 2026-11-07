@@ -14,7 +14,6 @@ final class SceneHostView: NSView {
   /// The scene drawn. Its size follows the view's size.
   let scene: SKScene
 
-  /// How many frames a second to draw while running.
   var framesPerSecond = 30 {
     didSet {
       guard framesPerSecond != oldValue else { return }
@@ -90,7 +89,6 @@ final class SceneHostView: NSView {
     }
   }
 
-  // The display link exists only while the view is in a window, and runs only while unpaused.
   private func updateDisplayLink() {
     if displayLink == nil, window != nil {
       let link = displayLink(target: self, selector: #selector(drawFrame(_:)))

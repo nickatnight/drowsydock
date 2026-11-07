@@ -110,7 +110,6 @@ public struct DockGeometry: Equatable, Sendable {
     perch(for: size).frame.union(perchIcon)
   }
 
-  // The icon the perch sits on: the trailing icon of a bottom Dock, the top icon of a side Dock.
   private var perchIcon: CGRect {
     switch orientation {
     case .bottom: iconFrames.last ?? frame

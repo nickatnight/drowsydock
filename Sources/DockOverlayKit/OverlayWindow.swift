@@ -31,8 +31,6 @@ public final class OverlayWindow {
 
   private static let fadeDuration: TimeInterval = 0.2
 
-  // Whether the window should end up on screen and opaque, so a fade-out that finishes after a
-  // later `show` doesn't order the window out.
   private var isShowing = false
 
   /// Shows the window at `frame`, in AppKit global coordinates, fading it in if it was hidden or
@@ -61,7 +59,7 @@ public final class OverlayWindow {
       context.duration = Self.fadeDuration
       window.animator().alphaValue = 0
     } completionHandler: { [weak self] in
-      // AppKit calls this on the main thread. A `show` during the fade wins.
+      // AppKit calls this on the main thread.
       MainActor.assumeIsolated {
         guard let self, !self.isShowing else { return }
         self.window.orderOut(nil)

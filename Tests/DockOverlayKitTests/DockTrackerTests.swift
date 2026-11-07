@@ -422,8 +422,6 @@ final class DockTrackerTests: XCTestCase {
 
   // MARK: - Uncovering the label of the icon under the perch
 
-  // The bottom Dock's last icon spans x 1000 to 1060 and AppKit y 6 to 66. The perch sits on top of
-  // it, from y 70 to 134. The Dock shows the icon's label right there.
   private let overThePerchIcon = CGPoint(x: 1030, y: 30)
   private let overThePerch = CGPoint(x: 1030, y: 110)
 

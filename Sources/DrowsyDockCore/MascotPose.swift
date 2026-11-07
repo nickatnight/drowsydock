@@ -32,7 +32,6 @@ public struct MascotPose: Equatable, Sendable {
     case .noddingOff:
       self.init(eyelids: 0.12, tilt: 14, earDroop: 0.7, zCount: 1)
     case .asleep:
-      // Dark enough to read as "lights out", light enough that every icon stays recognisable.
       self.init(
         eyelids: 0,
         tilt: 20,

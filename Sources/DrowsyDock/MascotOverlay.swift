@@ -5,15 +5,11 @@ import os
 
 /// Shows the cat on the Dock: the cat in a small window at the perch, and the veil and the crowd
 /// effect in a second window over the whole Dock.
-///
-/// Two windows rather than one Dock-sized window, so that an animating cat redraws only its own
-/// small canvas. The Dock window is ordered out whenever it has nothing to draw.
 @MainActor
 final class MascotOverlay {
   /// The size of the cat's window, which `DockTracker` places at the perch.
   static let spriteSize = CatRenderer.canvasSize
 
-  // Room around the Dock for effects that rise above the icons.
   private static let canvasMargin: CGFloat = 48
 
   private static let logger = Logger(subsystem: "com.drowsydock.DrowsyDock", category: "mascot")
@@ -73,7 +69,6 @@ final class MascotOverlay {
     switch presentation {
     case .hidden:
       hide()
-      // Keep the cat's mood current, so it doesn't replay an old change when it reappears.
       catScene.show(mood, facing: nil)
       return
     case .shown(let shownPerch, let shownDock):
@@ -124,8 +119,7 @@ final class MascotOverlay {
     canvasWindow.hide()
   }
 
-  // Every Mac that runs macOS 14 has a Metal device, so this shouldn't happen. If it does, the
-  // overlay stays empty rather than crashing the menu-bar app.
+  // Every Mac that runs macOS 14 has a Metal device.
   private static func noMetalView() -> NSView {
     logger.error("No Metal device, so the cat can't be drawn")
     return NSView()

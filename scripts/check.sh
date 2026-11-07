@@ -295,8 +295,6 @@ if ! grep -Eq '^CodeDirectory .*flags=0x[0-9a-f]+\([^)]*runtime' <<<"$signature"
   echo "Bundle: the signature lacks the hardened runtime (codesign --options runtime)" >&2
   exit 1
 fi
-# scripts/bundle.sh signs with no entitlements, so any entitlement blob means someone changed the
-# signing (ADR 0007). Several entitlements reopen holes that the hardened runtime closes.
 entitlements="$(codesign -d --entitlements - --xml build/DrowsyDock.app 2>/dev/null)"
 if [[ -n $entitlements ]]; then
   echo "Bundle: the signature carries entitlements; scripts/bundle.sh must sign with none" >&2

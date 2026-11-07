@@ -9,7 +9,6 @@ final class CrowdEffectNode {
   private static let dimOpacity: CGFloat = 0.35
   private static let zSize: CGFloat = 9
 
-  /// The node to add to the Dock canvas.
   let node = SKNode()
 
   /// Plays the wave over `iconFrames`, given in the canvas's coordinates and in wave order, then
@@ -34,13 +33,11 @@ final class CrowdEffectNode {
     )
   }
 
-  /// Stops the wave at once and clears it.
   func stop() {
     node.removeAllActions()
     node.removeAllChildren()
   }
 
-  // A dark rounded square over the icon's artwork, in and out within the dim duration.
   private func dim(_ icon: CGRect, after delay: TimeInterval) {
     let artwork = icon.insetBy(dx: icon.width * 0.12, dy: icon.height * 0.12)
     let radius = artwork.width * 0.22
@@ -64,7 +61,6 @@ final class CrowdEffectNode {
     )
   }
 
-  // A "z" that rises from the icon into the screen and fades.
   private func puff(from icon: CGRect, orientation: DockOrientation, after delay: TimeInterval) {
     let z = CatRenderer.z(size: Self.zSize)
     let drift: CGVector

@@ -15,7 +15,6 @@ public enum MascotAnimation: Equatable, Sendable {
     case .crossfade: .milliseconds(600)
     case .yawn: .milliseconds(3400)
     case .nodOff: .milliseconds(2200)
-    // The spec allows at most 3 s, and the waking phase lasts `DrowsinessTracker.wakingDuration`.
     case .wakeUp: .milliseconds(2800)
     }
   }

@@ -180,8 +180,6 @@ public final class DockTracker {
 
   // MARK: - Reads
 
-  // One icon-list fetch serves both the observer check and the read, so a frozen Dock stalls the
-  // main thread for one Accessibility timeout, not two.
   private func readDock() {
     do throws(DockReader.Failure) {
       let list = try DockReader.iconList()
@@ -208,8 +206,6 @@ public final class DockTracker {
     }
   }
 
-  // Re-installs the observer when the Dock's pid or its list element changed, in case a relaunch
-  // or a rebuilt list went unnoticed.
   private func installListObserverIfNeeded(
     on list: (processIdentifier: pid_t, element: AXUIElement)
   ) {
@@ -312,7 +308,6 @@ private final class DockListObserver {
 
   private let callbackContext: Unmanaged<Callback>
 
-  /// Whether this observer is registered on `list` in the Dock process `processIdentifier`.
   func observes(_ list: AXUIElement, of processIdentifier: pid_t) -> Bool {
     processIdentifier == self.processIdentifier
       && CFEqual(list, callbackContext.takeUnretainedValue().list)

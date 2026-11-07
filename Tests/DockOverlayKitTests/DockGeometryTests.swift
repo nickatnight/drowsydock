@@ -346,7 +346,6 @@ final class DockGeometryTests: XCTestCase {
       layout: DisplayLayout(primary: laptop)
     )
 
-    // AX y 205, 400 and 600 are AppKit y 635, 440 and 240 on a 900-point display.
     XCTAssertEqual(dock.iconFramesAlongDock.map(\.minY), [635, 440, 240])
   }
 

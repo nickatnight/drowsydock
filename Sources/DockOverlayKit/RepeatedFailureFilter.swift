@@ -1,7 +1,4 @@
 /// Decides which failures to log, so that a run of identical failures logs once.
-///
-/// After the grant is revoked, for example, every display, Space or preference change fails the
-/// same way until the user opens the menu.
 struct RepeatedFailureFilter<Failure: Equatable> {
   private var lastReported: Failure?
 

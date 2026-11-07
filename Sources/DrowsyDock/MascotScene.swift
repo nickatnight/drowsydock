@@ -3,24 +3,13 @@ import DrowsyDockCore
 import SpriteKit
 
 /// The SpriteKit scene that holds the cat.
-///
-/// `AnimationDirector` picks the animation into each new mood, and `AmbientSchedule` what the
-/// cat does while it rests. The view stays paused unless something moves: a pose change renders
-/// a couple of frames, a one-shot or a transition unpauses it at 30 fps until its completion, and
-/// only a looping state keeps it running, at 15 fps (ADR 0011).
 @MainActor
 final class MascotScene: SKScene {
-  // One frame to apply the change, one more in case the first lands before the window is ready.
   private static let framesPerChange = 2
 
-  // Short movements such as a blink need the frames. The spec caps loops at 30 fps, but on
-  // screen each frame per second of a loop costs about 0.15% CPU, so 30 fps measured 4.5% against
-  // the 3% budget. 15 fps measured 2.2 to 2.3%, and the slow breathing and drifting "z"s still
-  // read smoothly (ADR 0011).
   private static let oneShotFramesPerSecond = 30
   private static let loopFramesPerSecond = 15
 
-  /// The view that draws this scene. Set by `MascotOverlay`.
   weak var host: SceneHostView?
 
   private let cat = CatRenderer()
@@ -145,7 +134,6 @@ final class MascotScene: SKScene {
     }
   }
 
-  // Cancels the ambient schedule and every running animation, leaving the cat in its pose.
   private func stopEverything() {
     nextAmbientAction?.cancel()
     nextAmbientAction = nil
