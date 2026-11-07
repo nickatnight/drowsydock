@@ -16,7 +16,7 @@ final class BatteryMonitor {
   private(set) var session: BatterySession
   private(set) var isLowPowerModeOn: Bool
 
-  private let powerSource = IOKitPowerSource()
+  @ObservationIgnored private var powerChanges: IOKitPowerSource.Subscription?
   @ObservationIgnored private var wakingTask: Task<Void, Never>?
 
   var statusText: String {
@@ -24,15 +24,18 @@ final class BatteryMonitor {
   }
 
   init() {
-    session = BatterySession(realReading: powerSource.readBattery())
-    isLowPowerModeOn = powerSource.isLowPowerModeOn
+    session = BatterySession(realReading: IOKitPowerSource.readBattery())
+    isLowPowerModeOn = IOKitPowerSource.isLowPowerModeOn
     Self.logger.notice("Started: \(self.logLine, privacy: .public)")
 
-    let observing = powerSource.startObserving { [weak self] in
-      self?.powerSourceDidChange()
-    }
-    if !observing {
-      Self.logger.error("IOKit gave no power source notification; the status will not update")
+    do {
+      powerChanges = try IOKitPowerSource.Subscription { [weak self] in
+        self?.powerSourceDidChange()
+      }
+    } catch {
+      Self.logger.error(
+        "No power source notifications, so the status will not update: \(error, privacy: .public)"
+      )
     }
   }
 
@@ -42,9 +45,9 @@ final class BatteryMonitor {
 
   private func powerSourceDidChange() {
     Self.logger.debug("Power source notification")
-    let reading = powerSource.readBattery()
+    let reading = IOKitPowerSource.readBattery()
     update {
-      isLowPowerModeOn = powerSource.isLowPowerModeOn
+      isLowPowerModeOn = IOKitPowerSource.isLowPowerModeOn
       session.receive(reading)
     }
   }

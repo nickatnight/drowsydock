@@ -2,32 +2,10 @@ import Foundation
 import IOKit.ps
 import SleepyBatteryCore
 
-@MainActor
-final class IOKitPowerSource {
-  /// Removes the IOKit and Low Power Mode registrations when released.
-  ///
-  /// It is not main-actor isolated, so its `deinit` may read these non-Sendable handles. The
-  /// isolated `IOKitPowerSource` cannot, because its `deinit` is nonisolated in Swift 6.0.
-  private final class Registrations {
-    var runLoopSource: CFRunLoopSource?
-    var lowPowerObserver: (any NSObjectProtocol)?
+enum IOKitPowerSource {
+  static var isLowPowerModeOn: Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }
 
-    deinit {
-      if let runLoopSource {
-        CFRunLoopSourceInvalidate(runLoopSource)
-      }
-      if let lowPowerObserver {
-        NotificationCenter.default.removeObserver(lowPowerObserver)
-      }
-    }
-  }
-
-  private var onChange: (@MainActor () -> Void)?
-  private let registrations = Registrations()
-
-  var isLowPowerModeOn: Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }
-
-  func readBattery() -> BatteryReading? {
+  static func readBattery() -> BatteryReading? {
     guard
       let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
       let list = IOPSCopyPowerSourcesList(info)?.takeRetainedValue()
@@ -39,33 +17,64 @@ final class IOKitPowerSource {
     return PowerSourceParser.reading(from: descriptions)
   }
 
-  func startObserving(onChange: @escaping @MainActor () -> Void) -> Bool {
-    self.onChange = onChange
-
-    let context = Unmanaged.passUnretained(self).toOpaque()
-    guard
-      let source = IOPSNotificationCreateRunLoopSource(
-        { context in
-          guard let context else { return }
-          let powerSource = Unmanaged<IOKitPowerSource>.fromOpaque(context).takeUnretainedValue()
-          // The source is added to the main run loop below, so IOKit calls back on the main
-          // thread.
-          MainActor.assumeIsolated { powerSource.onChange?() }
-        },
-        context
-      )?.takeRetainedValue()
-    else { return false }
-    // Common modes keep notifications flowing while the menu is open (event-tracking mode).
-    CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-    registrations.runLoopSource = source
-
-    registrations.lowPowerObserver = NotificationCenter.default.addObserver(
-      forName: .NSProcessInfoPowerStateDidChange,
-      object: nil,
-      queue: .main
-    ) { [weak self] _ in
-      MainActor.assumeIsolated { self?.onChange?() }
+  /// Calls `onChange` on the main actor for every power source or Low Power Mode change, until
+  /// released.
+  ///
+  /// It is not main-actor isolated, so its `deinit` may read these non-Sendable handles. A
+  /// main-actor class could not, because its `deinit` is nonisolated in Swift 6.0.
+  final class Subscription {
+    enum SubscriptionError: Error {
+      case runLoopSourceUnavailable
     }
-    return true
+
+    private final class Callback: Sendable {
+      let onChange: @MainActor @Sendable () -> Void
+
+      init(_ onChange: @escaping @MainActor @Sendable () -> Void) {
+        self.onChange = onChange
+      }
+    }
+
+    private let callback: Unmanaged<Callback>
+    private let runLoopSource: CFRunLoopSource
+    private let lowPowerObserver: any NSObjectProtocol
+
+    init(onChange: @escaping @MainActor @Sendable () -> Void) throws {
+      let handler = Callback(onChange)
+      let callback = Unmanaged.passRetained(handler)
+      guard
+        let source = IOPSNotificationCreateRunLoopSource(
+          { context in
+            guard let context else { return }
+            let handler = Unmanaged<Callback>.fromOpaque(context).takeUnretainedValue()
+            // The source is added to the main run loop below, so IOKit calls back on the main
+            // thread.
+            MainActor.assumeIsolated { handler.onChange() }
+          },
+          callback.toOpaque()
+        )?.takeRetainedValue()
+      else {
+        callback.release()
+        throw SubscriptionError.runLoopSourceUnavailable
+      }
+      // Common modes keep notifications flowing while the menu is open (event-tracking mode).
+      CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+
+      self.callback = callback
+      self.runLoopSource = source
+      self.lowPowerObserver = NotificationCenter.default.addObserver(
+        forName: .NSProcessInfoPowerStateDidChange,
+        object: nil,
+        queue: .main
+      ) { _ in
+        MainActor.assumeIsolated { handler.onChange() }
+      }
+    }
+
+    deinit {
+      CFRunLoopSourceInvalidate(runLoopSource)
+      callback.release()
+      NotificationCenter.default.removeObserver(lowPowerObserver)
+    }
   }
 }
