@@ -47,4 +47,4 @@ settling(resting, isMagnified)       // pointer just left; waiting for one settl
 - No timer runs while the pointer is away from the Dock. Manual QA 7.6 (`sample`) and 7.9 (idle CPU) check this on a real Mac.
 - A Dock enlarged by dragging its separator can't be told apart from magnification. The overlay stays faded until the pointer leaves (QA 7.2).
 - With auto-hide on, the overlay stays hidden while the Dock is off screen. It may appear while the Dock is revealed, if an AX event arrives then.
-- One decision still sits in the adapter: whether a Dock event reads at once (`!runsFrameChecks && !awaitsSettledRead`). Moving it into `DockTrackerState` as a tested property is follow-up G1 in the job's ship.md. Until then the `DockTracker` doc comment overstates "makes every decision".
+- One decision still sits in the adapter: whether a Dock event reads at once (`!runsFrameChecks && !awaitsSettledRead`). Moving it into `DockTrackerState` as a tested property is follow-up G1 in the job's ship.md. Until then the `DockTracker` doc comment overstates "makes every decision". (Resolved in job 003: `DockTrackerState.readsAtOnceOnDockChange`.)

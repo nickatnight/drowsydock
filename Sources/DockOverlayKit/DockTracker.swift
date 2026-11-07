@@ -9,7 +9,8 @@ import os
 /// Dock preference changes, Space changes, and the Dock reappearing in
 /// `NSWorkspace.runningApplications` after a relaunch. The Dock posts nothing when it magnifies,
 /// so a once-a-second frame check runs, but only while the pointer is near the Dock.
-/// `DockTrackerState` makes every decision; this class only feeds it events and applies them.
+/// `DockTrackerState` makes every tracking decision; this class only feeds it events and applies
+/// them.
 ///
 /// It has no teardown on deinit, so it must live as long as the app. Calling
 /// `accessibilityChanged(isGranted: false)` stops every observer, monitor and timer.
@@ -91,9 +92,12 @@ public final class DockTracker {
       }
     }
     // NSWorkspace posts no launch notification for an LSUIElement app such as the Dock, but its
-    // runningApplications property changes for every app, and only on the main run loop.
+    // runningApplications property changes for every app, and only on the main run loop. Only an
+    // insertion's new value holds just the launched apps; any other kind could hold the whole
+    // list, which always includes the running Dock.
     runningApplications = NSWorkspace.shared.observe(\.runningApplications, options: [.new]) {
       [weak self] _, change in
+      guard change.kind == .insertion else { return }
       let dockLaunched = change.newValue?.contains { DockReader.isDock($0) } ?? false
       guard dockLaunched else { return }
       MainActor.assumeIsolated { self?.recoverDockList(because: "The Dock relaunched") }
@@ -136,11 +140,8 @@ public final class DockTracker {
     notificationTokens.append((center, token))
   }
 
-  // While the pointer is near the Dock or has just left it, the Dock may be magnified or shrinking
-  // back, so an immediate read could store the wrong geometry, and reading on every notification
-  // could become a read per animation frame. The frame checks and the follow-up read cover it.
   private func dockMayHaveChanged() {
-    if !state.runsFrameChecks, !state.awaitsSettledRead {
+    if state.readsAtOnceOnDockChange {
       readDock()
     }
     scheduleFollowUpRead(after: Self.followUpReadDelay)
@@ -177,10 +178,13 @@ public final class DockTracker {
 
   // MARK: - Reads
 
+  // One icon-list fetch serves both the observer check and the read, so a frozen Dock stalls the
+  // main thread for one Accessibility timeout, not two.
   private func readDock() {
-    installListObserverIfNeeded()
-    do {
-      state.dockRead(try DockReader.read())
+    do throws(DockReader.Failure) {
+      let list = try DockReader.iconList()
+      installListObserverIfNeeded(on: list)
+      state.dockRead(try DockReader.read(list: list.element))
     } catch {
       logger.error("Dock geometry unavailable: \(String(describing: error), privacy: .public)")
       state.dockRead(nil)
@@ -199,11 +203,15 @@ public final class DockTracker {
     }
   }
 
-  // Re-installs the observer when the Dock's pid changed, in case a relaunch went unnoticed.
-  private func installListObserverIfNeeded() {
+  // Re-installs the observer when the Dock's pid or its list element changed, in case a relaunch
+  // or a rebuilt list went unnoticed.
+  private func installListObserverIfNeeded(
+    on list: (processIdentifier: pid_t, element: AXUIElement)
+  ) {
+    if let listObserver, listObserver.observes(list.element, of: list.processIdentifier) {
+      return
+    }
     do {
-      let list = try DockReader.iconList()
-      guard listObserver?.processIdentifier != list.processIdentifier else { return }
       listObserver = try DockListObserver(
         processIdentifier: list.processIdentifier,
         list: list.element,
@@ -268,8 +276,10 @@ public final class DockTracker {
 /// `DockListObserver` is not main-actor isolated, so its `deinit` may read these non-Sendable
 /// handles. A main-actor class could not, because its `deinit` is nonisolated in Swift 6.0.
 private final class DockListObserver {
-  // Never mutated, and its AX references are used only on the main thread: by the callback, and by
-  // the deferred release in DockListObserver.deinit, which runs on the main queue.
+  // Never mutated, and its AX references are used only on the main thread: by the callback, by
+  // DockListObserver.observes and DockListObserver.deinit, which run synchronously on the main
+  // thread because the main-actor DockTracker is the only owner, and by the deferred release in
+  // that deinit, which runs on the main queue.
   private final class Callback: @unchecked Sendable {
     let observer: AXObserver
     let list: AXUIElement
@@ -293,6 +303,12 @@ private final class DockListObserver {
   let processIdentifier: pid_t
 
   private let callbackContext: Unmanaged<Callback>
+
+  /// Whether this observer is registered on `list` in the Dock process `processIdentifier`.
+  func observes(_ list: AXUIElement, of processIdentifier: pid_t) -> Bool {
+    processIdentifier == self.processIdentifier
+      && CFEqual(list, callbackContext.takeUnretainedValue().list)
+  }
 
   init(
     processIdentifier: pid_t,

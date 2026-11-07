@@ -466,6 +466,45 @@ final class DockTrackerTests: XCTestCase {
     XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite)))
   }
 
+  // MARK: - Reading at once on a Dock event
+
+  func testADockEventReadsAtOnceWhileNoReadHasSucceeded() {
+    let tracker = trackerWithAccessibility()
+
+    XCTAssertTrue(tracker.readsAtOnceOnDockChange)
+  }
+
+  func testADockEventReadsAtOnceWhileTheDockIsOffScreen() {
+    var tracker = trackerWithAccessibility()
+    tracker.dockRead(autoHiddenDock)
+
+    XCTAssertTrue(tracker.readsAtOnceOnDockChange)
+  }
+
+  func testADockEventReadsAtOnceWhileTheDockRests() {
+    var tracker = trackerWithAccessibility()
+    tracker.dockRead(bottomDock)
+
+    XCTAssertTrue(tracker.readsAtOnceOnDockChange)
+  }
+
+  func testADockEventWaitsForTheFrameChecksWhileThePointerIsNearTheDock() {
+    let tracker = trackerHoveringOverTheDock()
+
+    XCTAssertFalse(tracker.readsAtOnceOnDockChange)
+  }
+
+  func testADockEventWaitsForTheSettledReadAfterThePointerLeaves() {
+    var tracker = trackerHoveringOverTheDock()
+    tracker.pointerMoved(to: awayFromTheDock)
+
+    XCTAssertFalse(tracker.readsAtOnceOnDockChange)
+  }
+
+  func testADockEventReadsNothingWithoutTheGrant() {
+    XCTAssertFalse(DockTrackerState(spriteSize: sprite).readsAtOnceOnDockChange)
+  }
+
   func testPointerMovesAwayFromARestingDockChangeNothing() {
     var tracker = trackerWithAccessibility()
     tracker.dockRead(bottomDock)

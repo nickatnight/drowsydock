@@ -75,6 +75,21 @@ public struct DockTrackerState: Equatable, Sendable {
     return false
   }
 
+  /// Whether the caller should read the Dock as soon as an event says it may have changed.
+  ///
+  /// While the pointer is near the Dock or has just left it, the Dock may be magnified or
+  /// shrinking back, so an immediate read could store the wrong geometry, and reading on every
+  /// notification could become a read per animation frame. The frame checks and the settled read
+  /// cover those phases. Without the grant, nothing is read.
+  public var readsAtOnceOnDockChange: Bool {
+    switch phase {
+    case .unavailable, .offScreen, .resting:
+      return true
+    case .untrusted, .hovering, .settling:
+      return false
+    }
+  }
+
   /// Records a check of the Accessibility grant. After a new grant the tracker needs a fresh read.
   public mutating func accessibilityChanged(isGranted: Bool) {
     if !isGranted {

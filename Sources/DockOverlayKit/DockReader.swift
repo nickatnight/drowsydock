@@ -37,11 +37,15 @@ public enum DockReader {
 
   /// Reads the frames of the Dock's icon list and items, and the display layout.
   public static func read() throws(Failure) -> DockGeometry {
+    try read(list: iconList().element)
+  }
+
+  /// Reads the frames of an icon list that `iconList()` returned, and the display layout.
+  static func read(list: AXUIElement) throws(Failure) -> DockGeometry {
     let screens = NSScreen.screens
     guard let primary = screens.first else { throw .noDisplays }
     let layout = DisplayLayout(primary: primary.frame, others: screens.dropFirst().map(\.frame))
 
-    let list = try iconList().element
     let items = try elements(kAXChildrenAttribute, of: list)
     let icons = items.filter { (try? string(kAXSubroleAttribute, of: $0)) != separatorSubrole }
     return DockGeometry(
