@@ -15,6 +15,9 @@ final class MascotOverlay {
   // Room around the Dock for effects that rise above the icons.
   private static let canvasMargin: CGFloat = 48
 
+  // The spec's cap for looping states. Short one-shots run at the same rate.
+  private static let framesPerSecond = 30
+
   private let catScene = MascotScene()
   private let catWindow: OverlayWindow
   private let canvasScene = DockCanvasScene()
@@ -58,7 +61,8 @@ final class MascotOverlay {
     }
 
     let pose = MascotPose(for: mood.settledState)
-    catScene.show(pose, facing: perch.facing)
+    catScene.rest(in: mood.settledState, facing: perch.facing)
+    catScene.setActive(!isFaded)
     place(catWindow, at: perch.frame, isFaded: isFaded)
 
     guard pose.veilOpacity > 0 else {
@@ -81,6 +85,7 @@ final class MascotOverlay {
   }
 
   private func hide() {
+    catScene.setActive(false)
     catWindow.hide()
     canvasWindow.hide()
   }
@@ -88,6 +93,7 @@ final class MascotOverlay {
   private static func transparentView(presenting scene: SKScene) -> SKView {
     let view = SKView()
     view.allowsTransparency = true
+    view.preferredFramesPerSecond = framesPerSecond
     view.presentScene(scene)
     return view
   }

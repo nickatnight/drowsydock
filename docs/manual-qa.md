@@ -159,3 +159,19 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 | 8.12 | At 5%, with Magnification on, hover over the icons. | The cat and the veil fade out together and fade back in within 1 s of the Dock settling. |
 | 8.13 | Leave the cat in any pose and the pointer away from the Dock for 10 s, then run `sample DrowsyDock 5`. | No SpriteKit rendering on the main thread: no `-[SKView …render…]` or `SKCRenderer` frames, and the main thread waits in `mach_msg`. |
 | 8.14 | Look at the cat on a Retina display and, if you have one, on a non-Retina display. | Outlines are smooth on both, with no blurry or jagged edges. |
+
+## Ambient behaviour (slice 9, `MascotScene` and `CatRenderer+Animations`)
+
+`AmbientSchedule` (tested in `AmbientScheduleTests`) picks what the cat does while it rests. `MascotScene` waits out an idle state's pause with a task, unpauses its view for the one action and pauses again. Looping states keep the view running at 30 fps (`MascotOverlay.framesPerSecond`). The parts of the cat that never move on their own are rasterized (`SKEffectNode.shouldRasterize`), so a frame redraws only what moves. These checks need the grant.
+
+| # | Check | Expected |
+|---|---|---|
+| 9.1 | Simulate 80% and watch the cat for a minute. | It blinks (a quick close and open, about 0.25 s) at irregular moments, 8 to 20 s apart. Nothing else moves. |
+| 9.2 | Simulate 40% and watch for a minute. | Slow blinks (about 1 s: the heavy lids sink shut, hold, and lift back), 10 to 20 s apart. |
+| 9.3 | Simulate 25% and watch for two minutes. | About every 45 s (40 to 50 s): the head leans back, the mouth opens wide with a pink tongue and the eyes squeeze shut, then the head nods forward, jerks back up and settles. About 3 s in all. |
+| 9.4 | Simulate 15%. | Small "z"s rise from behind the head one after another (one every 1.6 s), drift up and away and fade. The head bobs slowly. The static "z" is gone while the loop runs. |
+| 9.5 | Simulate 5%. | The body rises gently on each breath (about 3 s per breath). On each breath out the snore bubble swells and a "z" rises; on each breath in the bubble shrinks. |
+| 9.6 | At 80%, with the pointer away from the Dock, run the idle CPU command from CONSTRAINTS.md. | The average is at most 1.0%. |
+| 9.7 | At 15%, then at 5%, run the same command. | Each average is at most 3.0%. An offscreen measurement of the same scene gave about 2.1% (build.md). If the real value is above 3.0%, lower `MascotOverlay.framesPerSecond` to 20 and measure again. |
+| 9.8 | At 5%, rest the pointer on the Trash (the cat fades), run `sample DrowsyDock 3`, then move the pointer away. | While faded, the sample shows no SpriteKit rendering. After the pointer leaves, the snore loop resumes. |
+| 9.9 | At 25%, switch Simulate battery to 80% in the middle of a yawn. | The yawn stops at once and the cat shows the awake pose. (Slice 10 adds a transition here.) |

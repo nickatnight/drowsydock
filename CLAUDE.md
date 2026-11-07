@@ -11,7 +11,7 @@ Read CONSTRAINTS.md before writing code. Do not weaken it to make a change pass.
 - `Sources/DrowsyDock/`: the executable. SwiftUI menu bar and settings, the IOKit adapter, the SpriteKit scene, wiring.
 - `Tests/`: XCTest, one target per library.
 - `docs/manual-qa.md`: checks that need a real Dock, a real charger or an Accessibility grant.
-- `docs/adr/`: architecture decision records. Read them before changing the build setup (0001), the target split (0002), the drowsiness tracker's phases (0003), the Dock tracker's phases and triggers (0004), signing (0005, 0007), the Accessibility coordinate handling (0006) or the mascot's windows and renderer (0008). Supersede an ADR with a new one; don't edit its decision.
+- `docs/adr/`: architecture decision records. Read them before changing the build setup (0001), the target split (0002), the drowsiness tracker's phases (0003), the Dock tracker's phases and triggers (0004), signing (0005, 0007), the Accessibility coordinate handling (0006) the mascot's windows and renderer (0008) or how it animates within the CPU budget (0009). Supersede an ADR with a new one; don't edit its decision.
 
 ## Commands
 

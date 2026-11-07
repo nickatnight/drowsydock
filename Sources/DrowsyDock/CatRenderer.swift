@@ -16,7 +16,7 @@ final class CatRenderer {
   /// behind the head.
   static let anchorFacingLeft = CGPoint(x: 29, y: 1)
 
-  private enum Palette {
+  enum Palette {
     static let fur = SKColor(srgbRed: 0.96, green: 0.73, blue: 0.48, alpha: 1)
     static let patch = SKColor(srgbRed: 0.87, green: 0.53, blue: 0.29, alpha: 1)
     static let cream = SKColor(srgbRed: 1.00, green: 0.95, blue: 0.87, alpha: 1)
@@ -25,11 +25,12 @@ final class CatRenderer {
     static let eye = SKColor(srgbRed: 0.18, green: 0.13, blue: 0.11, alpha: 1)
     static let zFill = SKColor(srgbRed: 0.84, green: 0.90, blue: 1.00, alpha: 1)
     static let zOutline = SKColor(srgbRed: 0.17, green: 0.23, blue: 0.40, alpha: 1)
+    static let mouth = SKColor(srgbRed: 0.45, green: 0.18, blue: 0.20, alpha: 1)
     static let bubble = SKColor(srgbRed: 0.80, green: 0.91, blue: 1.00, alpha: 0.7)
     static let bubbleRim = SKColor(srgbRed: 0.45, green: 0.62, blue: 0.85, alpha: 0.9)
   }
 
-  private enum Metrics {
+  enum Metrics {
     static let outlineWidth: CGFloat = 1.4
     static let neck = CGPoint(x: 0, y: 25)
     static let eyeSize = CGSize(width: 5.5, height: 7)
@@ -46,12 +47,19 @@ final class CatRenderer {
   /// The cat's root node.
   let node = SKNode()
 
-  private let head = SKNode()
-  private let ears: [SKNode]
-  private let lids: [SKNode]
-  private let lashes: [SKShapeNode]
-  private let zs: [SKNode]
-  private let snoreBubble: SKNode
+  // The parts that animations move. Everything that breathes sits in the torso, which scales from
+  // the paws up.
+  let torso = SKNode()
+  let head = SKNode()
+  let ears: [SKNode]
+  let lids: [SKNode]
+  let lashes: [SKShapeNode]
+  let zs: [SKNode]
+  let snoreBubble: SKNode
+  let openMouth: SKNode
+
+  /// The pose the cat rests in between animations.
+  private(set) var pose = MascotPose(for: .awake)
 
   init() {
     let tail = Self.tail()
@@ -123,6 +131,8 @@ final class CatRenderer {
     let mouth = Self.shape(Self.mouthPath(), fill: nil, lineWidth: 1)
     let whiskers = Self.shape(Self.whiskersPath(), fill: nil, lineWidth: 0.6)
     whiskers.alpha = 0.7
+    openMouth = Self.openMouth()
+    openMouth.position = CGPoint(x: -0.5, y: 3.6)
 
     snoreBubble = Self.bubble()
     snoreBubble.position = CGPoint(x: -10.5, y: 3.5)
@@ -133,33 +143,48 @@ final class CatRenderer {
       return z
     }
 
-    // Children draw in the order they are added, so later parts cover earlier ones.
+    // Children draw in the order they are added, so later parts cover earlier ones. Parts that
+    // never move on their own are rasterized in groups: SpriteKit re-strokes every shape path on
+    // every frame, which made a looping cat cost more than the CPU budget.
     head.position = Metrics.neck
-    var headParts: [SKNode] = ears
-    headParts.append(face)
-    headParts += eyes
+    var behindLids: [SKNode] = ears
+    behindLids.append(face)
+    behindLids += eyes
+    var inFrontOfLids: [SKNode] = [patch]
+    inFrontOfLids += muzzle
+    inFrontOfLids += cheeks
+    inFrontOfLids += [nose, mouth, whiskers]
+    var headParts: [SKNode] = [Self.rasterized(behindLids)]
     headParts += lids
-    headParts.append(patch)
-    headParts += muzzle
-    headParts += cheeks
-    headParts += [nose, mouth, whiskers, snoreBubble]
+    headParts += [Self.rasterized(inFrontOfLids), openMouth, snoreBubble]
     for part in headParts {
       head.addChild(part)
     }
-    var bodyParts: [SKNode] = [tail, body, belly]
-    bodyParts += paws
-    bodyParts.append(head)
-    bodyParts += zs
-    for part in bodyParts {
+    for part in [Self.rasterized([tail, body, belly]), head] {
+      torso.addChild(part)
+    }
+    var parts: [SKNode] = [torso, Self.rasterized(paws)]
+    parts += zs
+    for part in parts {
       node.addChild(part)
     }
-    apply(MascotPose(for: .awake))
+    apply(pose)
   }
 
   /// Puts the cat into `pose` at once.
   func apply(_ pose: MascotPose) {
-    setEyelids(pose.eyelidOpenness)
-    head.zRotation = CGFloat(pose.headTiltDegrees) * .pi / 180
+    self.pose = pose
+    torso.yScale = 1
+    head.position = Metrics.neck
+    openMouth.alpha = 0
+    snoreBubble.setScale(1)
+    for lid in lids {
+      lid.position.y = Self.lidEdge(at: pose.eyelidOpenness)
+    }
+    for lash in lashes {
+      lash.alpha = Self.lashAlpha(at: pose.eyelidOpenness)
+    }
+    head.zRotation = Self.radians(pose.headTiltDegrees)
     let droop = CGFloat(pose.earDroop) * Metrics.maxEarDroop
     ears[0].zRotation = droop
     ears[1].zRotation = -droop
@@ -188,24 +213,29 @@ final class CatRenderer {
     }
   }
 
-  // MARK: - Eyelids
+  // MARK: - Geometry helpers
 
-  private func setEyelids(_ openness: Double) {
+  /// Returns the height of a lid's lower edge for an eye open by `openness`: on the top of the
+  /// eye at 1, at its bottom at 0.
+  static func lidEdge(at openness: Double) -> CGFloat {
     let open = CGFloat(min(max(openness, 0), 1))
     let eyeTop = Metrics.eyeCentres[0].y + Metrics.eyeSize.height / 2
-    // At 1 the lid's lower edge rests on the top of the eye; at 0 it reaches the bottom.
-    let lowerEdge = eyeTop - (1 - open) * Metrics.eyeSize.height
-    for lid in lids {
-      lid.position.y = lowerEdge
-    }
-    for lash in lashes {
-      lash.alpha = open > 0.97 ? 0 : 1
-    }
+    return eyeTop - (1 - open) * Metrics.eyeSize.height
+  }
+
+  /// Returns the lash line's opacity: hidden while the eye is wide open, so the open eye has no
+  /// line above it.
+  static func lashAlpha(at openness: Double) -> CGFloat {
+    openness > 0.97 ? 0 : 1
+  }
+
+  static func radians(_ degrees: Double) -> CGFloat {
+    CGFloat(degrees) * .pi / 180
   }
 
   // MARK: - Shapes
 
-  private static func shape(
+  static func shape(
     _ path: CGPath,
     fill: SKColor?,
     stroke: SKColor? = Palette.outline,
@@ -339,7 +369,8 @@ final class CatRenderer {
     let edge = CGMutablePath()
     edge.move(to: CGPoint(x: -half + 0.6, y: 0))
     edge.addQuadCurve(to: CGPoint(x: half - 0.6, y: 0), control: CGPoint(x: 0, y: -curve * 2))
-    let lid = SKNode()
+    let lid = SKEffectNode()
+    lid.shouldRasterize = true
     lid.addChild(shape(fill, fill: Palette.fur, stroke: nil))
     let lash = shape(edge, fill: nil, lineWidth: 1.2)
     lid.addChild(lash)
@@ -417,16 +448,46 @@ final class CatRenderer {
     return bubble
   }
 
-  private static func z(size: CGFloat) -> SKNode {
+  private static func openMouth() -> SKNode {
+    let mouth = SKNode()
+    mouth.addChild(
+      shape(
+        CGPath(ellipseIn: CGRect(x: -2.6, y: -3.4, width: 5.2, height: 6.4), transform: nil),
+        fill: Palette.mouth,
+        lineWidth: 0.9
+      )
+    )
+    mouth.addChild(
+      shape(
+        CGPath(ellipseIn: CGRect(x: -1.7, y: -3.1, width: 3.4, height: 2.4), transform: nil),
+        fill: Palette.pink,
+        stroke: nil
+      )
+    )
+    return mouth
+  }
+
+  static func z(size: CGFloat) -> SKNode {
     let half = size / 2
     let path = CGMutablePath()
     path.move(to: CGPoint(x: -half, y: half))
     path.addLine(to: CGPoint(x: half, y: half))
     path.addLine(to: CGPoint(x: -half, y: -half))
     path.addLine(to: CGPoint(x: half, y: -half))
-    let z = SKNode()
-    z.addChild(shape(path, fill: nil, stroke: Palette.zOutline, lineWidth: size * 0.42))
-    z.addChild(shape(path, fill: nil, stroke: Palette.zFill, lineWidth: size * 0.22))
-    return z
+    return rasterized([
+      shape(path, fill: nil, stroke: Palette.zOutline, lineWidth: size * 0.42),
+      shape(path, fill: nil, stroke: Palette.zFill, lineWidth: size * 0.22),
+    ])
+  }
+
+  // Draws `parts` once into a cached texture, and again only when one of them changes. Moving,
+  // scaling or fading the group itself reuses the cache.
+  private static func rasterized(_ parts: [SKNode]) -> SKEffectNode {
+    let group = SKEffectNode()
+    group.shouldRasterize = true
+    for part in parts {
+      group.addChild(part)
+    }
+    return group
   }
 }
