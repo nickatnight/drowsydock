@@ -17,111 +17,178 @@ case "$mode" in
     ;;
 esac
 
+# Every scan below reads its file list from git. If git can't answer, stop here instead of
+# scanning an empty list and passing.
+git rev-parse --is-inside-work-tree >/dev/null
+
 coverage_minimum=80
-coverage_exempt_imports='^import (AppKit|ApplicationServices|Cocoa|IOKit|ServiceManagement|SpriteKit|SwiftUI)'
+# An import may carry attributes (`@preconcurrency`, `@_exported`, `@_spi(Name)`) and a kind
+# (`import class AppKit.NSColor`).
+coverage_exempt_imports='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?(AppKit|ApplicationServices|Cocoa|IOKit|ServiceManagement|SpriteKit|SwiftUI)([.[:space:]]|$)'
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
+# Exiting from these traps runs the EXIT trap, so a killed run still deletes the working-tree copy.
+trap 'exit 129' HUP
+trap 'exit 143' TERM
+
+# NUL-delimited, so names with blanks, quotes or backslashes survive. Listed once at the top
+# level, where `set -e` stops the run if git fails.
+git ls-files --cached --others --exclude-standard -z >"$work/files"
 
 step() { printf '\n==> %s\n' "$*"; }
 
-# A git pathspec `*` matches across `/`.
+# Runs a scan (grep, awk). Exit 0 means it found something and 1 means it found nothing. Any other
+# status, such as a file it could not open, stops the run instead of reading as "nothing found".
+found() {
+  local status=0
+  "$@" || status=$?
+  if ((status > 1)); then
+    echo "Scan failed with exit $status: $*" >&2
+    exit 2
+  fi
+  return "$status"
+}
+
+# Prints the Swift files under each directory, NUL-delimited.
 swift_files_under() {
   local dir file
   for dir in "$@"; do
     while IFS= read -r -d '' file; do
-      if [[ -f $file ]]; then echo "$file"; fi
-    done < <(git ls-files --cached --others --exclude-standard -z -- "$dir/*.swift")
+      if [[ $file == "$dir"/*.swift && -f $file ]]; then printf '%s\0' "$file"; fi
+    done <"$work/files"
   done
+}
+
+# The gate covers DrowsyDockCore and the DockOverlayKit files that import no adapter framework.
+# Every other file under Sources is exempt and needs a manual-QA entry instead. So a new pure
+# library target must be added here and to the CONSTRAINTS coverage row in the same change.
+is_gated() {
+  case $1 in
+    Sources/DrowsyDockCore/*) return 0 ;;
+    Sources/DockOverlayKit/*) ! found grep -Eq "$coverage_exempt_imports" "$1" ;;
+    *) return 1 ;;
+  esac
 }
 
 gated_files() {
   local file
-  swift_files_under Sources/DrowsyDockCore
-  while IFS= read -r file; do
-    grep -Eq "$coverage_exempt_imports" "$file" || echo "$file"
-  done < <(swift_files_under Sources/DockOverlayKit)
-}
-
-coverage_exempt_files() {
-  comm -23 <(swift_files_under Sources | sort) <(gated_files | sort)
+  while IFS= read -r -d '' file; do
+    if is_gated "$file"; then printf '%s\0' "$file"; fi
+  done < <(swift_files_under Sources)
 }
 
 coverage_exempt_files_are_in_manual_qa() {
   local file name failed=0
-  while IFS= read -r file; do
+  while IFS= read -r -d '' file; do
+    if is_gated "$file"; then continue; fi
     name="$(basename "$file" .swift)"
-    if ! grep -qF "\`$name\`" docs/manual-qa.md; then
+    if ! found grep -qF "\`$name\`" docs/manual-qa.md; then
       echo "Manual QA: $file is exempt from coverage but docs/manual-qa.md never names \`$name\`" >&2
       failed=1
     fi
-  done < <(coverage_exempt_files)
+  done < <(swift_files_under Sources)
   return "$failed"
 }
 
+# Runs an awk program over the Swift files in Sources and Tests. The program exits 0 when it
+# finds something and 1 when it finds nothing.
+scan_swift_files() {
+  local file files=()
+  while IFS= read -r -d '' file; do files+=("$file"); done < <(swift_files_under Sources Tests)
+  if ((${#files[@]} == 0)); then return 1; fi
+  found awk "$1" "${files[@]}"
+}
+
+# A suppression needs a plain `//` comment saying why it is safe: on the line above, or after the
+# code on the same line. A doc comment doesn't count, because every public declaration has one.
+# `// swift-format-ignore` is itself a comment, so its explanation must be on the line above.
+unexplained_suppressions='
+  function explains(line) {
+    return line ~ /^[[:space:]]*\/\/[^\/]/ && line !~ /swift-format-ignore/ && line ~ /[[:alpha:]]/
+  }
+  function report() { print FILENAME ":" FNR ": " $0; found = 1 }
+  FNR == 1 { previous = "" }
+  /^[[:space:]]*\/\/[[:space:]]*swift-format-ignore/ { if (!explains(previous)) report() }
+  /^[[:space:]]*\/\// { previous = $0; next }
+  /@preconcurrency|nonisolated\(unsafe\)|@unchecked Sendable/ &&
+    $0 !~ /(^|[^\/])\/\/[^\/]*[[:alpha:]]/ && !explains(previous) { report() }
+  { previous = $0 }
+  END { exit !found }'
+
+# Finds `catch … {}` on one line, and a `catch … {` whose next non-blank line closes it.
+empty_catches='
+  function report(line, text) { print FILENAME ":" line ": " text; found = 1 }
+  FNR == 1 { open = 0 }
+  open && /^[[:space:]]*$/ { next }
+  open && /^[[:space:]]*\}/ { report(open_line, open_text) }
+  { open = 0 }
+  /(^|[^[:alnum:]_])catch([[:space:]][^{]*)?\{[[:space:]]*\}/ { report(FNR, $0) }
+  /(^|[^[:alnum:]_])catch([[:space:]][^{]*)?\{[[:space:]]*$/ {
+    open = 1
+    open_line = FNR
+    open_text = $0
+  }
+  END { exit !found }'
+
 floor_rules() {
   local failed=0
-  if grep -rnF 'try!' Sources; then
+  if found grep -rnF 'try!' Sources; then
     echo "Floor: try! outside tests" >&2
     failed=1
   fi
-  if grep -rnE 'fatalError\("(TODO|not implemented)' Sources Tests; then
+  if found grep -rnE 'fatalError\("(TODO|not implemented)' Sources Tests; then
     echo "Floor: unimplemented stub" >&2
     failed=1
   fi
-  if grep -rnE 'catch[[:space:]]*\{[[:space:]]*\}' Sources Tests; then
+  if scan_swift_files "$empty_catches"; then
     echo "Floor: empty catch" >&2
     failed=1
   fi
-  if swift_files_under Sources Tests | xargs awk '
-    FNR == 1 { previous = "" }
-    /swift-format-ignore|@preconcurrency|nonisolated\(unsafe\)|@unchecked Sendable/ &&
-      $0 !~ /\/\/.*[[:alpha:]]/ && previous !~ /^[[:space:]]*\/\// {
-      print FILENAME ":" FNR ": " $0
-      found = 1
-    }
-    { previous = $0 }
-    END { exit !found }'; then
+  if scan_swift_files "$unexplained_suppressions"; then
     echo "Floor: suppression without an explaining comment" >&2
     failed=1
   fi
-  if grep -rnE "$coverage_exempt_imports" Sources/DrowsyDockCore; then
+  if found grep -rnE "$coverage_exempt_imports" Sources/DrowsyDockCore; then
     echo "Boundary: DrowsyDockCore must not import system UI or hardware frameworks" >&2
     failed=1
   fi
-  if ! grep -Eq '^  dependencies: \[\],?$' Package.swift; then
+  if ! found grep -Eq '^  dependencies: \[\],?$' Package.swift; then
     echo "Floor: Package.swift must declare empty package dependencies" >&2
     failed=1
   fi
   return "$failed"
 }
 
+# Reads NUL-delimited file names and prints "path<TAB>line" for each line added or changed since
+# the merge base. An untracked file counts in full. The name goes to awk through the environment,
+# because `awk -v` expands backslash escapes.
 changed_lines() {
-  local merge_base="$1"
-  shift
-  git diff -U0 --no-color "$merge_base" -- "$@" | awk '
-    /^\+\+\+ b\// { file = substr($0, 7); next }
-    /^@@/ {
-      split(substr($3, 2), range, ",")
-      count = (range[2] == "" ? 1 : range[2])
-      for (i = 0; i < count; i++) print file, range[1] + i
-    }'
-  local file
-  while IFS= read -r file; do
-    awk -v file="$file" '{ print file, NR }' "$file"
-  done < <(git ls-files --others --exclude-standard -- "$@")
+  local merge_base="$1" file
+  while IFS= read -r -d '' file; do
+    if git --literal-pathspecs ls-files --error-unmatch -- "$file" >/dev/null 2>&1; then
+      git --literal-pathspecs diff -U0 --no-color "$merge_base" -- "$file" | FILE="$file" awk '
+        /^@@/ {
+          split(substr($3, 2), range, ",")
+          count = (range[2] == "" ? 1 : range[2])
+          for (i = 0; i < count; i++) print ENVIRON["FILE"] "\t" (range[1] + i)
+        }'
+    else
+      FILE="$file" awk '{ print ENVIRON["FILE"] "\t" NR }' "$file"
+    fi
+  done
 }
 
 coverage_gate() {
-  local merge_base bin_path lcov changed file
+  local merge_base bin_path lcov changed gated
   merge_base="$(git merge-base "${CHECK_BASE:-main}" HEAD)"
   bin_path="$(swift build --show-bin-path)"
   lcov="$work/coverage.lcov"
   changed="$work/changed-lines.txt"
+  gated="$work/gated-files"
 
-  local files=()
-  while IFS= read -r file; do files+=("$file"); done < <(gated_files)
-  if ((${#files[@]} == 0)); then
+  gated_files >"$gated"
+  if [[ ! -s $gated ]]; then
     echo "No gated files yet."
     return 0
   fi
@@ -130,17 +197,19 @@ coverage_gate() {
     -instr-profile "$bin_path/codecov/default.profdata" \
     "$bin_path/DrowsyDockPackageTests.xctest/Contents/MacOS/DrowsyDockPackageTests" \
     >"$lcov"
-  changed_lines "$merge_base" "${files[@]}" >"$changed"
+  changed_lines "$merge_base" <"$gated" >"$changed"
 
-  # lcov paths may use the logical or the physical (symlink-resolved) checkout path.
-  awk -v logical="$PWD/" -v physical="$(pwd -P)/" -v minimum="$coverage_minimum" '
-    NR == FNR { changed[$1 SUBSEP $2] = 1; next }
+  # lcov paths may use the logical or the physical (symlink-resolved) checkout path. The changed
+  # lines come first; `FILENAME == ARGV[1]` still holds when that file is empty, unlike NR == FNR.
+  LOGICAL="$PWD/" PHYSICAL="$(pwd -P)/" MINIMUM="$coverage_minimum" awk -F '\t' '
+    FILENAME == ARGV[1] { changed[$1 SUBSEP $2] = 1; changed_files[$1] = 1; next }
     /^SF:/ {
       file = substr($0, 4)
-      if (index(file, physical) == 1) file = substr(file, length(physical) + 1)
-      else if (index(file, logical) == 1) file = substr(file, length(logical) + 1)
+      if (index(file, ENVIRON["PHYSICAL"]) == 1) file = substr(file, length(ENVIRON["PHYSICAL"]) + 1)
+      else if (index(file, ENVIRON["LOGICAL"]) == 1) file = substr(file, length(ENVIRON["LOGICAL"]) + 1)
       else next
       under_root++
+      recorded[file] = 1
       next
     }
     /^DA:/ {
@@ -152,14 +221,20 @@ coverage_gate() {
     }
     END {
       if (under_root == 0) {
-        print "Coverage gate: no lcov file lies under " physical "; the path mapping is broken."
+        print "Coverage gate: no lcov file lies under " ENVIRON["PHYSICAL"] "; the path mapping is broken."
         exit 2
       }
+      for (f in changed_files) {
+        if (f in recorded) continue
+        print "Coverage gate: " f " has changed lines but no lcov record. Link its target into a test target, or give it executable code."
+        unrecorded = 1
+      }
+      if (unrecorded) exit 1
       if (total == 0) { print "No executable changed lines in gated files."; exit 0 }
       percent = hit * 100 / total
-      printf "Changed-line coverage: %d/%d = %.1f%% (minimum %d%%)\n", hit, total, percent, minimum
+      printf "Changed-line coverage: %d/%d = %.1f%% (minimum %d%%)\n", hit, total, percent, ENVIRON["MINIMUM"]
       for (f in missed) print "  uncovered " f ":" missed[f]
-      exit (percent < minimum)
+      exit (percent < ENVIRON["MINIMUM"])
     }' "$changed" "$lcov"
 }
 
@@ -182,15 +257,17 @@ if [[ -n $signing_files ]]; then
   echo "$signing_files" >&2
   exit 1
 fi
-gitleaks detect --redact --no-banner
+gitleaks detect --redact --no-banner -v
 # `detect` reads only commits, so also scan a copy of the uncommitted and untracked working-tree
-# files. One `gitleaks dir` run over the copy skips build output and ignored files.
+# files. One `gitleaks dir` run over the copy skips build output and ignored files. A finding's
+# path points into that copy, which this script deletes on exit: the part after `/tree/` is the
+# path in the working tree.
 mkdir "$work/tree"
 while IFS= read -r -d '' file; do
   if [[ -f $file ]]; then printf '%s\0' "$file"; fi
-done < <(git ls-files --cached --others --exclude-standard -z) |
+done <"$work/files" |
   tar -cf - --null -T - | tar -xf - -C "$work/tree"
-gitleaks dir --redact --no-banner --log-level warn "$work/tree"
+gitleaks dir --redact --no-banner --log-level warn -v "$work/tree"
 
 if [[ $mode == fast ]]; then
   step "fast checks passed"
