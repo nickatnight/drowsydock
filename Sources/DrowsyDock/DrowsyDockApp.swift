@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct SleepyBatteryApp: App {
+struct DrowsyDockApp: App {
   @State private var monitor = BatteryMonitor()
 
   var body: some Scene {

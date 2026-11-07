@@ -3,17 +3,17 @@
 import PackageDescription
 
 let package = Package(
-  name: "SleepyBattery",
+  name: "DrowsyDock",
   platforms: [.macOS(.v14)],
   products: [
-    .executable(name: "SleepyBattery", targets: ["SleepyBattery"])
+    .executable(name: "DrowsyDock", targets: ["DrowsyDock"])
   ],
   dependencies: [],
   targets: [
     .target(name: "DockOverlayKit"),
     .target(name: "DrowsyDockCore"),
     .executableTarget(
-      name: "SleepyBattery",
+      name: "DrowsyDock",
       dependencies: ["DockOverlayKit", "DrowsyDockCore"]
     ),
     .testTarget(name: "DockOverlayKitTests", dependencies: ["DockOverlayKit"]),

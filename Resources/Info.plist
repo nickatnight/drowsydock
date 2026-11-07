@@ -7,13 +7,13 @@
 	<key>CFBundleDisplayName</key>
 	<string>Sleepy Battery</string>
 	<key>CFBundleExecutable</key>
-	<string>SleepyBattery</string>
+	<string>DrowsyDock</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.drowsydock.SleepyBattery</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>SleepyBattery</string>
+	<string>DrowsyDock</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

@@ -3,7 +3,7 @@
 These checks need a real Mac session: a screen, a charger, a Dock or an Accessibility grant. The automated checks (`scripts/check.sh task`) cannot reach them. Run them on the bundled app:
 
 ```
-scripts/bundle.sh && open build/SleepyBattery.app
+scripts/bundle.sh && open build/DrowsyDock.app
 ```
 
 Every Swift file that the coverage gate exempts must be named here in backticks. `scripts/check.sh fast` fails otherwise.
@@ -16,12 +16,12 @@ log stream --level debug --predicate 'subsystem == "com.drowsydock.SleepyBattery
 
 Each `Changed:` line is a status change. `Power source notification` is logged at debug level for every IOKit callback, including ones that change nothing in the menu.
 
-## Menu-bar app (slice 1, `SleepyBatteryApp`)
+## Menu-bar app (slice 1, `DrowsyDockApp`)
 
 | # | Check | Expected |
 |---|---|---|
 | 1.1 | Launch the app. | A moon-and-z icon appears in the menu bar. No Dock icon appears, and the app is absent from the Cmd-Tab switcher. |
-| 1.2 | Choose Quit Sleepy Battery from the menu. | The icon disappears and `pgrep -x SleepyBattery` prints nothing. |
+| 1.2 | Choose Quit Sleepy Battery from the menu. | The icon disappears and `pgrep -x DrowsyDock` prints nothing. |
 | 1.3 | Open the menu and press Cmd-Q. | Same as 1.2. |
 | 1.4 | On an Intel Mac, launch the same bundle. | It starts. The bundle is universal (`lipo -archs` lists `x86_64 arm64`). |
 
@@ -40,7 +40,7 @@ Each `Changed:` line is a status change. `Power source notification` is logged a
 | 3.4 | Leave the charger in until the battery is full or macOS holds the charge. | The menu shows `… · Plugged in · Awake`. |
 | 3.5 | Turn Low Power Mode on in System Settings ▸ Battery, then off. | The menu line gains ` · Low Power`, then loses it. A `Changed:` line is logged each time. |
 | 3.6 | Keep the menu open while plugging in. | The line updates while the menu stays open. |
-| 3.7 | Check that no timer polls the battery: run `sample SleepyBattery 5` while idle on battery. | The main thread sits in `mach_msg` (run-loop wait). No timer callbacks appear. |
+| 3.7 | Check that no timer polls the battery: run `sample DrowsyDock 5` while idle on battery. | The main thread sits in `mach_msg` (run-loop wait). No timer callbacks appear. |
 | 3.8 | On a Mac with no battery (Mac mini, iMac, Mac Studio), open the menu. | The first line reads `No battery detected`. |
 | 3.8a | Sleep the Mac, wake it, then unplug. (This overlaps slice 15.) | The unplug is still logged within 2 s, so the IOKit notification survives sleep. |
 

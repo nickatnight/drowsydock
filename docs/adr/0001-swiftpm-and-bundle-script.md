@@ -11,7 +11,7 @@ Sleepy Battery is a macOS menu-bar app (`LSUIElement`), and agents build most of
 ## Decision
 
 - The repo is a SwiftPM package (`swift-tools-version: 6.0`, macOS 14, `dependencies: []`).
-- `scripts/bundle.sh` builds a universal release binary (`swift build -c release --arch arm64 --arch x86_64`). It assembles `build/SleepyBattery.app` from that binary and `Resources/Info.plist`, then runs `codesign` with `$SIGN_IDENTITY`. The default is `-`, an ad-hoc signature.
+- `scripts/bundle.sh` builds a universal release binary (`swift build -c release --arch arm64 --arch x86_64`). It assembles `build/DrowsyDock.app` from that binary and `Resources/Info.plist`, then runs `codesign` with `$SIGN_IDENTITY`. The default is `-`, an ad-hoc signature.
 - `swift test` runs the XCTest targets.
 
 ## Alternatives considered

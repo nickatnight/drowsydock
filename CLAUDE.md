@@ -8,7 +8,7 @@ Read CONSTRAINTS.md before writing code. Do not weaken it to make a change pass.
 
 - `Sources/DockOverlayKit/`: Dock geometry (AX), overlay window, Accessibility permission. Shared with future Dock apps, so keep it free of battery or mascot knowledge.
 - `Sources/DrowsyDockCore/`: pure logic and value types. No AppKit, SpriteKit, IOKit or AX imports. Everything here is unit-tested.
-- `Sources/SleepyBattery/`: the executable. SwiftUI menu bar and settings, the IOKit adapter, the SpriteKit scene, wiring.
+- `Sources/DrowsyDock/`: the executable. SwiftUI menu bar and settings, the IOKit adapter, the SpriteKit scene, wiring.
 - `Tests/`: XCTest, one target per library.
 - `docs/manual-qa.md`: checks that need a real Dock, a real charger or an Accessibility grant.
 - `docs/adr/`: architecture decision records. Read them before changing the build setup (0001), the target split (0002) or the tracker's phases (0003). Supersede an ADR with a new one; don't edit its decision.
@@ -20,9 +20,9 @@ Build:   swift build -Xswiftc -warnings-as-errors
 Test:    swift test
 Cover:   swift test --enable-code-coverage
 Format:  swift format lint --strict --recursive Sources Tests
-Bundle:  scripts/bundle.sh                 # → build/SleepyBattery.app, universal, ad-hoc signed
-Run:     open build/SleepyBattery.app
-Quit:    pkill -x SleepyBattery
+Bundle:  scripts/bundle.sh                 # → build/DrowsyDock.app, universal, ad-hoc signed
+Run:     open build/DrowsyDock.app
+Quit:    pkill -x DrowsyDock
 Logs:    log stream --predicate 'subsystem == "com.drowsydock.SleepyBattery"'
 Checks:  scripts/check.sh fast | task
 ```

@@ -114,7 +114,7 @@ coverage_gate() {
 
   xcrun llvm-cov export -format=lcov \
     -instr-profile "$bin_path/codecov/default.profdata" \
-    "$bin_path/SleepyBatteryPackageTests.xctest/Contents/MacOS/SleepyBatteryPackageTests" \
+    "$bin_path/DrowsyDockPackageTests.xctest/Contents/MacOS/DrowsyDockPackageTests" \
     >"$lcov"
   changed_lines "$merge_base" "${files[@]}" >"$changed"
 
@@ -167,7 +167,7 @@ manual_qa_entries() {
       echo "Manual QA: $file is exempt from coverage but docs/manual-qa.md never names \`$name\`" >&2
       failed=1
     fi
-  done < <(swift_files_under Sources/SleepyBattery Sources/DockOverlayKit)
+  done < <(swift_files_under Sources/DrowsyDock Sources/DockOverlayKit)
   return "$failed"
 }
 
@@ -207,7 +207,7 @@ coverage_gate
 
 step "Bundle"
 scripts/bundle.sh
-codesign --verify --strict build/SleepyBattery.app
+codesign --verify --strict build/DrowsyDock.app
 plutil -lint Resources/Info.plist
 
 step "task checks passed"
