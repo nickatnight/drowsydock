@@ -15,10 +15,17 @@ final class AppCoordinator {
 
   static let mascotSize = CGSize(width: 64, height: 64)
 
+  // macOS posts this, undocumented, whenever an app's Accessibility grant changes. It is a hint:
+  // TCC may not report the new grant at once, so the grant is checked again a moment later.
+  private static let accessibilityListChanged = Notification.Name("com.apple.accessibility.api")
+  private static let grantRecheckDelay = Duration.seconds(1)
+
   let battery = BatteryMonitor()
   private(set) var isAccessibilityGranted: Bool
 
   @ObservationIgnored private var menuObserver: (any NSObjectProtocol)?
+  @ObservationIgnored private var accessibilityObserver: (any NSObjectProtocol)?
+  @ObservationIgnored private var grantRecheck: Task<Void, Never>?
   @ObservationIgnored private let dockTracker: DockTracker
 
   init() {
@@ -36,6 +43,14 @@ final class AppCoordinator {
       queue: .main
     ) { [weak self] _ in
       MainActor.assumeIsolated { self?.refreshAccessibility() }
+    }
+    // Opening the menu stays the fallback in case this notification is never posted.
+    accessibilityObserver = DistributedNotificationCenter.default().addObserver(
+      forName: Self.accessibilityListChanged,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated { self?.accessibilityListDidChange() }
     }
   }
 
@@ -62,6 +77,15 @@ final class AppCoordinator {
       Self.dockLogger.error(
         "Dock geometry unavailable: \(String(describing: error), privacy: .public)"
       )
+    }
+  }
+
+  private func accessibilityListDidChange() {
+    refreshAccessibility()
+    grantRecheck?.cancel()
+    grantRecheck = Task { [weak self] in
+      guard (try? await Task.sleep(for: Self.grantRecheckDelay)) != nil else { return }
+      self?.refreshAccessibility()
     }
   }
 
