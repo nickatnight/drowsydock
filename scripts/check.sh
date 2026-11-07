@@ -176,6 +176,14 @@ floor_rules
 manual_qa_entries
 
 step "Secrets"
+# gitleaks matches text, so binary signing material needs its own check.
+signing_files="$(git ls-files --cached --others --exclude-standard -- \
+  '*.p12' '*.cer' '*.p8' '*.mobileprovision' '*.provisionprofile')"
+if [[ -n $signing_files ]]; then
+  echo "Secrets: signing material must never be committed:" >&2
+  echo "$signing_files" >&2
+  exit 1
+fi
 gitleaks detect --redact --no-banner
 # `detect` reads only commits, so also scan a copy of the uncommitted and untracked working-tree
 # files. One `gitleaks dir` run over the copy skips build output and ignored files.

@@ -4,3 +4,9 @@ build/
 *.xcodeproj/
 xcuserdata/
 .DS_Store
+*.p12
+*.cer
+*.p8
+*.mobileprovision
+*.provisionprofile
+.env*
