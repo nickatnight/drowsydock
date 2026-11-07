@@ -1,6 +1,6 @@
 # Constraints
 
-Last reviewed: 2026-11-06 (draft, emgee job 001-sleepy-battery, from the skill defaults)
+Last reviewed: 2026-11-06 (draft, emgee job 001-foundation, from the skill defaults)
 
 ## Floor (always enforced)
 
