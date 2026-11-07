@@ -57,13 +57,7 @@ extension CatRenderer {
     case .yawnAndNod:
       duration = yawnAndNod()
     }
-    node.run(
-      .sequence([
-        .wait(forDuration: duration),
-        .run({ MainActor.assumeIsolated(completion) }, queue: .main),
-      ]),
-      withKey: Self.animationKey
-    )
+    node.run(.completion(after: duration, completion), withKey: Self.animationKey)
   }
 
   func loop(_ loop: AmbientLoop) {
@@ -93,13 +87,7 @@ extension CatRenderer {
     case .wakeUp:
       wakeUp(into: target)
     }
-    node.run(
-      .sequence([
-        .wait(forDuration: duration),
-        .run({ MainActor.assumeIsolated(completion) }, queue: .main),
-      ]),
-      withKey: Self.animationKey
-    )
+    node.run(.completion(after: duration, completion), withKey: Self.animationKey)
   }
 
   func stopAnimations() {
@@ -150,7 +138,7 @@ extension CatRenderer {
     torso.run(
       .sequence([
         .wait(forDuration: settle),
-        .run({ [weak self] in MainActor.assumeIsolated { _ = self?.yawnAndNod() } }, queue: .main),
+        .onMainActor { [weak self] in _ = self?.yawnAndNod() },
       ]),
       withKey: Self.animationKey
     )
@@ -389,10 +377,7 @@ extension CatRenderer {
 
   private func floatZs() {
     hideStaticZs()
-    let spawn = SKAction.run(
-      { [weak self] in MainActor.assumeIsolated { self?.spawnFloatingZ(size: 6) } },
-      queue: .main
-    )
+    let spawn = SKAction.onMainActor { [weak self] in self?.spawnFloatingZ(size: 6) }
     node.run(
       .repeatForever(.sequence([spawn, .wait(forDuration: Timing.zSpawnInterval)])),
       withKey: Self.animationKey
@@ -419,10 +404,7 @@ extension CatRenderer {
     swell.timingMode = .easeInEaseOut
     snoreBubble.run(.repeatForever(.sequence([shrink, swell])), withKey: Self.animationKey)
 
-    let spawn = SKAction.run(
-      { [weak self] in MainActor.assumeIsolated { self?.spawnFloatingZ(size: 7.5) } },
-      queue: .main
-    )
+    let spawn = SKAction.onMainActor { [weak self] in self?.spawnFloatingZ(size: 7.5) }
     node.run(
       .repeatForever(
         .sequence([.wait(forDuration: breath.inhale), spawn, .wait(forDuration: breath.exhale)])

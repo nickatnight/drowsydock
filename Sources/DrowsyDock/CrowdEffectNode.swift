@@ -32,12 +32,7 @@ final class CrowdEffectNode {
       dim(icon, after: start)
       puff(from: icon, orientation: orientation, after: start)
     }
-    node.run(
-      .sequence([
-        .wait(forDuration: wave.totalDuration.inSeconds),
-        .run({ MainActor.assumeIsolated(completion) }, queue: .main),
-      ])
-    )
+    node.run(.completion(after: wave.totalDuration.inSeconds, completion))
   }
 
   func stop() {

@@ -160,7 +160,7 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 | 8.13 | Leave the cat in any pose and the pointer away from the Dock for 10 s, then run `sample DrowsyDock 5`. | No drawing: no `SceneHostView.drawFrame` or `SKCRenderer` frames, and the main thread waits in `mach_msg`. |
 | 8.14 | Look at the cat on a Retina display and, if you have one, on a non-Retina display. | Outlines are smooth on both, with no blurry or jagged edges. |
 
-## Ambient behaviour (slice 9, `MascotScene` and `CatRenderer+Animations`)
+## Ambient behaviour (slice 9, `MascotScene`, `CatRenderer+Animations` and `SKAction+Additions`)
 
 `AmbientSchedule` (tested in `AmbientScheduleTests`) picks what the cat does while it rests. `MascotScene` waits out an idle state's pause with a task, unpauses its view for the one action at 30 fps and pauses again. Looping states keep the view running at 15 fps. `SceneHostView` draws both scenes with `SKRenderer` into a Metal layer, driven by a display link that asks for exactly that rate and stops while paused (ADR 0011). The parts of the cat that never move on their own are rasterized (`SKEffectNode.shouldRasterize`), so a frame redraws only what moves. These checks need the grant.
 
