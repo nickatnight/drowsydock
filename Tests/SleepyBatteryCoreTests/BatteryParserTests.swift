@@ -104,6 +104,23 @@ final class BatteryParserTests: XCTestCase {
     XCTAssertNil(PowerSourceParser.reading(from: [removed]))
   }
 
+  func testTreatsAMissingIsPresentKeyAsPresent() {
+    var raw = laptopDischarging
+    raw["Is Present"] = nil
+
+    XCTAssertEqual(
+      PowerSourceParser.reading(from: [raw]),
+      BatteryReading(percentage: 31, powerState: .discharging)
+    )
+  }
+
+  func testTreatsACPowerWithoutAnIsChargingKeyAsPluggedIn() {
+    var raw = laptopOnACFull
+    raw["Is Charging"] = nil
+
+    XCTAssertEqual(PowerSourceParser.reading(from: [raw])?.powerState, .pluggedIn)
+  }
+
   // MARK: - Values
 
   func testReadsNSNumberValuesAsIOKitDeliversThem() {

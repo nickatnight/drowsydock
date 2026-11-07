@@ -71,6 +71,10 @@ floor_rules() {
     echo "Floor: suppression without an explaining comment" >&2
     failed=1
   fi
+  if grep -rnE "$coverage_exempt_imports" Sources/SleepyBatteryCore; then
+    echo "Boundary: SleepyBatteryCore must not import system UI or hardware frameworks" >&2
+    failed=1
+  fi
   if ! grep -Eq '^  dependencies: \[\],?$' Package.swift; then
     echo "Floor: Package.swift must declare empty package dependencies" >&2
     failed=1
@@ -114,11 +118,15 @@ coverage_gate() {
     >"$lcov"
   changed_lines "$merge_base" "${files[@]}" >"$changed"
 
-  awk -v root="$PWD/" -v minimum="$coverage_minimum" '
+  # lcov paths may use the logical or the physical (symlink-resolved) checkout path.
+  awk -v logical="$PWD/" -v physical="$(pwd -P)/" -v minimum="$coverage_minimum" '
     NR == FNR { changed[$1 SUBSEP $2] = 1; next }
     /^SF:/ {
       file = substr($0, 4)
-      if (index(file, root) == 1) file = substr(file, length(root) + 1)
+      if (index(file, physical) == 1) file = substr(file, length(physical) + 1)
+      else if (index(file, logical) == 1) file = substr(file, length(logical) + 1)
+      else next
+      under_root++
       next
     }
     /^DA:/ {
@@ -129,6 +137,10 @@ coverage_gate() {
       else missed[file] = missed[file] " " entry[1]
     }
     END {
+      if (under_root == 0) {
+        print "Coverage gate: no lcov file lies under " physical "; the path mapping is broken."
+        exit 2
+      }
       if (total == 0) { print "No executable changed lines in gated files."; exit 0 }
       percent = hit * 100 / total
       printf "Changed-line coverage: %d/%d = %.1f%% (minimum %d%%)\n", hit, total, percent, minimum
@@ -143,8 +155,25 @@ swift build --build-tests -Xswiftc -warnings-as-errors
 step "Format"
 swift format lint --strict --recursive Sources Tests
 
+# CONSTRAINTS exempts thin adapters from coverage only if docs/manual-qa.md covers each one.
+manual_qa_entries() {
+  local file name failed=0
+  while IFS= read -r file; do
+    if [[ $file == Sources/DockOverlayKit/* ]] && ! grep -Eq "$coverage_exempt_imports" "$file"; then
+      continue
+    fi
+    name="$(basename "$file" .swift)"
+    if ! grep -qF "\`$name\`" docs/manual-qa.md; then
+      echo "Manual QA: $file is exempt from coverage but docs/manual-qa.md never names \`$name\`" >&2
+      failed=1
+    fi
+  done < <(swift_files_under Sources/SleepyBattery Sources/DockOverlayKit)
+  return "$failed"
+}
+
 step "Floor rules"
 floor_rules
+manual_qa_entries
 
 step "Secrets"
 gitleaks detect --redact --no-banner

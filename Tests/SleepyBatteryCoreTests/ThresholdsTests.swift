@@ -30,23 +30,47 @@ final class ThresholdsTests: XCTestCase {
       Thresholds(drowsyBelow: 99, yawningBelow: 3, noddingOffBelow: 2, asleepBelow: 1))
   }
 
-  func testRejectsEqualNeighbours() {
-    XCTAssertNil(
-      Thresholds(drowsyBelow: 50, yawningBelow: 50, noddingOffBelow: 20, asleepBelow: 10))
+  func testRejectsEqualOrReversedValuesInEveryAdjacentPair() {
+    let invalid: [(name: String, values: [Int])] = [
+      ("drowsy == yawning", [50, 50, 20, 10]),
+      ("drowsy < yawning", [30, 50, 20, 10]),
+      ("yawning == noddingOff", [50, 30, 30, 10]),
+      ("yawning < noddingOff", [50, 20, 30, 10]),
+      ("noddingOff == asleep", [50, 30, 20, 20]),
+      ("noddingOff < asleep", [50, 30, 10, 20]),
+    ]
+
+    for (name, values) in invalid {
+      XCTAssertNil(
+        Thresholds(
+          drowsyBelow: values[0],
+          yawningBelow: values[1],
+          noddingOffBelow: values[2],
+          asleepBelow: values[3]
+        ),
+        name
+      )
+    }
   }
 
-  func testRejectsAscendingNeighbours() {
-    XCTAssertNil(
-      Thresholds(drowsyBelow: 50, yawningBelow: 30, noddingOffBelow: 10, asleepBelow: 20))
-  }
+  func testRejectsValuesOutsideOneToNinetyNine() {
+    let invalid: [(name: String, values: [Int])] = [
+      ("drowsy 100", [100, 30, 20, 10]),
+      ("asleep 0", [50, 30, 20, 0]),
+      ("asleep -5", [50, 30, 20, -5]),
+    ]
 
-  func testRejectsValuesAboveNinetyNine() {
-    XCTAssertNil(
-      Thresholds(drowsyBelow: 100, yawningBelow: 30, noddingOffBelow: 20, asleepBelow: 10))
-  }
-
-  func testRejectsValuesBelowOne() {
-    XCTAssertNil(Thresholds(drowsyBelow: 50, yawningBelow: 30, noddingOffBelow: 20, asleepBelow: 0))
+    for (name, values) in invalid {
+      XCTAssertNil(
+        Thresholds(
+          drowsyBelow: values[0],
+          yawningBelow: values[1],
+          noddingOffBelow: values[2],
+          asleepBelow: values[3]
+        ),
+        name
+      )
+    }
   }
 
   func testStatesOrderFromAwakeToAsleep() {

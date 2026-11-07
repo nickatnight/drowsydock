@@ -70,6 +70,18 @@ final class BatterySessionTests: XCTestCase {
     XCTAssertEqual(session.tracker.phase, .discharging(.awake))
   }
 
+  func testSimulatedLevelsUseTheSessionsThresholds() {
+    var session = BatterySession(
+      realReading: onBattery(70),
+      thresholds: Thresholds(
+        drowsyBelow: 60, yawningBelow: 50, noddingOffBelow: 40, asleepBelow: 30)!
+    )
+
+    session.simulate(.discharging(percentage: 45))
+
+    XCTAssertEqual(session.tracker.phase, .discharging(.yawning))
+  }
+
   func testSimulatingNoBatteryReportsNoBattery() {
     var session = BatterySession(realReading: onBattery(60))
 
@@ -100,6 +112,15 @@ final class BatterySessionTests: XCTestCase {
 
     XCTAssertEqual(session.tracker.reading, charging(100))
     XCTAssertEqual(session.tracker.phase, .onExternalPower)
+  }
+
+  func testSimulatedChargingAfterNoBatteryUsesTheRealPercentage() {
+    var session = BatterySession(realReading: onBattery(60))
+    session.simulate(.noBattery)
+
+    session.simulate(.charging)
+
+    XCTAssertEqual(session.tracker.reading, charging(60))
   }
 
   func testReturningToRealWhileTheMacIsPluggedInWakes() {

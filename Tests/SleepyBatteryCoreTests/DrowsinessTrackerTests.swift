@@ -55,12 +55,13 @@ final class DrowsinessTrackerTests: XCTestCase {
   func testOnePercentJitterAroundAThresholdNeverFlipsBackUp() {
     var tracker = DrowsinessTracker(reading: onBattery(50))
 
-    tracker.update(onBattery(49))
-    tracker.update(onBattery(50))
-    tracker.update(onBattery(49))
-    tracker.update(onBattery(51))
+    var phases: [DrowsinessTracker.Phase] = []
+    for percentage in [49, 50, 49, 51] {
+      tracker.update(onBattery(percentage))
+      phases.append(tracker.phase)
+    }
 
-    XCTAssertEqual(tracker.phase, .discharging(.drowsy))
+    XCTAssertEqual(phases, Array(repeating: .discharging(.drowsy), count: 4))
   }
 
   func testJitterAtEveryLowerThresholdNeverFlipsBackUp() {
@@ -76,6 +77,40 @@ final class DrowsinessTrackerTests: XCTestCase {
       tracker.update(onBattery(percentage + 1))
 
       XCTAssertEqual(tracker.phase, .discharging(state), "\(percentage)% then \(percentage + 1)%")
+    }
+  }
+
+  func testLargeUpwardJumpsWhileDischargingNeverWakeTheMascot() {
+    let jumps: [(from: Int, to: Int, state: DrowsinessState)] = [
+      (9, 60, .asleep),
+      (49, 100, .drowsy),
+    ]
+
+    for (from, to, state) in jumps {
+      var tracker = DrowsinessTracker(reading: onBattery(from))
+
+      tracker.update(onBattery(to))
+
+      XCTAssertEqual(tracker.phase, .discharging(state), "\(from)% then \(to)%")
+    }
+  }
+
+  func testEveryPairOfDischargingReadingsKeepsTheSleepierState() {
+    for first in 0...100 {
+      for second in 0...100 {
+        var tracker = DrowsinessTracker(reading: onBattery(first))
+
+        tracker.update(onBattery(second))
+
+        let sleepier = max(
+          DrowsinessState(percentage: first, thresholds: .default),
+          DrowsinessState(percentage: second, thresholds: .default)
+        )
+        guard tracker.phase == .discharging(sleepier) else {
+          XCTFail("\(first)% then \(second)% gave \(tracker.phase), expected \(sleepier)")
+          return
+        }
+      }
     }
   }
 
@@ -104,6 +139,30 @@ final class DrowsinessTrackerTests: XCTestCase {
     XCTAssertEqual(whileStillWaking, .waking)
     XCTAssertEqual(afterWaking, .onExternalPower)
     XCTAssertEqual(tracker.phase, .onExternalPower)
+  }
+
+  func testPluggingInWakesWhetherTheBatteryChargesOrIsHeld() {
+    let powerStates: [BatteryReading.PowerState] = [.charging, .pluggedIn]
+
+    for powerState in powerStates {
+      var tracker = DrowsinessTracker(reading: onBattery(85))
+
+      tracker.update(BatteryReading(percentage: 85, powerState: powerState)!)
+      let afterEdge = tracker.phase
+      tracker.finishWaking()
+
+      XCTAssertEqual(afterEdge, .waking, "\(powerState)")
+      XCTAssertEqual(tracker.phase, .onExternalPower, "\(powerState)")
+    }
+  }
+
+  func testBatteryFillingUpDuringWakingKeepsWaking() {
+    var tracker = DrowsinessTracker(reading: onBattery(99))
+    tracker.update(charging(99))
+
+    tracker.update(BatteryReading(percentage: 100, powerState: .pluggedIn)!)
+
+    XCTAssertEqual(tracker.phase, .waking)
   }
 
   func testUnpluggingAfterChargingStartsAFreshCycleFromTheDerivedState() {
@@ -181,6 +240,16 @@ final class DrowsinessTrackerTests: XCTestCase {
     tracker.update(onBattery(45))
 
     XCTAssertEqual(tracker.phase, .discharging(.yawning))
+  }
+
+  func testThresholdChangeWhileWakingKeepsWaking() {
+    var tracker = DrowsinessTracker(reading: onBattery(15))
+    tracker.update(charging(15))
+
+    tracker.setThresholds(
+      Thresholds(drowsyBelow: 90, yawningBelow: 80, noddingOffBelow: 70, asleepBelow: 60)!)
+
+    XCTAssertEqual(tracker.phase, .waking)
   }
 
   func testThresholdChangeOnExternalPowerStaysAwake() {
