@@ -15,8 +15,8 @@ final class MascotScene: SKScene {
   private var director = AnimationDirector()
   private var facing = DockPerch.Facing.left
   private var isActive = false
-  private var isPlayingOneShot = false
-  private var isLooping = false
+  // A gesture is playing or a loop is running.
+  private var isAmbientMoving = false
   private var nextGesture: Task<Void, Never>?
   private var generator = SystemRandomNumberGenerator()
 
@@ -71,7 +71,7 @@ final class MascotScene: SKScene {
   // An on-screen test showed the same pixels as three frames: a first pose fading in, a facing
   // change, a jump while the window was ordered out, and the veil.
   override func update(_ currentTime: TimeInterval) {
-    guard !isPlayingOneShot, !isLooping, !director.isAnimating else { return }
+    guard !isAmbientMoving, !director.isAnimating else { return }
     host?.isPaused = true
   }
 
@@ -114,18 +114,18 @@ final class MascotScene: SKScene {
         self?.play(gesture)
       }
     case .loop(let loop):
-      isLooping = true
+      isAmbientMoving = true
       cat.loop(loop)
       run(atFramesPerSecond: Self.loopFramesPerSecond)
     }
   }
 
   private func play(_ gesture: AmbientGesture) {
-    isPlayingOneShot = true
+    isAmbientMoving = true
     run(atFramesPerSecond: Self.oneShotFramesPerSecond)
     cat.play(gesture) { [weak self] in
       guard let self else { return }
-      isPlayingOneShot = false
+      isAmbientMoving = false
       redraw()
       startAmbient()
     }
@@ -134,8 +134,7 @@ final class MascotScene: SKScene {
   private func stopEverything() {
     nextGesture?.cancel()
     nextGesture = nil
-    isPlayingOneShot = false
-    isLooping = false
+    isAmbientMoving = false
     cat.stopAnimations()
   }
 
