@@ -32,13 +32,13 @@ enum IOKitPowerSource {
       }
     }
 
-    private let callback: Unmanaged<Callback>
+    private let callbackContext: Unmanaged<Callback>
     private let runLoopSource: CFRunLoopSource
     private let lowPowerObserver: any NSObjectProtocol
 
     init(onChange: @escaping @MainActor @Sendable () -> Void) throws {
       let handler = Callback(onChange)
-      let callback = Unmanaged.passRetained(handler)
+      let callbackContext = Unmanaged.passRetained(handler)
       guard
         let source = IOPSNotificationCreateRunLoopSource(
           { context in
@@ -48,16 +48,16 @@ enum IOKitPowerSource {
             // thread.
             MainActor.assumeIsolated { handler.onChange() }
           },
-          callback.toOpaque()
+          callbackContext.toOpaque()
         )?.takeRetainedValue()
       else {
-        callback.release()
+        callbackContext.release()
         throw SubscriptionError.runLoopSourceUnavailable
       }
       // Common modes keep notifications flowing while the menu is open (event-tracking mode).
       CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
 
-      self.callback = callback
+      self.callbackContext = callbackContext
       self.runLoopSource = source
       self.lowPowerObserver = NotificationCenter.default.addObserver(
         forName: .NSProcessInfoPowerStateDidChange,
@@ -73,8 +73,8 @@ enum IOKitPowerSource {
       NotificationCenter.default.removeObserver(lowPowerObserver)
       // IOKit may be running the callback on the main thread right now, so free its context on
       // the main queue, after that callback returns.
-      let callback = callback
-      DispatchQueue.main.async { callback.release() }
+      let callbackContext = callbackContext
+      DispatchQueue.main.async { callbackContext.release() }
     }
   }
 }
