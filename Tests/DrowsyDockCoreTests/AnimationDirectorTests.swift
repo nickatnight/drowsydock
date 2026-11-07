@@ -148,6 +148,13 @@ final class AnimationDirectorTests: XCTestCase {
     XCTAssertEqual(director.target, asleep)
   }
 
+  func testWithNothingWaitingTheTargetIsTheShownMood() {
+    var director = AnimationDirector(showing: awake)
+    _ = director.request(drowsy)
+
+    XCTAssertEqual(director.target, drowsy)
+  }
+
   func testAJumpShowsTheMoodAtOnceAndDropsTheQueue() {
     var director = AnimationDirector(showing: awake)
     _ = director.request(drowsy)
