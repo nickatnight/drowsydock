@@ -1,6 +1,6 @@
 # Constraints
 
-Last reviewed: 2026-11-06 (draft, emgee job 001-foundation, from the skill defaults)
+Last reviewed: 2026-11-06 (emgee job 002-dock-overlay: hardened-runtime Bundle row, the floor rule's comment forms, the Measured binary size; drafted in job 001-foundation from the skill defaults)
 
 ## Floor (always enforced)
 
