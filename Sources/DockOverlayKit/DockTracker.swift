@@ -54,6 +54,8 @@ public final class DockTracker {
   private var followUpRead: Task<Void, Never>?
   private var listRecovery: Task<Void, Never>?
   private var listObserver: DockListObserver?
+  private var readFailures = RepeatedFailureFilter<DockReader.Failure>()
+  private var observerFailures = RepeatedFailureFilter<DockReader.Failure>()
 
   /// Creates a tracker that is idle until `accessibilityChanged(isGranted:)` reports a grant.
   public init(
@@ -185,8 +187,11 @@ public final class DockTracker {
       let list = try DockReader.iconList()
       installListObserverIfNeeded(on: list)
       state.dockRead(try DockReader.read(list: list.element))
+      readFailures.succeeded()
     } catch {
-      logger.error("Dock geometry unavailable: \(String(describing: error), privacy: .public)")
+      if readFailures.shouldReport(error) {
+        logger.error("Dock geometry unavailable: \(String(describing: error), privacy: .public)")
+      }
       state.dockRead(nil)
     }
     // The pointer may already be on the Dock, for example at launch or after a Space change.
@@ -211,7 +216,7 @@ public final class DockTracker {
     if let listObserver, listObserver.observes(list.element, of: list.processIdentifier) {
       return
     }
-    do {
+    do throws(DockReader.Failure) {
       listObserver = try DockListObserver(
         processIdentifier: list.processIdentifier,
         list: list.element,
@@ -223,13 +228,16 @@ public final class DockTracker {
           self?.dockMayHaveChanged()
         }
       }
+      observerFailures.succeeded()
       logger.notice(
         "Observing the Dock list for: \(self.listObserver?.notifications ?? [], privacy: .public)"
       )
     } catch {
-      logger.error(
-        "Can't observe the Dock list: \(String(describing: error), privacy: .public)"
-      )
+      if observerFailures.shouldReport(error) {
+        logger.error(
+          "Can't observe the Dock list: \(String(describing: error), privacy: .public)"
+        )
+      }
     }
   }
 
