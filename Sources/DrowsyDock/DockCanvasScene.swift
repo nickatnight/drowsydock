@@ -5,14 +5,11 @@ import SpriteKit
 /// the Dock while the cat is asleep, and the crowd effect.
 @MainActor
 final class DockCanvasScene: SKScene {
-  private static let framesPerChange = 2
-
   weak var host: SceneHostView?
 
   private let veil = SKShapeNode()
   private let crowd = CrowdEffectNode()
   private var dockFrame = CGRect.zero
-  private var framesToDraw = 0
   private var isPlayingCrowdEffect = false
 
   override init() {
@@ -80,17 +77,15 @@ final class DockCanvasScene: SKScene {
     redraw()
   }
 
+  // SceneHostView renders the frame in which this pauses it, so one frame shows each change.
+  // An on-screen test showed the same pixels as three frames: a first pose fading in, a facing
+  // change, a jump while the window was ordered out, and the veil.
   override func update(_ currentTime: TimeInterval) {
-    guard framesToDraw == 0 else {
-      framesToDraw -= 1
-      return
-    }
     guard !isPlayingCrowdEffect else { return }
     host?.isPaused = true
   }
 
   private func redraw() {
-    framesToDraw = Self.framesPerChange
     host?.isPaused = false
   }
 }

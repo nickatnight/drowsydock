@@ -5,8 +5,7 @@ import SpriteKit
 /// The SpriteKit scene that holds the cat.
 @MainActor
 final class MascotScene: SKScene {
-  private static let framesPerChange = 2
-
+  // Loops run slower to stay within the CPU budget for looping states (ADR 0011).
   private static let oneShotFramesPerSecond = 30
   private static let loopFramesPerSecond = 15
 
@@ -14,7 +13,6 @@ final class MascotScene: SKScene {
 
   private let cat = CatRenderer()
   private var director = AnimationDirector()
-  private var framesToDraw = 0
   private var facing = DockPerch.Facing.left
   private var isActive = false
   private var isPlayingOneShot = false
@@ -69,11 +67,10 @@ final class MascotScene: SKScene {
     }
   }
 
+  // SceneHostView renders the frame in which this pauses it, so one frame shows each change.
+  // An on-screen test showed the same pixels as three frames: a first pose fading in, a facing
+  // change, a jump while the window was ordered out, and the veil.
   override func update(_ currentTime: TimeInterval) {
-    guard framesToDraw == 0 else {
-      framesToDraw -= 1
-      return
-    }
     guard !isPlayingOneShot, !isLooping, !director.isAnimating else { return }
     host?.isPaused = true
   }
@@ -143,7 +140,6 @@ final class MascotScene: SKScene {
   }
 
   private func redraw() {
-    framesToDraw = Self.framesPerChange
     host?.isPaused = false
   }
 
