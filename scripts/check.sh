@@ -20,17 +20,18 @@ esac
 coverage_minimum=80
 coverage_exempt_imports='^import (AppKit|ApplicationServices|Cocoa|IOKit|ServiceManagement|SpriteKit|SwiftUI)'
 
+shopt -s nullglob
+
 step() { printf '\n==> %s\n' "$*"; }
 
 gated_files() {
   local file
   for file in Sources/SleepyBatteryCore/*.swift; do
-    [[ -e $file ]] && echo "$file"
+    echo "$file"
   done
   for file in Sources/DockOverlayKit/*.swift; do
-    [[ -e $file ]] && ! grep -Eq "$coverage_exempt_imports" "$file" && echo "$file"
+    grep -Eq "$coverage_exempt_imports" "$file" || echo "$file"
   done
-  return 0
 }
 
 changed_lines() {
@@ -50,7 +51,7 @@ changed_lines() {
 }
 
 coverage_gate() {
-  local merge_base bin_path lcov changed
+  local merge_base bin_path lcov changed file
   merge_base="$(git merge-base "${CHECK_BASE:-main}" HEAD)"
   bin_path="$(swift build --show-bin-path)"
   lcov="$(mktemp)"
