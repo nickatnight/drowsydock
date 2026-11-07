@@ -13,7 +13,6 @@ final class AppCoordinator {
 
   private static let dockLogger = Logger(subsystem: "com.drowsydock.DrowsyDock", category: "dock")
 
-  // Until the mascot exists (plan slice 8), the overlay is a square of this size.
   static let mascotSize = CGSize(width: 64, height: 64)
 
   let battery = BatteryMonitor()
@@ -26,11 +25,9 @@ final class AppCoordinator {
   init() {
     isAccessibilityGranted = AccessibilityPermission.isGranted
     Self.logger.notice("Accessibility granted: \(self.isAccessibilityGranted, privacy: .public)")
-    // Runs once the app's run loop is going, so the window is ordered front after launch.
     Task { [weak self] in self?.startDockTracking() }
 
-    // The spec re-checks the grant each time the menu opens. NSMenu posts this for the
-    // MenuBarExtra's menu, too.
+    // NSMenu posts this for the MenuBarExtra's menu, too.
     menuObserver = NotificationCenter.default.addObserver(
       forName: NSMenu.didBeginTrackingNotification,
       object: nil,
@@ -78,7 +75,6 @@ final class AppCoordinator {
     dockTracker = tracker
   }
 
-  // Marks the perch until the mascot replaces it (plan slice 8).
   private static func debugOutline() -> NSView {
     let view = NSView()
     view.wantsLayer = true

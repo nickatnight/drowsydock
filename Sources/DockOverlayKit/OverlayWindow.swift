@@ -20,7 +20,6 @@ public final class OverlayWindow {
     window.ignoresMouseEvents = true
     window.isReleasedWhenClosed = false
     window.animationBehavior = .none
-    // One level above the Dock, so the sprite draws over the Dock's top edge.
     window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.dockWindow)) + 1)
     window.collectionBehavior = [
       .canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary,
@@ -28,7 +27,6 @@ public final class OverlayWindow {
     window.contentView = contentView
   }
 
-  // Short, so a fade that starts within the spec's 1 s of the Dock settling ends close to it.
   private static let fadeDuration: TimeInterval = 0.2
 
   /// Shows the window at the perch, fades it out there, or hides it.

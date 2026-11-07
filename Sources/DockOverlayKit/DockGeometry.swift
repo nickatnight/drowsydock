@@ -34,8 +34,7 @@ public struct DockGeometry: Equatable, Sendable {
   // the display edge counts as on screen, and a half-point difference doesn't count as growth.
   private static let edgeTolerance: CGFloat = 1
 
-  // The largest magnified icon size that System Settings allows, in points. A pointer this far
-  // from the resting Dock may still be over a magnified icon.
+  // The largest magnified icon size that System Settings allows, in points.
   private static let largestMagnifiedIconSize: CGFloat = 128
 
   /// The frame of the Dock's icon list.

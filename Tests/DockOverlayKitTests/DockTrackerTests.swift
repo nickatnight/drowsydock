@@ -6,7 +6,6 @@ final class DockTrackerTests: XCTestCase {
   private let laptop = DisplayLayout(primary: CGRect(x: 0, y: 0, width: 1440, height: 900))
   private let sprite = CGSize(width: 64, height: 64)
 
-  // A bottom Dock 700 x 70 points at the bottom of a 1440 x 900 display.
   private var bottomDock: DockGeometry {
     DockGeometry(
       listFrame: AXRect(CGRect(x: 370, y: 830, width: 700, height: 70)),
@@ -15,7 +14,6 @@ final class DockTrackerTests: XCTestCase {
     )
   }
 
-  // The same Dock, auto-hidden: all but 4 points of it lie below the display.
   private var autoHiddenDock: DockGeometry {
     DockGeometry(
       listFrame: AXRect(CGRect(x: 370, y: 896, width: 700, height: 70)),
@@ -24,8 +22,6 @@ final class DockTrackerTests: XCTestCase {
     )
   }
 
-  // The bottom Dock while the pointer magnifies it: the list is 40 points taller and the last
-  // icon has grown from 60 to 100 points.
   private var magnifiedDock: DockGeometry {
     DockGeometry(
       listFrame: AXRect(CGRect(x: 350, y: 790, width: 740, height: 110)),
@@ -34,7 +30,6 @@ final class DockTrackerTests: XCTestCase {
     )
   }
 
-  // The bottom Dock after the user made it smaller.
   private var smallerDock: DockGeometry {
     DockGeometry(
       listFrame: AXRect(CGRect(x: 420, y: 850, width: 600, height: 50)),

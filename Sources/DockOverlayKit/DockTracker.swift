@@ -11,17 +11,13 @@ import os
 /// `DockTrackerState` makes every decision; this class only feeds it events and applies them.
 @MainActor
 public final class DockTracker {
-  // The spec's magnification check runs at 1 Hz, so the overlay fades back in within 1 s of the
-  // Dock settling while the pointer stays near it.
   private static let frameCheckInterval: TimeInterval = 1
 
   // The Dock may post a change before it finishes laying out, and needs a moment to shrink back
-  // after the pointer leaves. A second read this long after the first catches the final layout
-  // and stays inside the spec's 1 s for re-placing the overlay.
+  // after the pointer leaves.
   private static let followUpReadDelay = Duration.milliseconds(500)
 
-  // A relaunched Dock needs time to build its icon list before Accessibility can read it. This
-  // is an estimate; manual QA checks it.
+  // A relaunched Dock needs time to build its icon list before Accessibility can read it.
   private static let relaunchReadDelay = Duration.seconds(2)
 
   private static let dockBundleIdentifier = "com.apple.dock"

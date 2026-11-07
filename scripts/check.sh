@@ -17,8 +17,6 @@ case "$mode" in
     ;;
 esac
 
-# Every scan below reads its file list from git. If git can't answer, stop here instead of
-# scanning an empty list and passing.
 git rev-parse --is-inside-work-tree >/dev/null
 
 coverage_minimum=80
@@ -50,7 +48,6 @@ found() {
   return "$status"
 }
 
-# Prints the Swift files under each directory, NUL-delimited.
 swift_files_under() {
   local dir file
   for dir in "$@"; do
@@ -60,9 +57,6 @@ swift_files_under() {
   done
 }
 
-# The gate covers DrowsyDockCore and the DockOverlayKit files that import no adapter framework.
-# Every other file under Sources is exempt and needs a manual-QA entry instead. So a new pure
-# library target must be added here and to the CONSTRAINTS coverage row in the same change.
 is_gated() {
   case $1 in
     Sources/DrowsyDockCore/*) return 0 ;;
@@ -91,8 +85,6 @@ coverage_exempt_files_are_in_manual_qa() {
   return "$failed"
 }
 
-# Runs an awk program over the Swift files in Sources and Tests. The program exits 0 when it
-# finds something and 1 when it finds nothing.
 scan_swift_files() {
   local file files=()
   while IFS= read -r -d '' file; do files+=("$file"); done < <(swift_files_under Sources Tests)
@@ -100,9 +92,6 @@ scan_swift_files() {
   found awk "$1" "${files[@]}"
 }
 
-# A suppression needs a plain `//` comment saying why it is safe: on the line above, or after the
-# code on the same line. A doc comment doesn't count, because every public declaration has one.
-# `// swift-format-ignore` is itself a comment, so its explanation must be on the line above.
 unexplained_suppressions='
   function explains(line) {
     return line ~ /^[[:space:]]*\/\/[^\/]/ && line !~ /swift-format-ignore/ && line ~ /[[:alpha:]]/
@@ -116,7 +105,6 @@ unexplained_suppressions='
   { previous = $0 }
   END { exit !found }'
 
-# Finds `catch … {}` on one line, and a `catch … {` whose next non-blank line closes it.
 empty_catches='
   function report(line, text) { print FILENAME ":" line ": " text; found = 1 }
   FNR == 1 { open = 0 }
@@ -160,9 +148,7 @@ floor_rules() {
   return "$failed"
 }
 
-# Reads NUL-delimited file names and prints "path<TAB>line" for each line added or changed since
-# the merge base. An untracked file counts in full. The name goes to awk through the environment,
-# because `awk -v` expands backslash escapes.
+# The name goes to awk through the environment, because `awk -v` expands backslash escapes.
 changed_lines() {
   local merge_base="$1" file
   while IFS= read -r -d '' file; do
@@ -259,9 +245,7 @@ if [[ -n $signing_files ]]; then
 fi
 gitleaks detect --redact --no-banner -v
 # `detect` reads only commits, so also scan a copy of the uncommitted and untracked working-tree
-# files. One `gitleaks dir` run over the copy skips build output and ignored files. A finding's
-# path points into that copy, which this script deletes on exit: the part after `/tree/` is the
-# path in the working tree.
+# files. One `gitleaks dir` run over the copy skips build output and ignored files.
 mkdir "$work/tree"
 while IFS= read -r -d '' file; do
   if [[ -f $file ]]; then printf '%s\0' "$file"; fi
