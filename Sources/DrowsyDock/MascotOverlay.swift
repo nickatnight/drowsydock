@@ -53,6 +53,8 @@ final class MascotOverlay {
     switch presentation {
     case .hidden:
       hide()
+      // Keep the cat's mood current, so it doesn't replay an old change when it reappears.
+      catScene.show(mood, facing: nil)
       return
     case .shown(let shownPerch, let shownDock):
       (perch, dock, isFaded) = (shownPerch, shownDock, false)
@@ -60,13 +62,13 @@ final class MascotOverlay {
       (perch, dock, isFaded) = (fadedPerch, fadedDock, true)
     }
 
-    let pose = MascotPose(for: mood.settledState)
-    catScene.rest(in: mood.settledState, facing: perch.facing)
     catScene.setActive(!isFaded)
+    catScene.show(mood, facing: perch.facing)
     place(catWindow, at: perch.frame, isFaded: isFaded)
 
+    let pose = MascotPose(for: mood.settledState)
     guard pose.veilOpacity > 0 else {
-      canvasWindow.hide()
+      canvasWindow.hide(fading: true)
       return
     }
     let canvas = dock.frame.insetBy(dx: -Self.canvasMargin, dy: -Self.canvasMargin)

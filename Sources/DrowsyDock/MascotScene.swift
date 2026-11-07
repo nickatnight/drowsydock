@@ -4,18 +4,19 @@ import SpriteKit
 
 /// The SpriteKit scene that holds the cat.
 ///
-/// It keeps its view paused unless something moves. A pose change renders a couple of frames.
-/// Idle states wait for `AmbientSchedule`'s pause with a task, unpause for the one action and
-/// pause again. Looping states keep the view running, which `MascotOverlay` caps at 30 fps.
+/// `AnimationDirector` picks the animation into each new mood, and `AmbientSchedule` what the
+/// cat does while it rests. The view stays paused unless something moves: a pose change renders
+/// a couple of frames, a one-shot or a transition unpauses it until its completion, and only a
+/// looping state keeps it running, at the 30 fps that `MascotOverlay` sets.
 @MainActor
 final class MascotScene: SKScene {
   // One frame to apply the change, one more in case the first lands before the window is ready.
   private static let framesPerChange = 2
 
   private let cat = CatRenderer()
+  private var director = AnimationDirector()
   private var framesToDraw = 0
   private var facing = DockPerch.Facing.left
-  private var restingState: DrowsinessState?
   private var isActive = false
   private var isPlayingOneShot = false
   private var isLooping = false
@@ -35,24 +36,25 @@ final class MascotScene: SKScene {
     nil
   }
 
-  /// Rests the cat in `state`, facing `facing`, and starts that state's ambient behaviour. Does
-  /// nothing if it already rests there.
-  func rest(in state: DrowsinessState, facing: DockPerch.Facing) {
-    if facing != self.facing {
+  /// Shows `mood`, facing `facing` (or the same way as before when `nil`). While the cat is
+  /// visible the change animates; while it is hidden or faded out, the cat switches at once.
+  func show(_ mood: MascotMood, facing: DockPerch.Facing?) {
+    if let facing, facing != self.facing {
       self.facing = facing
       cat.face(facing)
       redraw()
     }
-    guard state != restingState else { return }
-    restingState = state
-    stopAmbient()
-    cat.apply(MascotPose(for: state))
-    redraw()
-    startAmbient()
+    if isActive {
+      if let step = director.request(mood) {
+        perform(step)
+      }
+    } else if mood != director.target {
+      perform(director.jump(to: mood))
+    }
   }
 
-  /// Runs ambient behaviour while the cat is visible, and stops it, pausing the view, while it is
-  /// hidden or faded out.
+  /// Runs animations while the cat is visible. While it is hidden or faded out, any animation
+  /// jumps to its end, ambient behaviour stops and the view pauses.
   func setActive(_ isActive: Bool) {
     guard isActive != self.isActive else { return }
     self.isActive = isActive
@@ -60,7 +62,10 @@ final class MascotScene: SKScene {
       redraw()
       startAmbient()
     } else {
-      stopAmbient()
+      if director.isAnimating, let target = director.target {
+        perform(director.jump(to: target))
+      }
+      stopEverything()
       view?.isPaused = true
     }
   }
@@ -70,15 +75,43 @@ final class MascotScene: SKScene {
       framesToDraw -= 1
       return
     }
-    guard !isPlayingOneShot, !isLooping else { return }
+    guard !isPlayingOneShot, !isLooping, !director.isAnimating else { return }
     view?.isPaused = true
+  }
+
+  // MARK: - Transitions
+
+  private func perform(_ step: AnimationDirector.Step) {
+    stopEverything()
+    let pose = MascotPose(for: step.target.settledState)
+    guard let animation = step.animation else {
+      cat.apply(pose)
+      redraw()
+      startAmbient()
+      return
+    }
+    view?.isPaused = false
+    cat.play(animation, to: pose) { [weak self] in
+      self?.animationFinished()
+    }
+  }
+
+  private func animationFinished() {
+    if let next = director.finishAnimation() {
+      perform(next)
+    } else {
+      redraw()
+      startAmbient()
+    }
   }
 
   // MARK: - Ambient behaviour
 
   private func startAmbient() {
-    guard isActive, let restingState else { return }
-    switch AmbientSchedule.next(for: restingState, using: &generator) {
+    guard isActive, !director.isAnimating, case .drowsiness(let state) = director.shown else {
+      return
+    }
+    switch AmbientSchedule.next(for: state, using: &generator) {
     case .oneShot(let action, let pause):
       nextAmbientAction = Task { [weak self] in
         guard (try? await Task.sleep(for: pause)) != nil else { return }
@@ -102,12 +135,13 @@ final class MascotScene: SKScene {
     }
   }
 
-  private func stopAmbient() {
+  // Cancels the ambient schedule and every running animation, leaving the cat in its pose.
+  private func stopEverything() {
     nextAmbientAction?.cancel()
     nextAmbientAction = nil
     isPlayingOneShot = false
     isLooping = false
-    cat.stopAmbient()
+    cat.stopAnimations()
   }
 
   private func redraw() {

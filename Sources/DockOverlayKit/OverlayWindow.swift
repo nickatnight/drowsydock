@@ -49,10 +49,23 @@ public final class OverlayWindow {
     isShowing = false
   }
 
-  /// Takes the window off screen at once.
-  public func hide() {
-    window.orderOut(nil)
+  /// Takes the window off screen, at once or after fading it out.
+  public func hide(fading: Bool = false) {
     isShowing = false
+    guard fading, window.isVisible, window.alphaValue > 0 else {
+      window.orderOut(nil)
+      return
+    }
+    NSAnimationContext.runAnimationGroup { context in
+      context.duration = Self.fadeDuration
+      window.animator().alphaValue = 0
+    } completionHandler: { [weak self] in
+      // AppKit calls this on the main thread. A `show` during the fade wins.
+      MainActor.assumeIsolated {
+        guard let self, !self.isShowing else { return }
+        self.window.orderOut(nil)
+      }
+    }
   }
 
   private func place(at frame: CGRect) {

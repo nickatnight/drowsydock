@@ -26,6 +26,8 @@ final class CatRenderer {
     static let zFill = SKColor(srgbRed: 0.84, green: 0.90, blue: 1.00, alpha: 1)
     static let zOutline = SKColor(srgbRed: 0.17, green: 0.23, blue: 0.40, alpha: 1)
     static let mouth = SKColor(srgbRed: 0.45, green: 0.18, blue: 0.20, alpha: 1)
+    static let sparkle = SKColor(srgbRed: 1.00, green: 0.88, blue: 0.45, alpha: 1)
+    static let sparkleRim = SKColor(srgbRed: 0.78, green: 0.55, blue: 0.15, alpha: 1)
     static let bubble = SKColor(srgbRed: 0.80, green: 0.91, blue: 1.00, alpha: 0.7)
     static let bubbleRim = SKColor(srgbRed: 0.45, green: 0.62, blue: 0.85, alpha: 0.9)
   }
@@ -58,8 +60,9 @@ final class CatRenderer {
   let snoreBubble: SKNode
   let openMouth: SKNode
 
-  /// The pose the cat rests in between animations.
-  private(set) var pose = MascotPose(for: .awake)
+  /// The pose the cat rests in between animations. A transition sets it to the pose it ends in
+  /// as it starts, so stopping the transition early lands there.
+  var pose = MascotPose(for: .awake)
 
   init() {
     let tail = Self.tail()
@@ -465,6 +468,26 @@ final class CatRenderer {
       )
     )
     return mouth
+  }
+
+  static func sparkle() -> SKNode {
+    let path = CGMutablePath()
+    let outer: CGFloat = 4.2
+    let inner: CGFloat = 1.3
+    for index in 0..<8 {
+      let radius = index.isMultiple(of: 2) ? outer : inner
+      let angle = CGFloat(index) * .pi / 4 + .pi / 2
+      let point = CGPoint(x: cos(angle) * radius, y: sin(angle) * radius)
+      if index == 0 {
+        path.move(to: point)
+      } else {
+        path.addLine(to: point)
+      }
+    }
+    path.closeSubpath()
+    return rasterized([
+      shape(path, fill: Palette.sparkle, stroke: Palette.sparkleRim, lineWidth: 0.8)
+    ])
   }
 
   static func z(size: CGFloat) -> SKNode {

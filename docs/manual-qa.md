@@ -148,7 +148,7 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 | 8.4 | 15% | Nodding off: the eyes are thin slits, the head leans further and the ears droop. One small blue "z" beside the head. |
 | 8.5 | 5% | Asleep: eyes closed as curved lash lines, the head leans furthest, the ears droop fully, two "z"s (small and large) and a pale blue snore bubble at the nose. The whole Dock is dimmed by a dark veil with rounded ends that matches the Dock's shape; every icon stays recognisable. |
 | 8.6 | 5%, then 15% | The veil disappears; the cat shows the 15% pose. |
-| 8.7 | Charging | The cat shows the awake pose. (Slice 10 adds the wake-up animation.) |
+| 8.7 | Charging | The cat ends in the awake pose, after the wake-up animation (10.5). |
 | 8.8 | No battery | The cat and the veil disappear. Choosing 80% again brings the cat back. |
 
 | # | Check | Expected |
@@ -174,4 +174,19 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 | 9.6 | At 80%, with the pointer away from the Dock, run the idle CPU command from CONSTRAINTS.md. | The average is at most 1.0%. |
 | 9.7 | At 15%, then at 5%, run the same command. | Each average is at most 3.0%. An offscreen measurement of the same scene gave about 2.1% (build.md). If the real value is above 3.0%, lower `MascotOverlay.framesPerSecond` to 20 and measure again. |
 | 9.8 | At 5%, rest the pointer on the Trash (the cat fades), run `sample DrowsyDock 3`, then move the pointer away. | While faded, the sample shows no SpriteKit rendering. After the pointer leaves, the snore loop resumes. |
-| 9.9 | At 25%, switch Simulate battery to 80% in the middle of a yawn. | The yawn stops at once and the cat shows the awake pose. (Slice 10 adds a transition here.) |
+| 9.9 | At 25%, switch Simulate battery to 80% in the middle of a yawn. | The yawn stops at once and a 0.6 s crossfade carries the cat to the awake pose. |
+
+## Transitions (slice 10, `MascotScene`, `CatRenderer+Animations` and `OverlayWindow`)
+
+`AnimationDirector` (tested in `AnimationDirectorTests`) picks the animation into each new mood: a yawn into yawning, a nod-off into nodding off, a wake-up into waking, a crossfade for every other change. A change that arrives during an animation waits for it, and only the newest change waits. While the cat is hidden or faded out, changes switch at once. `BatteryMonitor` still ends `waking` after 3 s (`DrowsinessTracker.wakingDuration`, ADR 0010), and the wake-up animation fits inside that. These checks need the grant.
+
+| # | Choose Debug ▸ Simulate battery ▸ … | Expected |
+|---|---|---|
+| 10.1 | 80%, then 40% | A quick (0.6 s) crossfade: the lids sink, the head leans and the ears fold together. |
+| 10.2 | 40%, then 25% | The cat settles into the yawning pose and yawns: head back, mouth wide, eyes squeezed shut, then a nod and a jerk back up. About 3.4 s. |
+| 10.3 | 25%, then 15% | Nod-off: the head droops forward as the eyes fall shut, jerks back up with the eyes half open, and settles into the nodding-off pose. The "z" fades in. About 2.2 s. Then the floating "z" loop starts. |
+| 10.4 | 15%, then 5% | A crossfade into the asleep pose: eyes shut, the bubble and two "z"s fade in, and the veil fades in over the Dock. Then the snore loop starts. |
+| 10.5 | 5%, then Charging | Wake-up: the eyes snap open, the bubble pops, the "z"s fade, the veil fades out, the cat stretches tall, three small gold sparkles twinkle around its head, and it ends with a blink. At most 3 s. The menu reads `Waking`, then `Awake` about 3 s after the click, with no second animation. |
+| 10.6 | 40%, then quickly 25%, 15% and 5% (within a second) | The yawn plays to its end, then one crossfade straight to the asleep pose. No nod-off plays in between. |
+| 10.7 | 80%, then 5%, then hover the Trash in the middle of the crossfade | The cat fades out and comes back in the asleep pose, without replaying the crossfade. |
+| 10.8 | With the Dock auto-hidden and off screen, choose 25%, then show the Dock | The cat appears in the yawning pose at once, without replaying the yawn. |

@@ -5,8 +5,6 @@ import os
 @MainActor
 @Observable
 final class BatteryMonitor {
-  private static let wakingDuration = Duration.seconds(3)
-
   private static let logger = Logger(
     subsystem: "com.drowsydock.DrowsyDock",
     category: "battery"
@@ -69,7 +67,9 @@ final class BatteryMonitor {
     guard session.tracker.phase == .waking, previousPhase != .waking else { return }
     wakingTask?.cancel()
     wakingTask = Task { [weak self] in
-      guard (try? await Task.sleep(for: Self.wakingDuration)) != nil, let self else { return }
+      guard (try? await Task.sleep(for: DrowsinessTracker.wakingDuration)) != nil, let self else {
+        return
+      }
       changeStatus { session.finishWaking() }
     }
   }
