@@ -97,30 +97,43 @@ scan_swift_files() {
 }
 
 unexplained_suppressions='
-  function explains(line) {
+  function suppresses_a_check(line) {
+    return line ~ /@preconcurrency|nonisolated\(unsafe\)|@unchecked Sendable/
+  }
+  function is_comment(line) { return line ~ /^[[:space:]]*\/\// }
+  function is_format_directive(line) {
+    return line ~ /^[[:space:]]*\/\/[[:space:]]*swift-format-ignore/
+  }
+  # A plain // comment with words in it. A /// doc comment or a directive is not a reason.
+  function is_reason(line) {
     return line ~ /^[[:space:]]*\/\/[^\/]/ && line !~ /swift-format-ignore/ && line ~ /[[:alpha:]]/
   }
+  function has_trailing_reason(line) { return line ~ /(^|[^\/])\/\/[^\/]*[[:alpha:]]/ }
   function report() { print FILENAME ":" FNR ": " $0; found = 1 }
   FNR == 1 { previous = "" }
-  /^[[:space:]]*\/\/[[:space:]]*swift-format-ignore/ { if (!explains(previous)) report() }
-  /^[[:space:]]*\/\// { previous = $0; next }
-  /@preconcurrency|nonisolated\(unsafe\)|@unchecked Sendable/ &&
-    $0 !~ /(^|[^\/])\/\/[^\/]*[[:alpha:]]/ && !explains(previous) { report() }
+  is_format_directive($0) && !is_reason(previous) { report() }
+  !is_comment($0) && suppresses_a_check($0) && !has_trailing_reason($0) && !is_reason(previous) {
+    report()
+  }
   { previous = $0 }
   END { exit !found }'
 
 empty_catches='
-  function report(line, text) { print FILENAME ":" line ": " text; found = 1 }
-  FNR == 1 { open = 0 }
-  open && /^[[:space:]]*$/ { next }
-  open && /^[[:space:]]*\}/ { report(open_line, open_text) }
-  { open = 0 }
-  /(^|[^[:alnum:]_])catch([[:space:]][^{]*)?\{[[:space:]]*\}/ { report(FNR, $0) }
-  /(^|[^[:alnum:]_])catch([[:space:]][^{]*)?\{[[:space:]]*$/ {
-    open = 1
-    open_line = FNR
-    open_text = $0
+  function is_empty_catch(line) {
+    return line ~ /(^|[^[:alnum:]_])catch([[:space:]][^{]*)?\{[[:space:]]*\}/
   }
+  function opens_catch_block(line) {
+    return line ~ /(^|[^[:alnum:]_])catch([[:space:]][^{]*)?\{[[:space:]]*$/
+  }
+  function is_blank(line) { return line ~ /^[[:space:]]*$/ }
+  function closes_block(line) { return line ~ /^[[:space:]]*\}/ }
+  function report(line, text) { print FILENAME ":" line ": " text; found = 1 }
+  FNR == 1 { catch_line = 0 }
+  catch_line && is_blank($0) { next }
+  catch_line && closes_block($0) { report(catch_line, catch_text) }
+  { catch_line = 0 }
+  is_empty_catch($0) { report(FNR, $0) }
+  opens_catch_block($0) { catch_line = FNR; catch_text = $0 }
   END { exit !found }'
 
 floor_rules() {
