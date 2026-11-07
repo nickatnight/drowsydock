@@ -68,6 +68,8 @@ The choices in reverse order (5% up to 80%) must show the same states. A simulat
 
 Start these checks without the grant: `tccutil reset Accessibility com.drowsydock.DrowsyDock`, then launch the app.
 
+**Precondition for every row that needs the grant (4.3 to 4.5, and every later row that needs the grant):** after each rebuild, make sure the grant belongs to the build you are running. An ad-hoc signed build is a new app to macOS. An old DrowsyDock entry in System Settings ▸ Privacy & Security ▸ Accessibility can show as on while the new build is untrusted, and the menu keeps saying `Grant Accessibility…`. If that happens, select the DrowsyDock entry, remove it with −, and grant again: choose `Grant Accessibility…` and turn the new entry on, or add `build/DrowsyDock.app` with +. `docs/dev-signing.md` explains why, and how a stable dev certificate avoids it.
+
 | # | Check | Expected |
 |---|---|---|
 | 4.1 | Without the grant, open the menu. | Below the battery line: `Grant Accessibility…`. No overlay is drawn anywhere. The log shows `Accessibility granted: false`. |
