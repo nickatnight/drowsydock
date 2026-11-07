@@ -17,8 +17,6 @@ case "$mode" in
     ;;
 esac
 
-git rev-parse --is-inside-work-tree >/dev/null
-
 coverage_minimum=80
 # An import may carry attributes (`@preconcurrency`, `@_exported`, `@_spi(Name)`) and a kind
 # (`import class AppKit.NSColor`).
