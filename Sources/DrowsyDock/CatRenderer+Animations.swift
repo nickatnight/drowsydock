@@ -259,7 +259,9 @@ extension CatRenderer {
       withKey: Self.animationKey
     )
     let spots = [CGPoint(x: -19, y: 52), CGPoint(x: 20, y: 60), CGPoint(x: 23, y: 40)]
-    for (index, spot) in spots.prefix(beats.sparkleCount).enumerated() {
+    // MascotTimelineTests times `sparkleCount` sparkles; each needs a spot here.
+    assert(spots.count == beats.sparkleCount, "one spot per sparkle that MascotTimeline times")
+    for (index, spot) in spots.enumerated() {
       spawnSparkle(at: spot, after: beats.firstSparkle + Double(index) * beats.sparkleInterval)
     }
   }
@@ -270,7 +272,7 @@ extension CatRenderer {
     sparkle.position = spot
     sparkle.setScale(0)
     node.addChild(sparkle)
-    let phases = MascotTimeline.WakeUp.sparkle
+    let phases = MascotTimeline.WakeUp.Sparkle.self
     let appear = SKAction.group([
       .scale(to: 1, duration: phases.appear),
       .rotate(byAngle: .pi / 2, duration: phases.appear),

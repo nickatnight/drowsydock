@@ -58,8 +58,9 @@ public enum MascotTimeline {
   /// The wake-up's fixed opening, in seconds. The eyes then hold open for the flexible phase and
   /// close the wake-up with a `blink`.
   ///
-  /// The other values are beats inside the hold, in seconds from the wake-up's start. They don't
-  /// change its length, but each must end before the final blink starts.
+  /// The other values time the beats inside the hold: start times are in seconds from the
+  /// wake-up's start, lengths in seconds, and `sparkleCount` is a count. The beats don't change the
+  /// wake-up's length, but each must end before the final blink starts.
   public enum WakeUp {
     /// The eyes snap open.
     public static let snapOpen = 0.08
@@ -88,8 +89,17 @@ public enum MascotTimeline {
     /// How many sparkles twinkle.
     public static let sparkleCount = 3
 
-    /// One sparkle's phases: it grows in, holds, then fades out.
-    public static let sparkle = (appear: 0.25, hold: 0.3, fade: 0.5)
+    /// One sparkle's phases, in seconds: it grows in, holds, then fades out.
+    public enum Sparkle {
+      /// The sparkle grows in and turns.
+      public static let appear = 0.25
+
+      /// The sparkle stays.
+      public static let hold = 0.3
+
+      /// The sparkle fades and shrinks.
+      public static let fade = 0.5
+    }
   }
 
   /// How long, in seconds, the parts a loop moves take to ease back into the pose when a

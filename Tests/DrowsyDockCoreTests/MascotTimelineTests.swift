@@ -18,6 +18,11 @@ final class MascotTimelineTests: XCTestCase {
   }
 
   // The wake-up's stretch moves the body and the head; it must start after they have eased back.
+  // The yawn moves the head's height only after its settle, so the head must have eased back.
+  func testTheLoopEaseOutEndsBeforeTheYawnsSettleDoes() {
+    XCTAssertLessThanOrEqual(MascotTimeline.loopEaseOut, MascotTimeline.flexiblePhase(of: .yawn))
+  }
+
   func testTheLoopEaseOutEndsBeforeTheWakeUpStretches() {
     XCTAssertLessThanOrEqual(MascotTimeline.loopEaseOut, MascotTimeline.WakeUp.stretchDelay)
   }
@@ -25,7 +30,7 @@ final class MascotTimelineTests: XCTestCase {
   func testTheWakeUpsBeatsEndBeforeItsFinalBlinkStarts() {
     let wakeUp = MascotTimeline.WakeUp.self
     let finalBlinkStart = wakeUp.snapOpen + MascotTimeline.flexiblePhase(of: .wakeUp)
-    let sparkle = wakeUp.sparkle
+    let sparkle = wakeUp.Sparkle.self
     let lastSparkleEnd =
       wakeUp.firstSparkle + Double(wakeUp.sparkleCount - 1) * wakeUp.sparkleInterval
       + sparkle.appear + sparkle.hold + sparkle.fade
