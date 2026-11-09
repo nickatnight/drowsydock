@@ -81,6 +81,18 @@ public struct DockGeometry: Equatable, Sendable {
 
   private static let cornerRadiusPerThickness: CGFloat = 0.28
 
+  // An icon's artwork spans this fraction of its item's shorter side. On macOS 27 a 63 × 79 item
+  // holds 48-point artwork, 0.76 of 63.
+  private static let artworkPerItemSide: CGFloat = 0.76
+
+  /// Returns the frame of the icon artwork that the Dock draws inside an item: a square centred in
+  /// the item. From macOS 26 an item is taller than its artwork is wide, so the square follows the
+  /// item's shorter side.
+  public static func artworkFrame(ofItem item: CGRect) -> CGRect {
+    let side = min(item.width, item.height) * artworkPerItemSide
+    return CGRect(x: item.midX - side / 2, y: item.midY - side / 2, width: side, height: side)
+  }
+
   private static func background(
     of list: CGRect,
     holding icons: [CGRect],

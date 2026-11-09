@@ -200,7 +200,7 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 
 | # | Choose Debug ▸ Simulate battery ▸ … | Expected |
 |---|---|---|
-| 11.1 | 15%, then 5% | As the cat crossfades to sleep and the veil fades in, a wave runs left to right along the Dock: each icon darkens for 0.3 s and puffs a small blue "z" that drifts up and fades. The whole wave ends within 4 s (about 2.5 s for 11 icons). The log shows `The whole Dock nods off` once. |
+| 11.1 | 15%, then 5% | As the cat crossfades to sleep and the veil fades in, a wave runs left to right along the Dock: each icon darkens for 0.3 s and puffs a small blue "z" that drifts up and fades. The dark shape covers the icon's rounded square and nothing more: no taller box showing above or below the icon. The whole wave ends within 4 s (about 2.5 s for 11 icons). The log shows `The whole Dock nods off` once. |
 | 11.2 | After 11.1: 15%, then 5% again | No wave and no new log line. |
 | 11.3 | After 11.2: Charging, wait for `Awake`, then 5% | The wave plays again, with one new log line. |
 | 11.4 | Charging, then 5%, then 5% again (pick it twice) | One wave only. |

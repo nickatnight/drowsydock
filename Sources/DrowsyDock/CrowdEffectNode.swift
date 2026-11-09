@@ -9,8 +9,7 @@ final class CrowdEffectNode {
   private static let dimOpacity: CGFloat = 0.35
   private static let zSize: CGFloat = 9
 
-  // An app icon's artwork sits inside its Dock tile, as a rounded square.
-  private static let artworkInset: CGFloat = 0.12
+  // An app icon's artwork is a rounded square.
   private static let artworkCornerRadius: CGFloat = 0.22
 
   // How the dim splits its duration: fade in, hold, fade out.
@@ -41,10 +40,7 @@ final class CrowdEffectNode {
   }
 
   private func dim(_ icon: CGRect, after delay: TimeInterval) {
-    let artwork = icon.insetBy(
-      dx: icon.width * Self.artworkInset,
-      dy: icon.height * Self.artworkInset
-    )
+    let artwork = DockGeometry.artworkFrame(ofItem: icon)
     let radius = artwork.width * Self.artworkCornerRadius
     let shade = SKShapeNode(
       path: CGPath(roundedRect: artwork, cornerWidth: radius, cornerHeight: radius, transform: nil)

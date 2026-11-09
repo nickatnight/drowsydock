@@ -299,6 +299,26 @@ final class DockGeometryTests: XCTestCase {
     XCTAssertEqual(left.backgroundCornerRadius, 22, accuracy: 0.5)
   }
 
+  // In the user's 2× screenshot on macOS 27, the Finder icon's artwork is 96 × 96 pixels (48 × 48
+  // points), centred in its 63 × 79 item.
+  func testAnIconsArtworkIsTheMeasuredSquareCentredInATallItem() {
+    let artwork = DockGeometry.artworkFrame(ofItem: CGRect(x: 381, y: 5, width: 63, height: 79))
+
+    XCTAssertEqual(artwork.width, 48, accuracy: 0.5)
+    XCTAssertEqual(artwork.height, artwork.width)
+    XCTAssertEqual(artwork.midX, 412.5, accuracy: 0.001)
+    XCTAssertEqual(artwork.midY, 44.5, accuracy: 0.001)
+  }
+
+  func testInASquareItemTheArtworkKeepsTheSameMarginOnEverySide() {
+    let item = CGRect(x: 0, y: 0, width: 60, height: 60)
+    let artwork = DockGeometry.artworkFrame(ofItem: item)
+
+    XCTAssertEqual(artwork.minX - item.minX, item.maxX - artwork.maxX, accuracy: 0.001)
+    XCTAssertEqual(artwork.minY - item.minY, artwork.minX - item.minX, accuracy: 0.001)
+    XCTAssertEqual(artwork.width, 45.6, accuracy: 0.5)
+  }
+
   // MARK: - Perch
 
   func testOnABottomDockThePerchSitsOnTheTopEdgeInsideTheLastIcon() {
