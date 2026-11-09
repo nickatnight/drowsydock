@@ -219,8 +219,6 @@ final class AnimationDirectorTests: XCTestCase {
 
   // MARK: - Plugging in during another transition
 
-  // Plays the director the way MascotScene does: every animation runs to its end before the next
-  // request, unless the request itself returns a step that replaces it.
   private func steps(
     from start: MascotMood,
     requests: [MascotMood]
@@ -242,8 +240,6 @@ final class AnimationDirectorTests: XCTestCase {
   }
 
   func testChargingDuringAYawnStillPlaysTheWakeUpAndEndsAwake() {
-    // The yawn lasts 3.4 s and waking ends 3 s after the click, so both changes arrive while it
-    // plays.
     let run = steps(from: drowsy, requests: [yawning, waking, awake])
 
     XCTAssertTrue(run.steps.contains { $0.animation == .wakeUp }, "\(run.steps)")

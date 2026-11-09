@@ -3,9 +3,7 @@ import SpriteKit
 
 extension CatRenderer {
   private static let animationKey = "animation"
-  // For actions that start after a lead-in on a node whose lead-in runs under `animationKey`.
   private static let followUpKey = "followUp"
-  // For the parts of a loop easing back into the pose while a transition plays.
   private static let loopEaseOutKey = "loopEaseOut"
   static let floatingZName = "floatingZ"
   private static let sparkleName = "sparkle"
@@ -18,10 +16,8 @@ extension CatRenderer {
     static let staticZFade = 0.4
   }
 
-  // How far the eyes open when the nodding-off head jerks back up.
   private static let nodOffJerkOpenness = 0.35
 
-  // Beats inside the wake-up's hold, which MascotTimeline sizes. All of them end within it.
   private enum WakeUpBeats {
     static let earsUp = 0.12
     static let pop = 0.15
@@ -76,11 +72,6 @@ extension CatRenderer {
     node.run(.completion(after: duration, completion), withKey: Self.animationKey)
   }
 
-  /// Stops every animation and puts the cat back in its pose.
-  ///
-  /// With `easingLoopOut`, for a transition that starts at once, a running loop doesn't jump to
-  /// the pose: its moving parts ease back over `MascotTimeline.loopEaseOut` and the "z"s in flight
-  /// fade, while the transition plays.
   func stopAnimations(easingLoopOut: Bool) {
     let loopState = (torso: torso.yScale, bubble: snoreBubble.yScale, headY: head.position.y)
     let easesLoopOut = easingLoopOut && isLooping
@@ -106,8 +97,6 @@ extension CatRenderer {
       }
     }
     apply(pose)
-    // The loop had faded the static "z"s out. Leave them out, so the next transition fades them
-    // from there instead of popping them in first.
     if isLooping {
       isLooping = false
       for z in zs {
@@ -119,8 +108,6 @@ extension CatRenderer {
     }
   }
 
-  // Puts the parts a loop moves back where the loop left them, then eases them into the pose.
-  // A transition that moves the same part adds its action after this one, so it takes over.
   private func easeBack(torsoYScale: CGFloat, bubbleScale: CGFloat, headY: CGFloat) {
     let duration = MascotTimeline.loopEaseOut
     torso.yScale = torsoYScale
@@ -295,7 +282,6 @@ extension CatRenderer {
     )
   }
 
-  // The ears fold outward: the left one turns one way, the right one the other.
   private func rotateEars(
     toDroop droop: Double,
     over duration: TimeInterval,
@@ -329,8 +315,6 @@ extension CatRenderer {
     return blink.length
   }
 
-  // A blink from wherever the lids are, back to `openness`. The lash line shows while the eye is
-  // shut.
   private func blinkActions(
     _ timing: MascotTimeline.Blink,
     endingAt openness: Double
@@ -348,8 +332,6 @@ extension CatRenderer {
     return (.sequence([close, .wait(forDuration: timing.hold), open]), lash, length)
   }
 
-  // Runs under `followUpKey` after `delay`, so the yawn transition can schedule it behind its
-  // settle, whose actions on the same nodes run under `animationKey`.
   @discardableResult
   private func yawnAndNod(after delay: TimeInterval = 0) -> TimeInterval {
     let lead = SKAction.wait(forDuration: delay)

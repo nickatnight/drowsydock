@@ -5,7 +5,6 @@ import SpriteKit
 /// The SpriteKit scene that holds the cat.
 @MainActor
 final class MascotScene: SKScene {
-  // Loops run slower to stay within the CPU budget for looping states (ADR 0011).
   private static let oneShotFramesPerSecond = 30
   private static let loopFramesPerSecond = 15
 
@@ -15,7 +14,6 @@ final class MascotScene: SKScene {
   private var director = AnimationDirector()
   private var facing = DockPerch.Facing.left
   private var isActive = false
-  // A gesture is playing or a loop is running.
   private var isAmbientMoving = false
   private var nextGesture: Task<Void, Never>?
   // Bumped whenever running work stops. SpriteKit can deliver a completion after its action was
@@ -70,9 +68,6 @@ final class MascotScene: SKScene {
     }
   }
 
-  // SceneHostView renders the frame in which this pauses it, so one frame shows each change.
-  // An on-screen test showed the same pixels as three frames: a first pose fading in, a facing
-  // change, a jump while the window was ordered out, and the veil.
   override func update(_ currentTime: TimeInterval) {
     guard !isAmbientMoving, !director.isAnimating else { return }
     host?.isPaused = true

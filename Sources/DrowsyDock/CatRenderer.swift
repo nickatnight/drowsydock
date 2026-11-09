@@ -61,9 +61,6 @@ final class CatRenderer {
   /// as it starts, so stopping the transition early lands there.
   var pose = MascotPose(for: .awake)
 
-  // State the animations keep. `animationGeneration` changes whenever they stop, so a "z" spawn
-  // that SpriteKit dispatched before the stop can tell it is stale. `isLooping` says a loop has
-  // taken the static "z"s' place.
   var animationGeneration = 0
   var isLooping = false
 

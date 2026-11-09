@@ -9,10 +9,8 @@ final class CrowdEffectNode {
   private static let dimOpacity: CGFloat = 0.35
   private static let zSize: CGFloat = 9
 
-  // An app icon's artwork is a rounded square.
   private static let artworkCornerRadius: CGFloat = 0.22
 
-  // How the dim splits its duration: fade in, hold, fade out.
   private static let dimPhases = (fadeIn: 0.3, hold: 0.3, fadeOut: 0.4)
 
   let node = SKNode()

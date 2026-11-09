@@ -77,9 +77,6 @@ final class DockCanvasScene: SKScene {
     redraw()
   }
 
-  // SceneHostView renders the frame in which this pauses it, so one frame shows each change.
-  // An on-screen test showed the same pixels as three frames: a first pose fading in, a facing
-  // change, a jump while the window was ordered out, and the veil.
   override func update(_ currentTime: TimeInterval) {
     guard !isPlayingCrowdEffect else { return }
     host?.isPaused = true

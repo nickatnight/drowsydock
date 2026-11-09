@@ -225,11 +225,6 @@ final class DockGeometryTests: XCTestCase {
 
   // MARK: - Background
 
-  // macOS 26 and later report the list frame 5 points further from the screen edge than the
-  // background the Dock draws. The items, the same thickness as the list, line up with the
-  // background. These fixtures follow a real bottom Dock on macOS 27: list 79 points thick, items
-  // 63 × 79 and 5 points nearer the bottom edge.
-
   func testABottomDocksBackgroundSlidesDownToHoldItemsThatSitBelowTheList() {
     let dock = DockGeometry(
       listFrame: ax(370, 816, 700, 79),
@@ -280,9 +275,6 @@ final class DockGeometryTests: XCTestCase {
     XCTAssertEqual(dock.backgroundFrame, dock.frame)
   }
 
-  // On macOS 27.0.1 a 79-point-thick Dock's drawn corners fit a circle of about 22 points: traced
-  // from a 2× screenshot, the outline's inset from the straight edge matched a 44-pixel radius
-  // within 2 pixels on every row from 2 to 35 pixels in from the top and bottom edges.
   func testTheBackgroundsCornersMatchTheMeasuredDock() {
     let bottom = DockGeometry(
       listFrame: ax(370, 816, 700, 79),
@@ -299,8 +291,6 @@ final class DockGeometryTests: XCTestCase {
     XCTAssertEqual(left.backgroundCornerRadius, 22, accuracy: 0.5)
   }
 
-  // In the user's 2× screenshot on macOS 27, the Finder icon's artwork is 96 × 96 pixels (48 × 48
-  // points), centred in its 63 × 79 item.
   func testAnIconsArtworkIsTheMeasuredSquareCentredInATallItem() {
     let artwork = DockGeometry.artworkFrame(ofItem: CGRect(x: 381, y: 5, width: 63, height: 79))
 
