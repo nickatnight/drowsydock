@@ -10,6 +10,15 @@ final class MascotTimelineTests: XCTestCase {
     }
   }
 
+  // The parts a loop moves ease back while the transition that interrupted it plays, so they
+  // must have settled before the shortest transition ends and the view may pause.
+  func testTheLoopEaseOutEndsBeforeEveryTransitionDoes() {
+    for animation in transitions {
+      XCTAssertGreaterThan(MascotTimeline.loopEaseOut, 0, "\(animation)")
+      XCTAssertLessThan(MascotTimeline.loopEaseOut, animation.duration.inSeconds, "\(animation)")
+    }
+  }
+
   func testACrossfadeIsAllFlexible() {
     XCTAssertEqual(
       MascotTimeline.flexiblePhase(of: .crossfade),

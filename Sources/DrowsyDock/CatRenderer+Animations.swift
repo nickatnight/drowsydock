@@ -5,6 +5,8 @@ extension CatRenderer {
   private static let animationKey = "animation"
   // For actions that start after a lead-in on a node whose lead-in runs under `animationKey`.
   private static let followUpKey = "followUp"
+  // For the parts of a loop easing back into the pose while a transition plays.
+  private static let loopEaseOutKey = "loopEaseOut"
   static let floatingZName = "floatingZ"
   private static let sparkleName = "sparkle"
 
@@ -74,7 +76,14 @@ extension CatRenderer {
     node.run(.completion(after: duration, completion), withKey: Self.animationKey)
   }
 
-  func stopAnimations() {
+  /// Stops every animation and puts the cat back in its pose.
+  ///
+  /// With `easingLoopOut`, for a transition that starts at once, a running loop doesn't jump to
+  /// the pose: its moving parts ease back over `MascotTimeline.loopEaseOut` and the "z"s in flight
+  /// fade, while the transition plays.
+  func stopAnimations(easingLoopOut: Bool) {
+    let loopState = (torso: torso.yScale, bubble: snoreBubble.yScale, headY: head.position.y)
+    let easesLoopOut = easingLoopOut && isLooping
     animationGeneration += 1
     var parts: [SKNode] = [node, torso, head, snoreBubble, openMouth]
     parts += ears
@@ -84,10 +93,17 @@ extension CatRenderer {
     for part in parts {
       part.removeAction(forKey: Self.animationKey)
       part.removeAction(forKey: Self.followUpKey)
+      part.removeAction(forKey: Self.loopEaseOutKey)
     }
     for child in node.children
     where child.name == Self.floatingZName || child.name == Self.sparkleName {
-      child.removeFromParent()
+      if easesLoopOut, child.name == Self.floatingZName {
+        child.removeAllActions()
+        child.run(
+          .sequence([.fadeOut(withDuration: MascotTimeline.loopEaseOut), .removeFromParent()]))
+      } else {
+        child.removeFromParent()
+      }
     }
     apply(pose)
     // The loop had faded the static "z"s out. Leave them out, so the next transition fades them
@@ -98,6 +114,24 @@ extension CatRenderer {
         z.alpha = 0
       }
     }
+    if easesLoopOut {
+      easeBack(torsoYScale: loopState.torso, bubbleScale: loopState.bubble, headY: loopState.headY)
+    }
+  }
+
+  // Puts the parts a loop moves back where the loop left them, then eases them into the pose.
+  // A transition that moves the same part adds its action after this one, so it takes over.
+  private func easeBack(torsoYScale: CGFloat, bubbleScale: CGFloat, headY: CGFloat) {
+    let duration = MascotTimeline.loopEaseOut
+    torso.yScale = torsoYScale
+    snoreBubble.setScale(bubbleScale)
+    head.position.y = headY
+    torso.run(Self.eased(.scaleY(to: 1, duration: duration)), withKey: Self.loopEaseOutKey)
+    snoreBubble.run(Self.eased(.scale(to: 1, duration: duration)), withKey: Self.loopEaseOutKey)
+    head.run(
+      Self.eased(.moveTo(y: Metrics.neck.y, duration: duration)),
+      withKey: Self.loopEaseOutKey
+    )
   }
 
   // MARK: - Transitions

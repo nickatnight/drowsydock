@@ -62,6 +62,11 @@ public enum MascotTimeline {
     public static let snapOpen = 0.08
   }
 
+  /// How long, in seconds, the parts a loop moves take to ease back into the pose when a
+  /// transition interrupts the loop: the breathing body and snore bubble, the bobbing head and
+  /// the "z"s in flight. It runs alongside the transition and ends before the shortest one does.
+  public static let loopEaseOut = 0.25
+
   /// Returns the length, in seconds, of the phase that takes whatever `animation`'s duration
   /// leaves: the whole crossfade, the settle before the yawn and nod, the settle after the
   /// nod-off's jerk, or the hold before the wake-up's final blink.
