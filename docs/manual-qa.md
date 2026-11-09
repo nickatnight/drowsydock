@@ -142,7 +142,7 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 
 ## The cat (slice 8, `CatRenderer`, `MascotScene`, `DockCanvasScene` and `MascotOverlay`)
 
-`CatRenderer` draws an original apricot cat in SpriteKit shapes (cream muzzle, paws and belly, a ginger forehead patch, rosy cheeks, a curled tail) and puts it into the `MascotPose` for its state (tested in `MascotPoseTests`). `MascotScene` holds the cat in the perch window. `DockCanvasScene` draws the veil in a second, Dock-sized window, which `MascotOverlay` orders out whenever the veil is off. After each change, each scene renders one frame and pauses its `SceneHostView`. These checks need the grant. Take a screenshot of each pose (Cmd-Shift-4, then Space and click the cat's window) and attach it to the QA record.
+`CatRenderer` draws an original apricot cat in SpriteKit shapes (cream muzzle, paws and belly, a ginger forehead patch, rosy cheeks, a curled tail) and puts it into the `MascotPose` for its state (tested in `MascotPoseTests`). `MascotScene` holds the cat in the perch window. `DockCanvasScene` draws the veil in a second, Dock-sized window, which `MascotOverlay` orders out whenever the veil is off. After each change, each scene draws one frame, and its `SceneHostView` pauses itself unless the scene still `needsAnotherFrame` (ADR 0015). These checks need the grant. Take a screenshot of each pose (Cmd-Shift-4, then Space and click the cat's window) and attach it to the QA record.
 
 | # | Choose Debug ▸ Simulate battery ▸ … | Expected |
 |---|---|---|
@@ -167,7 +167,7 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 
 ## Ambient behaviour (slice 9, `MascotScene`, `CatRenderer+Animations` and `SKAction+Additions`)
 
-`AmbientSchedule` (tested in `AmbientScheduleTests`) picks what the cat does while it rests. `MascotScene` waits out an idle state's pause with a task, unpauses its view for the one action at 30 fps and pauses again. Looping states keep the view running at 15 fps. `SceneHostView` draws both scenes with `SKRenderer` into a Metal layer, driven by a display link that asks for exactly that rate and stops while paused (ADR 0011). The parts of the cat that never move on their own are rasterized (`SKEffectNode.shouldRasterize`), so a frame redraws only what moves. These checks need the grant.
+`AmbientSchedule` (tested in `AmbientScheduleTests`) picks what the cat does while it rests. `MascotScene` waits out an idle state's pause with a task, unpauses its view for the one action at 30 fps, and the view pauses itself after the action's last frame. Looping states keep the view running at 15 fps. `SceneHostView` draws both scenes with `SKRenderer` into a Metal layer, driven by a display link that asks for exactly that rate and stops while paused (ADR 0011). The parts of the cat that never move on their own are rasterized (`SKEffectNode.shouldRasterize`), so a frame redraws only what moves. These checks need the grant.
 
 | # | Check | Expected |
 |---|---|---|
