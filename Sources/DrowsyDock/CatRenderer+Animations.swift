@@ -98,17 +98,21 @@ extension CatRenderer {
       }
     }
     if easesLoopOut, let next {
-      torso.yScale = loopState.torso
-      snoreBubble.setScale(loopState.bubble)
-      head.position.y = loopState.headY
-      easeBackLoopParts(before: next)
+      easeBack(from: loopState, before: next)
     }
   }
 
-  // The wake-up pops the bubble and the nod-off droops the head from the first frame, each from
-  // where the loop left it, so those parts are theirs. Nothing else moves the body, the bubble's
-  // size or the head's height before the ease-out ends (MascotTimelineTests).
-  private func easeBackLoopParts(before next: MascotAnimation) {
+  // Puts the loop's parts back where the loop left them, then eases them into the pose. The
+  // wake-up pops the bubble and the nod-off droops the head from the first frame, so those parts
+  // are theirs. Nothing else moves the body, the bubble's size or the head's height before the
+  // ease-out ends (MascotTimelineTests).
+  private func easeBack(
+    from loop: (torso: CGFloat, bubble: CGFloat, headY: CGFloat),
+    before next: MascotAnimation
+  ) {
+    torso.yScale = loop.torso
+    snoreBubble.setScale(loop.bubble)
+    head.position.y = loop.headY
     let duration = MascotTimeline.loopEaseOut
     torso.run(Self.eased(.scaleY(to: 1, duration: duration)), withKey: Self.loopEaseOutKey)
     if next != .wakeUp {
