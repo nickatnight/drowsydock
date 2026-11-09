@@ -300,6 +300,14 @@ final class DockGeometryTests: XCTestCase {
     XCTAssertEqual(artwork.midY, 44.5, accuracy: 0.001)
   }
 
+  func testAnIconsArtworkCornersScaleWithItsSide() {
+    let small = DockGeometry.artworkCornerRadius(of: CGRect(x: 0, y: 0, width: 48, height: 48))
+    let large = DockGeometry.artworkCornerRadius(of: CGRect(x: 0, y: 0, width: 96, height: 96))
+
+    XCTAssertEqual(small, 10.6, accuracy: 0.5)
+    XCTAssertEqual(large, 2 * small, accuracy: 0.001)
+  }
+
   func testInASquareItemTheArtworkKeepsTheSameMarginOnEverySide() {
     let item = CGRect(x: 0, y: 0, width: 60, height: 60)
     let artwork = DockGeometry.artworkFrame(ofItem: item)

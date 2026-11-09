@@ -9,8 +9,6 @@ final class CrowdEffectNode {
   private static let dimOpacity: CGFloat = 0.35
   private static let zSize: CGFloat = 9
 
-  private static let artworkCornerRadius: CGFloat = 0.22
-
   private static let dimPhases = (fadeIn: 0.3, hold: 0.3, fadeOut: 0.4)
 
   let node = SKNode()
@@ -39,7 +37,7 @@ final class CrowdEffectNode {
 
   private func dim(_ icon: CGRect, after delay: TimeInterval) {
     let artwork = DockGeometry.artworkFrame(ofItem: icon)
-    let radius = artwork.width * Self.artworkCornerRadius
+    let radius = DockGeometry.artworkCornerRadius(of: artwork)
     let shade = SKShapeNode(
       path: CGPath(roundedRect: artwork, cornerWidth: radius, cornerHeight: radius, transform: nil)
     )

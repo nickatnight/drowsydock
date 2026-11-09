@@ -91,6 +91,14 @@ public struct DockGeometry: Equatable, Sendable {
     return CGRect(x: item.midX - side / 2, y: item.midY - side / 2, width: side, height: side)
   }
 
+  // An app icon is a rounded square whose corners span this fraction of its side.
+  private static let artworkCornerRadiusPerSide: CGFloat = 0.22
+
+  /// Returns the corner radius of icon artwork with the given frame.
+  public static func artworkCornerRadius(of artwork: CGRect) -> CGFloat {
+    artwork.width * artworkCornerRadiusPerSide
+  }
+
   private static func background(
     of list: CGRect,
     holding icons: [CGRect],
