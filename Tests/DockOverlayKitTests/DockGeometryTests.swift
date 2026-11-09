@@ -328,6 +328,49 @@ final class DockGeometryTests: XCTestCase {
     XCTAssertEqual(dock.backgroundFrame, dock.frame)
   }
 
+  // Before macOS 26: a list 70 points thick, with items 60 thick inset 5 points from both sides.
+  func testWhereALeftDocksListHoldsItsIconsTheBackgroundIsTheListFrame() {
+    let dock = DockGeometry(
+      listFrame: ax(0, 200, 70, 500),
+      iconFrames: [ax(5, 205, 60, 60), ax(5, 265, 60, 60)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, dock.frame)
+  }
+
+  func testWhereARightDocksListHoldsItsIconsTheBackgroundIsTheListFrame() {
+    let dock = DockGeometry(
+      listFrame: ax(1370, 200, 70, 500),
+      iconFrames: [ax(1375, 205, 60, 60), ax(1375, 265, 60, 60)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, dock.frame)
+  }
+
+  // A launching app's icon bounces away from the edge, so the first item may sit inside the list.
+  func testTheSlideFollowsTheItemNearestTheScreenEdgeNotTheFirst() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(378, 790, 63, 79), ax(441, 821, 63, 79)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, CGRect(x: 370, y: 0, width: 700, height: 79))
+  }
+
+  func testAnItemPastTheListsEndDoesNotStretchOrMoveTheBackgroundAlongTheDock() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(360, 821, 63, 79), ax(999, 821, 63, 79)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame.minX, dock.frame.minX)
+    XCTAssertEqual(dock.backgroundFrame.width, dock.frame.width)
+  }
+
   func testWithNoIconsTheBackgroundIsTheListFrame() {
     let dock = DockGeometry(
       listFrame: ax(370, 830, 700, 70),
@@ -369,6 +412,18 @@ final class DockGeometryTests: XCTestCase {
 
     XCTAssertEqual(small, 10.6, accuracy: 0.5)
     XCTAssertEqual(large, 2 * small, accuracy: 0.001)
+  }
+
+  // On a side Dock from macOS 26 an item is as thick as the Dock across and a tile long, so it is
+  // wider than tall.
+  func testInAWideSideDockItemTheArtworkFollowsItsHeight() {
+    let item = CGRect(x: 0, y: 381, width: 79, height: 63)
+    let artwork = DockGeometry.artworkFrame(ofItem: item)
+
+    XCTAssertEqual(artwork.height, 48, accuracy: 0.5)
+    XCTAssertEqual(artwork.width, artwork.height)
+    XCTAssertEqual(artwork.midX, item.midX, accuracy: 0.001)
+    XCTAssertEqual(artwork.midY, item.midY, accuracy: 0.001)
   }
 
   func testInASquareItemTheArtworkKeepsTheSameMarginOnEverySide() {

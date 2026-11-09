@@ -440,6 +440,36 @@ final class DockTrackerTests: XCTestCase {
     XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite), on: bottomDock))
   }
 
+  // The frame checks run once a second while hovering and don't read the pointer again, so they
+  // must keep the one they have, or the overlay would come back over the label.
+  func testAFrameCheckKeepsThePointerOverTheIconUnderThePerch() {
+    var tracker = trackerHoveringOverTheDock()
+    tracker.pointerMoved(to: overThePerchIcon)
+
+    tracker.frameChecked(bottomDock)
+
+    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite), on: bottomDock))
+  }
+
+  func testAFrameCheckThatSeesMagnificationKeepsThePointerOverTheIconUnderThePerch() {
+    var tracker = trackerHoveringOverTheDock()
+    tracker.pointerMoved(to: overThePerchIcon)
+
+    tracker.frameChecked(magnifiedDock)
+    tracker.frameChecked(bottomDock)
+
+    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite), on: bottomDock))
+  }
+
+  func testReturningFromSettlingStraightOntoTheIconUnderThePerchFadesTheOverlayOut() {
+    var tracker = trackerHoveringOverTheDock()
+    tracker.pointerMoved(to: awayFromTheDock)
+
+    tracker.pointerMoved(to: overThePerchIcon)
+
+    XCTAssertEqual(tracker.presentation, .fadedOut(bottomDock.perch(for: sprite), on: bottomDock))
+  }
+
   func testThePointerOverThePerchFadesTheOverlayOut() {
     var tracker = trackerHoveringOverTheDock()
 

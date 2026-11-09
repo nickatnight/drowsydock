@@ -11,8 +11,8 @@ final class MascotTimelineTests: XCTestCase {
   }
 
   func testTheLoopEaseOutEndsBeforeEveryTransitionDoes() {
+    XCTAssertGreaterThan(MascotTimeline.loopEaseOut, 0)
     for animation in transitions {
-      XCTAssertGreaterThan(MascotTimeline.loopEaseOut, 0, "\(animation)")
       XCTAssertLessThan(MascotTimeline.loopEaseOut, animation.duration.inSeconds, "\(animation)")
     }
   }
