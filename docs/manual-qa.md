@@ -146,14 +146,14 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 | 8.2 | 40% | Drowsy: the eyelids cover a bit under half of each eye, with a dark lash line along the lid's edge. The head leans a few degrees toward the screen and the ears fold slightly. |
 | 8.3 | 25% | Yawning (between yawns): eyelids lower than at 40%, the head leans further and the ears fold more. Clearly different from 40%. |
 | 8.4 | 15% | Nodding off: the eyes are thin slits, the head leans further and the ears droop. One small blue "z" beside the head. |
-| 8.5 | 5% | Asleep: eyes closed as curved lash lines, the head leans furthest, the ears droop fully, two "z"s (small and large) and a pale blue snore bubble at the nose. The whole Dock is dimmed by a dark veil with rounded ends that matches the Dock's shape; every icon stays recognisable. |
+| 8.5 | 5% | Asleep: eyes closed as curved lash lines, the head leans furthest, the ears droop fully, two "z"s (small and large) and a pale blue snore bubble at the nose. The whole Dock is dimmed by a dark veil; every icon stays recognisable. The veil's edge lies on the Dock's own outline all round, rounded ends included: no dark band above the Dock's top edge and no undimmed strip along its bottom edge. Zoom into a screenshot of the Dock's right end to check: the veil's edge and the outline are within 1 point of each other (ADR 0013). |
 | 8.6 | 5%, then 15% | The veil disappears; the cat shows the 15% pose. |
 | 8.7 | Charging | The cat ends in the awake pose, after the wake-up animation (10.5). |
 | 8.8 | No battery | The cat and the veil disappear. Choosing 80% again brings the cat back. |
 
 | # | Check | Expected |
 |---|---|---|
-| 8.9 | Move the Dock to the left, then the right, at 5%. | On a left Dock the cat sits above the top icon and faces right (tail on the left). On a right Dock it faces left. The "z"s read as the letter Z on both, never mirrored. The veil follows the Dock. |
+| 8.9 | Move the Dock to the left, then the right, at 5%. | On a left Dock the cat sits above the top icon and faces right (tail on the left). On a right Dock it faces left. The "z"s read as the letter Z on both, never mirrored. The veil follows the Dock and lies on its outline as in 8.5. Only a bottom Dock was measured (ADR 0013): if a side Dock's veil is offset, note by how many points and on which side. |
 | 8.10 | With a left Dock, enlarge it (Size slider) until it fills the display's height. | The cat stays below the menu bar, overlapping the top icon if it must, never hidden under the menu bar (job 002 G8). |
 | 8.11 | With a bottom Dock, rest the pointer on the last icon (the Trash) until its label appears, then on the cat itself. | The cat fades out within about 0.2 s, so the label is readable. Moving to another icon fades it back in. The log shows `Overlay: fadedOut` then `Overlay: shown`. At 5% the veil fades with it. |
 | 8.12 | At 5%, with Magnification on, hover over the icons. | The cat and the veil fade out together and fade back in within 1 s of the Dock settling. |

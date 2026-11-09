@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (job 003, plan slice 8). ADR 0011 replaces `SKView` with `SceneHostView`; the paused-rendering rule below stands. The polish pass cut the two frames per change to one, after an on-screen test showed the same pixels.
+Accepted (job 003, plan slice 8). ADR 0011 replaces `SKView` with `SceneHostView`; the paused-rendering rule below stands. The polish pass cut the two frames per change to one, after an on-screen test showed the same pixels. ADR 0013 fits the veil to the Dock's drawn background instead of its list frame.
 
 ## Context
 

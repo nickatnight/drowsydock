@@ -223,6 +223,82 @@ final class DockGeometryTests: XCTestCase {
     XCTAssertTrue(dock.isHidden)
   }
 
+  // MARK: - Background
+
+  // macOS 26 and later report the list frame 5 points further from the screen edge than the
+  // background the Dock draws. The items, the same thickness as the list, line up with the
+  // background. These fixtures follow a real bottom Dock on macOS 27: list 79 points thick, items
+  // 63 × 79 and 5 points nearer the bottom edge.
+
+  func testABottomDocksBackgroundSlidesDownToHoldItemsThatSitBelowTheList() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(378, 821, 63, 79), ax(999, 821, 63, 79)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, CGRect(x: 370, y: 0, width: 700, height: 79))
+  }
+
+  func testALeftDocksBackgroundSlidesLeftToHoldItemsThatSitPastTheList() {
+    let dock = DockGeometry(
+      listFrame: ax(5, 200, 79, 500),
+      iconFrames: [ax(0, 208, 79, 63), ax(0, 271, 79, 63)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, CGRect(x: 0, y: 200, width: 79, height: 500))
+  }
+
+  func testARightDocksBackgroundSlidesRightToHoldItemsThatSitPastTheList() {
+    let dock = DockGeometry(
+      listFrame: ax(1356, 200, 79, 500),
+      iconFrames: [ax(1361, 208, 79, 63), ax(1361, 271, 79, 63)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, CGRect(x: 1361, y: 200, width: 79, height: 500))
+  }
+
+  func testWhereTheListHoldsItsIconsTheBackgroundIsTheListFrame() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 830, 700, 70),
+      iconFrames: [ax(380, 834, 60, 60), ax(1000, 834, 60, 60)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, dock.frame)
+  }
+
+  func testWithNoIconsTheBackgroundIsTheListFrame() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 830, 700, 70),
+      iconFrames: [],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, dock.frame)
+  }
+
+  // On macOS 27.0.1 a 79-point-thick Dock's drawn corners fit a circle of about 22 points: traced
+  // from a 2× screenshot, the outline's inset from the straight edge matched a 44-pixel radius
+  // within 2 pixels on every row from 2 to 35 pixels in from the top and bottom edges.
+  func testTheBackgroundsCornersMatchTheMeasuredDock() {
+    let bottom = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(378, 821, 63, 79)],
+      layout: DisplayLayout(primary: laptop)
+    )
+    let left = DockGeometry(
+      listFrame: ax(0, 200, 79, 500),
+      iconFrames: [ax(0, 208, 79, 63)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(bottom.backgroundCornerRadius, 22, accuracy: 0.5)
+    XCTAssertEqual(left.backgroundCornerRadius, 22, accuracy: 0.5)
+  }
+
   // MARK: - Perch
 
   func testOnABottomDockThePerchSitsOnTheTopEdgeInsideTheLastIcon() {

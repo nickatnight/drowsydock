@@ -43,6 +43,14 @@ public struct DockGeometry: Equatable, Sendable {
   /// The frames of the Dock's items in Dock order, without separators.
   public let iconFrames: [CGRect]
 
+  /// The frame of the background the Dock draws behind its items.
+  ///
+  /// From macOS 26 the list frame sits 5 points further from the screen edge than the drawn
+  /// background, while the items, as thick as the list, line up with it. So this is the list frame
+  /// slid toward the screen edge until it holds the items. Where the list already holds them, as
+  /// before macOS 26, it is the list frame.
+  public let backgroundFrame: CGRect
+
   /// The frame of the display that holds the Dock.
   public let screenFrame: CGRect
 
@@ -62,6 +70,29 @@ public struct DockGeometry: Equatable, Sendable {
     screenFrame = display.frame
     visibleScreenFrame = display.visibleFrame
     orientation = Self.orientation(of: frame, on: screenFrame)
+    backgroundFrame = Self.background(of: frame, holding: self.iconFrames, along: orientation)
+  }
+
+  /// The radius of the background's rounded corners: 0.28 of the Dock's thickness, which matched
+  /// the corners of a 79-point-thick Dock on macOS 27 (ADR 0013).
+  public var backgroundCornerRadius: CGFloat {
+    min(backgroundFrame.width, backgroundFrame.height) * Self.cornerRadiusPerThickness
+  }
+
+  private static let cornerRadiusPerThickness: CGFloat = 0.28
+
+  private static func background(
+    of list: CGRect,
+    holding icons: [CGRect],
+    along orientation: DockOrientation
+  ) -> CGRect {
+    guard let first = icons.first else { return list }
+    let items = icons.dropFirst().reduce(first) { $0.union($1) }
+    switch orientation {
+    case .bottom: return list.offsetBy(dx: 0, dy: min(items.minY - list.minY, 0))
+    case .left: return list.offsetBy(dx: min(items.minX - list.minX, 0), dy: 0)
+    case .right: return list.offsetBy(dx: max(items.maxX - list.maxX, 0), dy: 0)
+    }
   }
 
   /// Whether the Dock is off screen, as an auto-hidden Dock is until the pointer reaches the edge.

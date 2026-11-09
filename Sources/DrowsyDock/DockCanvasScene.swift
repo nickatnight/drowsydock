@@ -5,14 +5,11 @@ import SpriteKit
 /// the Dock while the cat is asleep, and the crowd effect.
 @MainActor
 final class DockCanvasScene: SKScene {
-  // The Dock's background has rounded ends; this fraction of its thickness roughly follows them.
-  private static let cornerRadiusRatio: CGFloat = 0.28
-
   weak var host: SceneHostView?
 
   private let veil = SKShapeNode()
   private let crowd = CrowdEffectNode()
-  private var dockFrame = CGRect.zero
+  private var background = CGRect.zero
   private var isPlayingCrowdEffect = false
 
   override init() {
@@ -31,15 +28,15 @@ final class DockCanvasScene: SKScene {
     nil
   }
 
-  /// Places the effects over the Dock, whose frame is given in this scene's coordinates.
-  func layOut(dockFrame: CGRect) {
-    guard dockFrame != self.dockFrame else { return }
-    self.dockFrame = dockFrame
-    let radius = min(dockFrame.width, dockFrame.height) * Self.cornerRadiusRatio
+  /// Fits the veil to the Dock's drawn background, whose frame is given in this scene's
+  /// coordinates.
+  func layOut(background: CGRect, cornerRadius: CGFloat) {
+    guard background != self.background else { return }
+    self.background = background
     veil.path = CGPath(
-      roundedRect: dockFrame,
-      cornerWidth: radius,
-      cornerHeight: radius,
+      roundedRect: background,
+      cornerWidth: cornerRadius,
+      cornerHeight: cornerRadius,
       transform: nil
     )
     redraw()

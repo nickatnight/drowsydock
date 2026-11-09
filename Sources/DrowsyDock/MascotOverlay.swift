@@ -90,13 +90,17 @@ final class MascotOverlay {
       return
     }
     let canvas = Self.canvasFrame(around: dock)
-    canvasScene.layOut(dockFrame: dock.frame.offsetBy(dx: -canvas.minX, dy: -canvas.minY))
+    canvasScene.layOut(
+      background: dock.backgroundFrame.offsetBy(dx: -canvas.minX, dy: -canvas.minY),
+      cornerRadius: dock.backgroundCornerRadius
+    )
     canvasScene.setVeil(opacity: pose.veilOpacity)
     place(canvasWindow, at: canvas, isFaded: isFaded)
   }
 
   private static func canvasFrame(around dock: DockGeometry) -> CGRect {
-    dock.frame.insetBy(dx: -canvasMargin, dy: -canvasMargin).intersection(dock.screenFrame)
+    dock.backgroundFrame.insetBy(dx: -canvasMargin, dy: -canvasMargin)
+      .intersection(dock.screenFrame)
   }
 
   private func stopCrowdEffect() {
