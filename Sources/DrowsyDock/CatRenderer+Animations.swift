@@ -33,6 +33,7 @@ extension CatRenderer {
   }
 
   func loop(_ loop: AmbientLoop) {
+    isLooping = true
     switch loop {
     case .floatingZs:
       floatZs()
@@ -437,7 +438,6 @@ extension CatRenderer {
   }
 
   private func fadeOutStaticZs() {
-    isLooping = true
     run(.fadeOut(withDuration: Timing.staticZFade), on: zs)
   }
 

@@ -62,6 +62,8 @@ final class CatRenderer {
   var pose = MascotPose(for: .awake)
 
   var animationGeneration = 0
+  // Set by `loop(_:)` and cleared by `stopAnimations(before:)`. Every loop fades the static "z"s
+  // out as it starts.
   var isLooping = false
 
   init() {
