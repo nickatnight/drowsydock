@@ -62,6 +62,10 @@ On launch the Simulate battery picker shows a check mark on Real. The check mark
 
 The choices in reverse order (5% up to 80%) must show the same states. A simulated level is a jump, not a discharge.
 
+| # | Check | Expected |
+|---|---|---|
+| 3.17 | With the grant and the cat showing, open the menu, go to Debug ▸ Simulate battery, move up and down through the levels, then pick 5%. Open it again and pick 80%. | The submenus open and the highlight follows the pointer as in other menu-bar menus. The menu closes with its usual fade, and the cat starts its transition (10.4, 10.11) as the menu disappears. A harness that drove this same SwiftUI menu measured AppKit's own work when the menu closes at 34 to 58 ms of main-thread time whether or not the app did anything. DrowsyDock's part was under 10 ms on the first pick and under 1.5 ms after that, and it runs after menu tracking has ended. If the menu stutters anyway, repeat the picks while `sample DrowsyDock 10 1 -file menu.txt` runs and attach `menu.txt`. |
+
 ## Accessibility (slice 4, `AccessibilityPermission` and `AppCoordinator`)
 
 `AccessibilityPermission` wraps `AXIsProcessTrustedWithOptions` and opens System Settings. `AppCoordinator` holds the grant. It re-checks it when macOS posts the undocumented `com.apple.accessibility.api` distributed notification (at once and again 1 s later), and each time the menu opens (`NSMenu.didBeginTrackingNotification`), which stays the fallback. An ad-hoc signed build loses the grant on every rebuild. Sign with the "DrowsyDock Dev" certificate from `docs/dev-signing.md` to keep it.
