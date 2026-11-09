@@ -30,9 +30,9 @@ public struct DockTrackerState: Equatable, Sendable {
     /// The Dock is on screen at this geometry, and the pointer is away from it.
     case resting(DockGeometry)
 
-    /// The pointer is near the Dock resting at this geometry. Frame checks run, because the Dock
-    /// posts no notification when it magnifies.
-    case hovering(DockGeometry, isMagnified: Bool)
+    /// The pointer is near the Dock resting at this geometry, at `pointer` in AppKit global
+    /// coordinates. Frame checks run, because the Dock posts no notification when it magnifies.
+    case hovering(DockGeometry, isMagnified: Bool, pointer: CGPoint)
 
     /// The pointer has just left the Dock resting at this geometry. The next read, taken once
     /// the Dock has had time to shrink back, gives the new resting geometry.
@@ -44,8 +44,6 @@ public struct DockTrackerState: Equatable, Sendable {
 
   /// What the tracker knows about the Dock.
   public private(set) var phase = Phase.untrusted
-
-  private var pointer: CGPoint?
 
   /// Starts untrusted, with the overlay hidden.
   public init(spriteSize: CGSize) {
@@ -59,9 +57,9 @@ public struct DockTrackerState: Equatable, Sendable {
       return .hidden
     case .resting(let geometry):
       return .shown(geometry.perch(for: spriteSize), on: geometry)
-    case .hovering(let geometry, let isMagnified):
+    case .hovering(let geometry, let isMagnified, let pointer):
       let perch = geometry.perch(for: spriteSize)
-      let uncoversLabel = pointer.map(geometry.perchRegion(for: spriteSize).contains) ?? false
+      let uncoversLabel = geometry.perchRegion(for: spriteSize).contains(pointer)
       return isMagnified || uncoversLabel
         ? .fadedOut(perch, on: geometry) : .shown(perch, on: geometry)
     case .settling(let geometry, let isMagnified):
@@ -128,14 +126,16 @@ public struct DockTrackerState: Equatable, Sendable {
 
   /// Records where the pointer is, in AppKit global coordinates.
   public mutating func pointerMoved(to point: CGPoint) {
-    pointer = point
     switch phase {
     case .resting(let geometry) where geometry.hoverRegion.contains(point):
-      phase = .hovering(geometry, isMagnified: false)
-    case .hovering(let geometry, let isMagnified) where !geometry.hoverRegion.contains(point):
-      phase = .settling(geometry, isMagnified: isMagnified)
+      phase = .hovering(geometry, isMagnified: false, pointer: point)
+    case .hovering(let geometry, let isMagnified, _):
+      phase =
+        geometry.hoverRegion.contains(point)
+        ? .hovering(geometry, isMagnified: isMagnified, pointer: point)
+        : .settling(geometry, isMagnified: isMagnified)
     case .settling(let geometry, let isMagnified) where geometry.hoverRegion.contains(point):
-      phase = .hovering(geometry, isMagnified: isMagnified)
+      phase = .hovering(geometry, isMagnified: isMagnified, pointer: point)
     default:
       return
     }
@@ -147,13 +147,13 @@ public struct DockTrackerState: Equatable, Sendable {
   /// A magnified Dock keeps the resting geometry, so the perch doesn't move. Any other change,
   /// such as a smaller Dock, becomes the new resting geometry.
   public mutating func frameChecked(_ current: DockGeometry?) {
-    guard case .hovering(let resting, _) = phase, let current else { return }
+    guard case .hovering(let resting, _, let pointer) = phase, let current else { return }
     if current.isHidden {
       phase = .offScreen
     } else if DockGeometry.isMagnified(current: current, resting: resting) {
-      phase = .hovering(resting, isMagnified: true)
+      phase = .hovering(resting, isMagnified: true, pointer: pointer)
     } else {
-      phase = .hovering(current, isMagnified: false)
+      phase = .hovering(current, isMagnified: false, pointer: pointer)
     }
   }
 }
