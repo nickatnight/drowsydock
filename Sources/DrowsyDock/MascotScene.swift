@@ -14,7 +14,7 @@ final class MascotScene: SKScene {
   private var director = AnimationDirector()
   private var facing = DockPerch.Facing.left
   private var isActive = false
-  private var isAmbientMoving = false
+  private var isPlayingGestureOrLoop = false
   private var nextGesture: Task<Void, Never>?
   // Bumped whenever running work stops. SpriteKit can deliver a completion after its action was
   // removed, and a sleeping task can wake after it was cancelled, so each checks this first.
@@ -69,7 +69,7 @@ final class MascotScene: SKScene {
   }
 
   override func update(_ currentTime: TimeInterval) {
-    guard !isAmbientMoving, !director.isAnimating else { return }
+    guard !isPlayingGestureOrLoop, !director.isAnimating else { return }
     host?.isPaused = true
   }
 
@@ -116,20 +116,20 @@ final class MascotScene: SKScene {
         play(gesture)
       }
     case .loop(let loop):
-      isAmbientMoving = true
+      isPlayingGestureOrLoop = true
       cat.loop(loop)
       run(atFramesPerSecond: Self.loopFramesPerSecond)
     }
   }
 
   private func play(_ gesture: AmbientGesture) {
-    guard isActive, !director.isAnimating, !isAmbientMoving else { return }
-    isAmbientMoving = true
+    guard isActive, !director.isAnimating, !isPlayingGestureOrLoop else { return }
+    isPlayingGestureOrLoop = true
     run(atFramesPerSecond: Self.oneShotFramesPerSecond)
     let generation = self.generation
     cat.play(gesture) { [weak self] in
       guard let self, self.generation == generation else { return }
-      isAmbientMoving = false
+      isPlayingGestureOrLoop = false
       redraw()
       startAmbient()
     }
@@ -139,7 +139,7 @@ final class MascotScene: SKScene {
     generation += 1
     nextGesture?.cancel()
     nextGesture = nil
-    isAmbientMoving = false
+    isPlayingGestureOrLoop = false
     cat.stopAnimations(before: next)
   }
 
