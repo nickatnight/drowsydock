@@ -40,15 +40,16 @@ public struct DockGeometry: Equatable, Sendable {
   /// The frame of the Dock's icon list.
   public let frame: CGRect
 
-  /// The frames of the Dock's items in Dock order, without separators.
+  /// The frames of the Dock's items in Dock order, without separators. An item whose frame has a
+  /// non-finite component is left out.
   public let iconFrames: [CGRect]
 
   /// The frame of the background the Dock draws behind its items.
   ///
   /// From macOS 26 the list frame sits 5 points further from the screen edge than the drawn
   /// background, while the items, as thick as the list, line up with it. So this is the list frame
-  /// slid toward the screen edge until it holds the items. Where the list already holds them, as
-  /// before macOS 26, it is the list frame.
+  /// slid toward the screen edge until it holds the items, but never by more than the Dock's
+  /// thickness. Where the list already holds them, as before macOS 26, it is the list frame.
   public let backgroundFrame: CGRect
 
   /// The frame of the display that holds the Dock.
@@ -65,7 +66,7 @@ public struct DockGeometry: Equatable, Sendable {
   /// and its items.
   public init(listFrame: AXRect, iconFrames: [AXRect], layout: DisplayLayout) {
     frame = layout.appKitRect(listFrame)
-    self.iconFrames = iconFrames.map(layout.appKitRect)
+    self.iconFrames = iconFrames.map(layout.appKitRect).filter(Self.isFinite)
     let display = layout.display(holding: frame)
     screenFrame = display.frame
     visibleScreenFrame = display.visibleFrame
@@ -106,11 +107,26 @@ public struct DockGeometry: Equatable, Sendable {
   ) -> CGRect {
     guard let first = icons.first else { return list }
     let items = icons.dropFirst().reduce(first) { $0.union($1) }
+    // How far the items reach past the list toward the screen edge, or 0 when they don't. A
+    // background a whole thickness away is no drawn background; ADR 0013 measured 5 points.
+    let overhang: CGFloat
     switch orientation {
-    case .bottom: return list.offsetBy(dx: 0, dy: min(items.minY - list.minY, 0))
-    case .left: return list.offsetBy(dx: min(items.minX - list.minX, 0), dy: 0)
-    case .right: return list.offsetBy(dx: max(items.maxX - list.maxX, 0), dy: 0)
+    case .bottom: overhang = list.minY - items.minY
+    case .left: overhang = list.minX - items.minX
+    case .right: overhang = items.maxX - list.maxX
     }
+    guard overhang.isFinite, overhang > 0 else { return list }
+    let slide = min(overhang, min(list.width, list.height))
+    switch orientation {
+    case .bottom: return list.offsetBy(dx: 0, dy: -slide)
+    case .left: return list.offsetBy(dx: -slide, dy: 0)
+    case .right: return list.offsetBy(dx: slide, dy: 0)
+    }
+  }
+
+  private static func isFinite(_ rect: CGRect) -> Bool {
+    rect.origin.x.isFinite && rect.origin.y.isFinite && rect.width.isFinite
+      && rect.height.isFinite
   }
 
   /// Whether the Dock is off screen, as an auto-hidden Dock is until the pointer reaches the edge.

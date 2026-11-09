@@ -1,4 +1,5 @@
 import AppKit
+import os
 
 /// A transparent window just above the Dock. It shows on every Space, including beside
 /// full-screen apps, and lets every click through to whatever is below it.
@@ -32,17 +33,26 @@ public final class OverlayWindow {
   private static let fadeDuration: TimeInterval = 0.2
 
   private var shouldEndVisible = false
+  private var hasReportedUnusableFrame = false
+
+  private let logger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "DockOverlayKit",
+    category: "overlay"
+  )
 
   /// Shows the window at `frame`, in AppKit global coordinates, fading it in if it was hidden or
-  /// faded out.
+  /// faded out. A frame that isn't `isUsableWindowFrame` hides the window instead.
   public func show(at frame: CGRect) {
+    guard accepts(frame) else { return }
     place(at: frame)
     fade(to: 1)
     shouldEndVisible = true
   }
 
-  /// Keeps the window at `frame` but fades it out.
+  /// Keeps the window at `frame` but fades it out. A frame that isn't `isUsableWindowFrame` hides
+  /// the window instead.
   public func fadeOut(at frame: CGRect) {
+    guard accepts(frame) else { return }
     place(at: frame)
     fade(to: 0)
     shouldEndVisible = false
@@ -65,6 +75,18 @@ public final class OverlayWindow {
         self.window.orderOut(nil)
       }
     }
+  }
+
+  // AppKit aborts the app when given a null or non-finite frame, so such a frame means there is
+  // nothing to show. Logged once per window.
+  private func accepts(_ frame: CGRect) -> Bool {
+    guard !frame.isUsableWindowFrame else { return true }
+    if !hasReportedUnusableFrame {
+      hasReportedUnusableFrame = true
+      logger.error("Overlay hidden: unusable frame \(String(describing: frame), privacy: .public)")
+    }
+    hide()
+    return false
   }
 
   private func place(at frame: CGRect) {

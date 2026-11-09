@@ -44,12 +44,14 @@ final class MascotOverlay {
   }
 
   /// Plays the crowd effect over the Dock's icons. Returns `false`, playing nothing, when the
-  /// overlay isn't fully shown, because nobody would see it.
+  /// overlay isn't fully shown, because nobody would see it, or when the Dock's frames leave no
+  /// usable window frame for it.
   func playCrowdEffect() -> Bool {
     guard mood != nil, case .shown(_, let dock) = presentation else { return false }
+    let canvas = Self.canvasFrame(around: dock)
+    guard canvas.isUsableWindowFrame else { return false }
     isCrowdEffectPlaying = true
     update()
-    let canvas = Self.canvasFrame(around: dock)
     let icons = dock.iconFramesAlongDock.map { $0.offsetBy(dx: -canvas.minX, dy: -canvas.minY) }
     canvasScene.playCrowdEffect(over: icons, orientation: dock.orientation) { [weak self] in
       self?.isCrowdEffectPlaying = false

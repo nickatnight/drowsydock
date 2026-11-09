@@ -22,6 +22,8 @@ No Accessibility element reports the drawn background itself. The Dock applicati
 ## Decision
 
 - `DockGeometry.backgroundFrame` is the list frame slid across the Dock's thickness, toward the screen edge, until it holds every item: down for a bottom Dock, left for a left Dock, right for a right Dock. Where the list already holds its items, it is the list frame unchanged.
+- The slide never exceeds the Dock's thickness, and item frames with a non-finite component are dropped when the geometry is built. A background a whole thickness from the list is no drawn background, and one stray item frame (a Dock bug, or a frame caught mid-animation) must not move the overlay off screen (security review round 3, M-1 and L-1).
+- `OverlayWindow` refuses any frame that isn't `CGRect.isUsableWindowFrame` (null, empty, non-finite or outside AppKit's integer range): it hides the window and logs once, because `NSWindow.setFrame` aborts the app on such a frame. The crowd effect plays nothing in that case.
 - `DockGeometry.backgroundCornerRadius` is 0.28 of the background's thickness, moved from `DockCanvasScene` into the tested kit.
 - `MascotOverlay` draws the veil on `backgroundFrame` with that radius, and places the canvas window around it.
 - `DockGeometry.perch(for:)` puts the cat on `backgroundFrame`'s top edge. In the screenshot the cat's paws ended on the list frame's top edge, 10 pixels above the Dock's outline.
