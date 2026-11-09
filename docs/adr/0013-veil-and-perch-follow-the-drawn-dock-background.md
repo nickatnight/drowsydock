@@ -1,4 +1,4 @@
-# ADR-0013: Fit the veil to the Dock's drawn background, not to its Accessibility list frame
+# ADR-0013: Fit the veil and the perch to the Dock's drawn background, not to its Accessibility list frame
 
 ## Status
 
@@ -24,6 +24,7 @@ No Accessibility element reports the drawn background itself. The Dock applicati
 - `DockGeometry.backgroundFrame` is the list frame slid across the Dock's thickness, toward the screen edge, until it holds every item: down for a bottom Dock, left for a left Dock, right for a right Dock. Where the list already holds its items, it is the list frame unchanged.
 - `DockGeometry.backgroundCornerRadius` is 0.28 of the background's thickness, moved from `DockCanvasScene` into the tested kit.
 - `MascotOverlay` draws the veil on `backgroundFrame` with that radius, and places the canvas window around it.
+- `DockGeometry.perch(for:)` puts the cat on `backgroundFrame`'s top edge. In the screenshot the cat's paws ended on the list frame's top edge, 10 pixels above the Dock's outline.
 
 ## Alternatives considered
 
@@ -35,4 +36,3 @@ No Accessibility element reports the drawn background itself. The Dock applicati
 
 - Fitted against the user's screenshot (`veilfit` harness, inline in the job's build.md): the new veil's rounded end lies within 1.18 pixels of the real outline (mean 0.41 over 69 rows), and no outline row lies outside it. The old veil was off by up to 22.9 pixels (mean 7.1), and 7 outline rows lay outside it.
 - Measured only for a bottom Dock at one tile size on macOS 27.0.1. The rule assumes a side Dock behaves the same across its width; QA 8.9 asks for the offset if it doesn't. The radius ratio rests on one thickness.
-- The perch sits on the list frame's top edge, which is 5 points above the drawn top. The next change moves it.

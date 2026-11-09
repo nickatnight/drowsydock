@@ -314,6 +314,19 @@ final class DockGeometryTests: XCTestCase {
     )
   }
 
+  func testOnABottomDockThePerchSitsOnTheDrawnTopEdgeWhenTheListSitsHigher() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(378, 821, 63, 79), ax(999, 821, 63, 79)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(
+      dock.perch(for: mascot),
+      DockPerch(frame: CGRect(x: 998, y: 79, width: 64, height: 64), facing: .left)
+    )
+  }
+
   func testOnABottomDockWithNoIconsThePerchSitsAtTheTrailingEnd() {
     let dock = DockGeometry(
       listFrame: ax(370, 830, 700, 70),

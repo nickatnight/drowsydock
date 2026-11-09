@@ -159,6 +159,7 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 | 8.12 | At 5%, with Magnification on, hover over the icons. | The cat and the veil fade out together and fade back in within 1 s of the Dock settling. |
 | 8.13 | Leave the cat in any pose and the pointer away from the Dock for 10 s, then run `sample DrowsyDock 5`. | No drawing: no `SceneHostView.drawFrame` or `SKCRenderer` frames, and the main thread waits in `mach_msg`. |
 | 8.14 | Look at the cat on a Retina display and, if you have one, on a non-Retina display. | Outlines are smooth on both, with no blurry or jagged edges. |
+| 8.15 | With a bottom Dock, zoom into a screenshot of the cat and the Dock below it. | The cat's paws rest on the Dock's outline, with no gap between them. Before ADR 0013 they floated 5 points above it on macOS 26 and later. |
 
 ## Ambient behaviour (slice 9, `MascotScene`, `CatRenderer+Animations` and `SKAction+Additions`)
 

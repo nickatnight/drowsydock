@@ -103,20 +103,20 @@ public struct DockGeometry: Equatable, Sendable {
 
   /// Returns where a sprite of the given size perches.
   ///
-  /// On a bottom Dock it sits on the top edge at the trailing end, inside the last icon. On a side
-  /// Dock it sits on the top end, centred above the first icon and facing into the screen. The
-  /// frame is kept on the Dock's display and below its menu bar. It may sit outside the rest of the
-  /// visible frame, because the Dock itself lies outside it.
+  /// On a bottom Dock it sits on the top edge of the drawn background at the trailing end, inside
+  /// the last icon. On a side Dock it sits on the top end, centred above the first icon and facing
+  /// into the screen. The frame is kept on the Dock's display and below its menu bar. It may sit
+  /// outside the rest of the visible frame, because the Dock itself lies outside it.
   public func perch(for size: CGSize) -> DockPerch {
     let origin: CGPoint
     let facing: DockPerch.Facing
     let anchor = perchIcon
     switch orientation {
     case .bottom:
-      origin = CGPoint(x: anchor.maxX - size.width, y: frame.maxY)
+      origin = CGPoint(x: anchor.maxX - size.width, y: backgroundFrame.maxY)
       facing = .left
     case .left, .right:
-      origin = CGPoint(x: anchor.midX - size.width / 2, y: frame.maxY)
+      origin = CGPoint(x: anchor.midX - size.width / 2, y: backgroundFrame.maxY)
       facing = orientation == .left ? .right : .left
     }
     let clamped = CGPoint(
