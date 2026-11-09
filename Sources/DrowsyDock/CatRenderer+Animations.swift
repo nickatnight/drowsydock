@@ -18,16 +18,6 @@ extension CatRenderer {
 
   private static let nodOffJerkOpenness = 0.35
 
-  private enum WakeUpBeats {
-    static let earsUp = 0.12
-    static let pop = 0.15
-    static let headStraighten = 0.18
-    static let stretchDelay = 0.28
-    static let stretch = 0.35
-    static let firstSparkle = 0.5
-    static let sparkleInterval = 0.25
-  }
-
   /// Plays `gesture` once, then calls `completion` on the main actor.
   func play(_ gesture: AmbientGesture, completion: @escaping @MainActor () -> Void) {
     let duration: TimeInterval
@@ -201,7 +191,8 @@ extension CatRenderer {
   private func wakeUp(into target: MascotPose) {
     let finalBlink = blinkActions(MascotTimeline.blink, endingAt: target.eyelidOpenness)
     let holdOpen = MascotTimeline.flexiblePhase(of: .wakeUp)
-    let snapOpen = MascotTimeline.WakeUp.snapOpen
+    let beats = MascotTimeline.WakeUp.self
+    let snapOpen = beats.snapOpen
     run(
       .sequence([
         .moveTo(y: Self.lidEdge(at: target.eyelidOpenness), duration: snapOpen),
@@ -218,45 +209,43 @@ extension CatRenderer {
       ]),
       on: lashes
     )
-    rotateEars(toDroop: 0, over: WakeUpBeats.earsUp)
+    rotateEars(toDroop: 0, over: beats.earsUp)
     head.run(
       .sequence([
         Self.eased(
           .rotate(
             toAngle: Self.radians(target.headTiltDegrees),
-            duration: WakeUpBeats.headStraighten
+            duration: beats.headStraighten
           )
         ),
-        .wait(forDuration: WakeUpBeats.stretchDelay - WakeUpBeats.headStraighten),
-        .moveBy(x: 0, y: 2.5, duration: WakeUpBeats.stretch),
-        .moveBy(x: 0, y: -2.5, duration: WakeUpBeats.stretch),
+        .wait(forDuration: beats.stretchDelay - beats.headStraighten),
+        .moveBy(x: 0, y: 2.5, duration: beats.stretch),
+        .moveBy(x: 0, y: -2.5, duration: beats.stretch),
       ]),
       withKey: Self.animationKey
     )
-    run(.fadeOut(withDuration: WakeUpBeats.pop), on: zs)
+    run(.fadeOut(withDuration: beats.pop), on: zs)
     snoreBubble.run(
-      .group([.scale(to: 1.7, duration: WakeUpBeats.pop), .fadeOut(withDuration: WakeUpBeats.pop)]),
+      .group([.scale(to: 1.7, duration: beats.pop), .fadeOut(withDuration: beats.pop)]),
       withKey: Self.animationKey
     )
     let stretch = SKAction.group([
-      .scaleX(to: 0.94, duration: WakeUpBeats.stretch),
-      .scaleY(to: 1.12, duration: WakeUpBeats.stretch),
+      .scaleX(to: 0.94, duration: beats.stretch),
+      .scaleY(to: 1.12, duration: beats.stretch),
     ])
     let relax = SKAction.group([
-      .scaleX(to: 1, duration: WakeUpBeats.stretch),
-      .scaleY(to: 1, duration: WakeUpBeats.stretch),
+      .scaleX(to: 1, duration: beats.stretch),
+      .scaleY(to: 1, duration: beats.stretch),
     ])
     stretch.timingMode = .easeOut
     relax.timingMode = .easeIn
     torso.run(
-      .sequence([.wait(forDuration: WakeUpBeats.stretchDelay), stretch, relax]),
+      .sequence([.wait(forDuration: beats.stretchDelay), stretch, relax]),
       withKey: Self.animationKey
     )
-    for (index, spot) in [
-      CGPoint(x: -19, y: 52), CGPoint(x: 20, y: 60), CGPoint(x: 23, y: 40),
-    ].enumerated() {
-      spawnSparkle(
-        at: spot, after: WakeUpBeats.firstSparkle + Double(index) * WakeUpBeats.sparkleInterval)
+    let spots = [CGPoint(x: -19, y: 52), CGPoint(x: 20, y: 60), CGPoint(x: 23, y: 40)]
+    for (index, spot) in spots.prefix(beats.sparkleCount).enumerated() {
+      spawnSparkle(at: spot, after: beats.firstSparkle + Double(index) * beats.sparkleInterval)
     }
   }
 
@@ -266,17 +255,18 @@ extension CatRenderer {
     sparkle.position = spot
     sparkle.setScale(0)
     node.addChild(sparkle)
+    let phases = MascotTimeline.WakeUp.sparkle
     let appear = SKAction.group([
-      .scale(to: 1, duration: 0.25),
-      .rotate(byAngle: .pi / 2, duration: 0.25),
+      .scale(to: 1, duration: phases.appear),
+      .rotate(byAngle: .pi / 2, duration: phases.appear),
     ])
     appear.timingMode = .easeOut
     sparkle.run(
       .sequence([
         .wait(forDuration: delay),
         appear,
-        .wait(forDuration: 0.3),
-        .group([.fadeOut(withDuration: 0.5), .scale(to: 0.6, duration: 0.5)]),
+        .wait(forDuration: phases.hold),
+        .group([.fadeOut(withDuration: phases.fade), .scale(to: 0.6, duration: phases.fade)]),
         .removeFromParent(),
       ])
     )

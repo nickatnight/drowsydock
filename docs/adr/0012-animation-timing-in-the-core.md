@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (job 003, round-1 review)
+Accepted (job 003, round-1 review). ADR 0014 moves the wake-up's beats into the core as well.
 
 ## Context
 

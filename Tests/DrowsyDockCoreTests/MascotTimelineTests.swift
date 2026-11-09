@@ -17,6 +17,24 @@ final class MascotTimelineTests: XCTestCase {
     }
   }
 
+  func testTheWakeUpsBeatsEndBeforeItsFinalBlinkStarts() {
+    let wakeUp = MascotTimeline.WakeUp.self
+    let finalBlinkStart = wakeUp.snapOpen + MascotTimeline.flexiblePhase(of: .wakeUp)
+    let sparkle = wakeUp.sparkle
+    let lastSparkleEnd =
+      wakeUp.firstSparkle + Double(wakeUp.sparkleCount - 1) * wakeUp.sparkleInterval
+      + sparkle.appear + sparkle.hold + sparkle.fade
+    let beatEnds = [
+      wakeUp.earsUp, wakeUp.pop, wakeUp.headStraighten,
+      wakeUp.stretchDelay + 2 * wakeUp.stretch, lastSparkleEnd,
+    ]
+
+    for end in beatEnds {
+      XCTAssertLessThanOrEqual(end, finalBlinkStart)
+    }
+    XCTAssertLessThanOrEqual(wakeUp.headStraighten, wakeUp.stretchDelay)
+  }
+
   func testACrossfadeIsAllFlexible() {
     XCTAssertEqual(
       MascotTimeline.flexiblePhase(of: .crossfade),
