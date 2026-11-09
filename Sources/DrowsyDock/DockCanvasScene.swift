@@ -4,7 +4,7 @@ import SpriteKit
 /// A SpriteKit scene that covers the whole Dock, for effects drawn over it: the veil that dims
 /// the Dock while the cat is asleep, and the crowd effect.
 @MainActor
-final class DockCanvasScene: SKScene {
+final class DockCanvasScene: SKScene, HostedScene {
   weak var host: SceneHostView?
 
   private let veil = SKShapeNode()
@@ -77,9 +77,8 @@ final class DockCanvasScene: SKScene {
     redraw()
   }
 
-  override func update(_ currentTime: TimeInterval) {
-    guard !isPlayingCrowdEffect else { return }
-    host?.isPaused = true
+  var needsAnotherFrame: Bool {
+    isPlayingCrowdEffect
   }
 
   private func redraw() {

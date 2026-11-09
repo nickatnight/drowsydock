@@ -4,7 +4,7 @@ import SpriteKit
 
 /// The SpriteKit scene that holds the cat.
 @MainActor
-final class MascotScene: SKScene {
+final class MascotScene: SKScene, HostedScene {
   private static let oneShotFramesPerSecond = 30
   private static let loopFramesPerSecond = 15
 
@@ -68,9 +68,8 @@ final class MascotScene: SKScene {
     }
   }
 
-  override func update(_ currentTime: TimeInterval) {
-    guard !isPlayingGestureOrLoop, !director.isAnimating else { return }
-    host?.isPaused = true
+  var needsAnotherFrame: Bool {
+    isPlayingGestureOrLoop || director.isAnimating
   }
 
   // MARK: - Transitions

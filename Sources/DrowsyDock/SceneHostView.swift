@@ -16,7 +16,7 @@ import SpriteKit
 @MainActor
 final class SceneHostView: NSView {
   /// The scene drawn. Its size follows the view's size.
-  let scene: SKScene
+  let scene: any HostedScene
 
   var framesPerSecond = 30 {
     didSet {
@@ -25,7 +25,9 @@ final class SceneHostView: NSView {
     }
   }
 
-  /// Whether drawing is stopped. While paused, the scene doesn't update and nothing runs.
+  /// Whether drawing is stopped. While paused, the scene doesn't update and nothing runs. Setting
+  /// it to `false` draws at least one frame; after each frame the view pauses itself unless the
+  /// scene `needsAnotherFrame`.
   var isPaused = true {
     didSet {
       guard isPaused != oldValue else { return }
@@ -39,7 +41,7 @@ final class SceneHostView: NSView {
   private var displayLink: CADisplayLink?
 
   /// Creates a view drawing `scene`, or returns `nil` when the Mac has no Metal device.
-  init?(scene: SKScene) {
+  init?(scene: any HostedScene) {
     guard
       let device = MTLCreateSystemDefaultDevice(),
       let commandQueue = device.makeCommandQueue()
@@ -131,5 +133,15 @@ final class SceneHostView: NSView {
     )
     commandBuffer.present(drawable)
     commandBuffer.commit()
+    if !scene.needsAnotherFrame {
+      isPaused = true
+    }
   }
+}
+
+/// A scene that `SceneHostView` draws only while something in it moves.
+@MainActor
+protocol HostedScene: SKScene {
+  /// Whether anything is still moving, so the next frame would differ from the one just drawn.
+  var needsAnotherFrame: Bool { get }
 }
