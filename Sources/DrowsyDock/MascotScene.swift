@@ -63,7 +63,7 @@ final class MascotScene: SKScene {
       if director.isAnimating, let target = director.target {
         perform(director.jump(to: target))
       }
-      stopEverything(easingLoopOut: false)
+      stopEverything(before: nil)
       host?.isPaused = true
     }
   }
@@ -76,7 +76,7 @@ final class MascotScene: SKScene {
   // MARK: - Transitions
 
   private func perform(_ step: AnimationDirector.Step) {
-    stopEverything(easingLoopOut: step.animation != nil)
+    stopEverything(before: step.animation)
     let pose = MascotPose(for: step.target.settledState)
     guard let animation = step.animation else {
       cat.apply(pose)
@@ -135,12 +135,12 @@ final class MascotScene: SKScene {
     }
   }
 
-  private func stopEverything(easingLoopOut: Bool) {
+  private func stopEverything(before next: MascotAnimation?) {
     generation += 1
     nextGesture?.cancel()
     nextGesture = nil
     isAmbientMoving = false
-    cat.stopAnimations(easingLoopOut: easingLoopOut)
+    cat.stopAnimations(before: next)
   }
 
   private func redraw() {

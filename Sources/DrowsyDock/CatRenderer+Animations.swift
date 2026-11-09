@@ -62,9 +62,12 @@ extension CatRenderer {
     node.run(.completion(after: duration, completion), withKey: Self.animationKey)
   }
 
-  func stopAnimations(easingLoopOut: Bool) {
+  /// Stops every animation and puts the cat in its pose. When `next` is about to play and a loop
+  /// was running, the loop's parts don't jump: the "z"s in flight fade, and the body, bubble and
+  /// head ease back over `MascotTimeline.loopEaseOut`, except a part that `next` moves at once.
+  func stopAnimations(before next: MascotAnimation?) {
     let loopState = (torso: torso.yScale, bubble: snoreBubble.yScale, headY: head.position.y)
-    let easesLoopOut = easingLoopOut && isLooping
+    let easesLoopOut = next != nil && isLooping
     animationGeneration += 1
     var parts: [SKNode] = [node, torso, head, snoreBubble, openMouth]
     parts += ears
@@ -93,22 +96,29 @@ extension CatRenderer {
         z.alpha = 0
       }
     }
-    if easesLoopOut {
-      easeBack(torsoYScale: loopState.torso, bubbleScale: loopState.bubble, headY: loopState.headY)
+    if easesLoopOut, let next {
+      torso.yScale = loopState.torso
+      snoreBubble.setScale(loopState.bubble)
+      head.position.y = loopState.headY
+      easeBackLoopParts(before: next)
     }
   }
 
-  private func easeBack(torsoYScale: CGFloat, bubbleScale: CGFloat, headY: CGFloat) {
+  // The wake-up pops the bubble and the nod-off droops the head from the first frame, each from
+  // where the loop left it, so those parts are theirs. Nothing else moves the body, the bubble's
+  // size or the head's height before the ease-out ends (MascotTimelineTests).
+  private func easeBackLoopParts(before next: MascotAnimation) {
     let duration = MascotTimeline.loopEaseOut
-    torso.yScale = torsoYScale
-    snoreBubble.setScale(bubbleScale)
-    head.position.y = headY
     torso.run(Self.eased(.scaleY(to: 1, duration: duration)), withKey: Self.loopEaseOutKey)
-    snoreBubble.run(Self.eased(.scale(to: 1, duration: duration)), withKey: Self.loopEaseOutKey)
-    head.run(
-      Self.eased(.moveTo(y: Metrics.neck.y, duration: duration)),
-      withKey: Self.loopEaseOutKey
-    )
+    if next != .wakeUp {
+      snoreBubble.run(Self.eased(.scale(to: 1, duration: duration)), withKey: Self.loopEaseOutKey)
+    }
+    if next != .nodOff {
+      head.run(
+        Self.eased(.moveTo(y: Metrics.neck.y, duration: duration)),
+        withKey: Self.loopEaseOutKey
+      )
+    }
   }
 
   // MARK: - Transitions

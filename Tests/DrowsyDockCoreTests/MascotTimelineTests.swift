@@ -17,6 +17,11 @@ final class MascotTimelineTests: XCTestCase {
     }
   }
 
+  // The wake-up's stretch moves the body and the head; it must start after they have eased back.
+  func testTheLoopEaseOutEndsBeforeTheWakeUpStretches() {
+    XCTAssertLessThanOrEqual(MascotTimeline.loopEaseOut, MascotTimeline.WakeUp.stretchDelay)
+  }
+
   func testTheWakeUpsBeatsEndBeforeItsFinalBlinkStarts() {
     let wakeUp = MascotTimeline.WakeUp.self
     let finalBlinkStart = wakeUp.snapOpen + MascotTimeline.flexiblePhase(of: .wakeUp)
