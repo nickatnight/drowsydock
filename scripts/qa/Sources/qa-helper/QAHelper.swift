@@ -21,6 +21,12 @@ enum QAHelper {
     return CGRect(x: parts[0], y: parts[1], width: parts[2], height: parts[3])
   }
 
+  static func size(_ text: String) -> CGSize {
+    let parts = text.split(separator: ",").compactMap { Double($0) }
+    guard parts.count == 2 else { fail("expected width,height, got \(text)") }
+    return CGSize(width: parts[0], height: parts[1])
+  }
+
   static func primaryHeight() -> CGFloat {
     NSScreen.screens.first?.frame.height ?? 0
   }
@@ -127,7 +133,7 @@ enum QAHelper {
       print("screen-recording=\(CGPreflightScreenCaptureAccess())")
     case "dock":
       let sprite = arguments.dropFirst().first { $0.hasPrefix("sprite=") }
-        .map { rect("0,0," + $0.dropFirst("sprite=".count)).size }
+        .map { size(String($0.dropFirst("sprite=".count))) }
       printDock(sprite: sprite)
     case "logged-perch":
       guard arguments.count == 2, let perch = OverlayLog.perchFrame(in: arguments[1]) else {

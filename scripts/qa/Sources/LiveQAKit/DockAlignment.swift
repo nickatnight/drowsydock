@@ -114,9 +114,10 @@ public struct DockAlignment {
   // miss the rounded corners: the corner radius is 0.28 of the thickness.
   private static let bandInsetPerThickness = 0.4
 
-  private func bands(from start: CGFloat, to end: CGFloat, axisIsY: Bool = false) -> [ClosedRange<
-    Int
-  >] {
+  // A run of pixel columns or rows.
+  typealias PixelBand = ClosedRange<Int>
+
+  private func bands(from start: CGFloat, to end: CGFloat, axisIsY: Bool = false) -> [PixelBand] {
     let inset = min(background.width, background.height) * Self.bandInsetPerThickness
     let first = start + inset
     let last = end - inset
@@ -131,7 +132,7 @@ public struct DockAlignment {
     }
   }
 
-  private func searchWindow(around pixel: Double, limit: Int) -> ClosedRange<Int>? {
+  private func searchWindow(around pixel: Double, limit: Int) -> PixelBand? {
     let reach = Self.searchDistance * area.scale
     let lower = max(Int((pixel - reach).rounded(.down)), 0)
     let upper = min(Int((pixel + reach).rounded(.up)), limit - 1)
@@ -141,7 +142,7 @@ public struct DockAlignment {
   private func edgeY(
     in image: LumaImage,
     near expected: CGFloat,
-    columns: [ClosedRange<Int>],
+    columns: [PixelBand],
     finder: Finder
   ) -> Double? {
     guard let rows = searchWindow(around: area.pixelRow(atY: expected), limit: image.height)
@@ -158,7 +159,7 @@ public struct DockAlignment {
   private func edgeX(
     in image: LumaImage,
     near expected: CGFloat,
-    rows: [ClosedRange<Int>],
+    rows: [PixelBand],
     finder: Finder
   ) -> Double? {
     guard let columns = searchWindow(around: area.pixelColumn(atX: expected), limit: image.width)
