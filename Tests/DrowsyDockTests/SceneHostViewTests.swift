@@ -119,7 +119,14 @@ final class SceneHostViewTests: XCTestCase {
 
     XCTAssertEqual(cat.framesPerSecond, 30)
     let frames = runDisplayLinks([cat], for: 2)[0]
-    XCTAssertTrue((18...22).contains(frames), "\(frames) frames for a 0.6 s crossfade")
+    // One frame per tick of the crossfade, plus the first and the ones until its completion lands.
+    let crossfadeFrames = Int(
+      MascotAnimation.crossfade.duration.inSeconds * Double(MascotScene.oneShotFramesPerSecond)
+    )
+    XCTAssertTrue(
+      (crossfadeFrames...crossfadeFrames + 4).contains(frames),
+      "\(frames) frames for a crossfade of \(crossfadeFrames)"
+    )
     XCTAssertTrue(cat.isPaused)
   }
 
