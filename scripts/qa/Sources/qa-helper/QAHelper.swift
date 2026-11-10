@@ -136,6 +136,13 @@ enum QAHelper {
       let sprite = arguments.dropFirst().first { $0.hasPrefix("sprite=") }
         .map { size(String($0.dropFirst("sprite=".count))) }
       printDock(sprite: sprite)
+    case "now":
+      print(String(format: "%.3f", Date().timeIntervalSince1970))
+    case "log-time":
+      guard arguments.count == 2, let time = OverlayLog.time(of: arguments[1]) else {
+        fail("no timestamp at the start of the log line")
+      }
+      print(String(format: "%.3f", time))
     case "logged-facing":
       guard arguments.count == 2, let facing = OverlayLog.perchFacing(in: arguments[1]) else {
         fail("no DockPerch facing in the log line")
@@ -175,7 +182,8 @@ enum QAHelper {
       align(Array(arguments.dropFirst()))
     default:
       fail(
-        "usage: qa-helper permissions|dock [sprite=W,H]|logged-perch LINE|logged-facing LINE"
+        "usage: qa-helper permissions|dock [sprite=W,H]|logged-perch LINE|logged-facing LINE|now"
+          + "|log-time LINE"
           + "|region X,Y,W,H|differing-pixels A B|pointer"
           + "|move-pointer X Y|align KEY=VALUE…"
       )

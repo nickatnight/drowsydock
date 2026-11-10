@@ -60,10 +60,15 @@ final class OverlayWindowTests: XCTestCase {
 
   // MARK: - Fades
 
-  // Records each fade the window starts and ends it at once, so the tests see the alpha and the
-  // length of every fade without waiting for AppKit, which animates only while a display is awake.
+  // Records each fade the window starts. By default it ends the fade at once, so the tests see the
+  // alpha and the length of every fade without waiting for AppKit, which animates only while a
+  // display is awake. With `completesAtOnce` false it sets the alpha but holds the completion, so
+  // a test can act in the middle of a fade. Tests/DrowsyDockTests/Support/FadeRecorder.swift is
+  // the app tests' copy; change both together.
   private final class FadeRecorder {
     var fades: [(alpha: CGFloat, duration: TimeInterval)] = []
+    var completesAtOnce = true
+    var pending: [@MainActor () -> Void] = []
   }
 
   private func recordingFades(of overlay: OverlayWindow) -> FadeRecorder {
@@ -71,7 +76,11 @@ final class OverlayWindowTests: XCTestCase {
     overlay.fader = { window, alpha, duration, completion in
       recorder.fades.append((alpha, duration))
       window.alphaValue = alpha
-      completion()
+      if recorder.completesAtOnce {
+        completion()
+      } else {
+        recorder.pending.append(completion)
+      }
     }
     return recorder
   }
@@ -125,22 +134,85 @@ final class OverlayWindowTests: XCTestCase {
     XCTAssertFalse(overlay.window.isVisible)
   }
 
-  // The real fader, through AppKit. Window animations run only while a display is awake, so the
-  // test can only run then.
-  func testTheRealFadeReachesFullOpacityWithinTwiceItsLength() throws {
+  // A quick 5%, 15%, 5% shows the veil again while its fade-out runs. The fade's end must not then
+  // take the shown window off screen.
+  func testShowingDuringAFadingHideKeepsTheWindowOnScreen() {
+    let overlay = overlay()
+    let recorder = recordingFades(of: overlay)
+    overlay.show(at: offscreenFrame)
+    recorder.completesAtOnce = false
+
+    overlay.hide(fading: true)
+    overlay.show(at: offscreenFrame)
+    for completion in recorder.pending {
+      completion()
+    }
+
+    XCTAssertEqual(overlay.visibility, .shown)
+    XCTAssertTrue(overlay.window.isVisible)
+  }
+
+  // MARK: - The real fade, through AppKit
+
+  // Wall-clock deadlines, generous so a loaded machine doesn't fail them. AppKit animates windows
+  // only while a display is awake, so these tests run only then; the recorded fades above pin each
+  // fade's alpha and length either way.
+  private let realFadeDeadline: TimeInterval = 2
+
+  private func skipWhileTheDisplaySleeps() throws {
     try XCTSkipIf(
       CGDisplayIsAsleep(CGMainDisplayID()) != 0,
       "AppKit animates windows only while a display is awake"
     )
+  }
+
+  // Runs the run loop until `condition` holds, and returns how long that took, or nil after the
+  // deadline.
+  private func secondsUntil(_ condition: () -> Bool) -> TimeInterval? {
+    let start = Date()
+    while !condition() {
+      guard Date().timeIntervalSince(start) < realFadeDeadline else { return nil }
+      RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+    }
+    return Date().timeIntervalSince(start)
+  }
+
+  // It fades in rather than popping: not opaque at once, and opaque only after at least half the
+  // fade's length.
+  func testTheRealFadeInAnimatesToFullOpacity() throws {
+    try skipWhileTheDisplaySleeps()
     let overlay = overlay()
 
     overlay.show(at: offscreenFrame)
 
-    let deadline = Date().addingTimeInterval(2 * fadeDuration)
-    while overlay.window.alphaValue < 0.99, Date() < deadline {
-      RunLoop.main.run(until: Date().addingTimeInterval(0.01))
-    }
-    XCTAssertEqual(overlay.window.alphaValue, 1, accuracy: 0.01)
+    XCTAssertLessThan(overlay.window.alphaValue, 0.99, "popped instead of fading")
+    let seconds = try XCTUnwrap(secondsUntil { overlay.window.alphaValue >= 0.99 })
+    XCTAssertGreaterThanOrEqual(seconds, fadeDuration / 2, "faded in too quickly to be seen")
+  }
+
+  func testTheRealFadeOutReachesTransparent() throws {
+    try skipWhileTheDisplaySleeps()
+    let overlay = overlay()
+    overlay.show(at: offscreenFrame)
+    XCTAssertNotNil(secondsUntil { overlay.window.alphaValue >= 0.99 })
+
+    overlay.fadeOut(at: offscreenFrame)
+
+    XCTAssertGreaterThan(overlay.window.alphaValue, 0.01, "popped instead of fading")
+    XCTAssertNotNil(secondsUntil { overlay.window.alphaValue <= 0.01 }, "never faded out")
+    XCTAssertTrue(overlay.window.isVisible)
+  }
+
+  func testTheRealFadingHideTakesTheWindowOffScreen() throws {
+    try skipWhileTheDisplaySleeps()
+    let overlay = overlay()
+    overlay.show(at: offscreenFrame)
+    XCTAssertNotNil(secondsUntil { overlay.window.alphaValue >= 0.99 })
+
+    overlay.hide(fading: true)
+
+    XCTAssertTrue(overlay.window.isVisible, "hidden at once instead of fading")
+    XCTAssertNotNil(secondsUntil { !overlay.window.isVisible }, "never taken off screen")
   }
 
   // MARK: - Showing and hiding

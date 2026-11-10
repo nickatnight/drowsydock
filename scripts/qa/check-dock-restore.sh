@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Runs scripts/qa/dock-preferences.sh against a scratch defaults domain in a temporary folder, never
-# com.apple.dock: a save and an exact restore, a restore with nothing changed, a backup that
-# doesn't parse, an export that can't be written, and an import that fails. scripts/check.sh fast
-# runs it.
+# com.apple.dock: a save and an exact restore, a restore with nothing changed, a corrupt or
+# truncated backup, an export that can't be written (a missing folder and a read-only one), an
+# export that doesn't match, an import that fails, an import that "succeeds" without taking, a
+# Ctrl-C between the delete and the import, the caller's traps after a restore, and the printed
+# restore-by-hand command. scripts/check.sh fast runs it.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 scratch="$(mktemp -d)"
@@ -95,6 +97,59 @@ defaults() {
 expect_failure "a backup that doesn't match the live domain fails the save" save_dock_backup
 unset -f defaults
 expect "a mismatched backup isn't kept" test ! -e "$dock_backup"
+
+# An export into a read-only folder: `defaults export` exits 0 there without writing.
+fresh_domain
+mkdir -p "$scratch/readonly"
+chmod 555 "$scratch/readonly"
+dock_backup="$scratch/readonly/dock-backup.plist"
+expect_failure "a save into a read-only folder fails" save_dock_backup
+expect "a save into a read-only folder leaves no backup" test ! -e "$dock_backup"
+chmod 755 "$scratch/readonly"
+dock_backup="$scratch/qa/dock-backup.plist"
+
+# An import that exits 0 but leaves the domain different: the compare catches it, the backup is
+# kept and the Dock isn't relaunched.
+fresh_domain
+save_dock_backup
+defaults write "$dock_domain" orientation -string left
+defaults() {
+  if [[ $1 == import && $2 == "$dock_domain" ]]; then
+    command defaults write "$dock_domain" orientation -string right
+    return 0
+  fi
+  command defaults "$@"
+}
+expect_failure "an import that doesn't take fails the restore" restore_dock
+unset -f defaults
+expect "an import that doesn't take keeps the backup" test -s "$dock_backup"
+expect "an import that doesn't take relaunches nothing" test "$restarts" -eq 0
+rm -f "$dock_backup"
+
+# The command printed for restoring by hand after a kill -9 puts the domain back exactly and
+# removes the backup. killall is stubbed: it must never reach the real Dock.
+fresh_domain
+dock_domain_xml >"$original"
+save_dock_backup
+defaults write "$dock_domain" orientation -string left
+defaults write "$dock_domain" qa-live-selftest -bool true
+(
+  killall() { :; }
+  eval "$(dock_restore_command)"
+)
+expect "the printed command restores the domain exactly" cmp -s "$original" <(dock_domain_xml)
+expect "the printed command removes the backup" test ! -e "$dock_backup"
+
+# A restore leaves the caller's traps as they were: qa-live.sh restores mid-run and still needs
+# its Ctrl-C handler afterwards.
+fresh_domain
+save_dock_backup
+defaults write "$dock_domain" orientation -string left
+trap 'echo caller-int' INT
+before_traps="$(trap -p INT)"
+restore_dock
+expect "the caller's INT trap is back after a restore" test "$(trap -p INT)" = "$before_traps"
+trap - INT
 
 # An import that fails after the delete: the backup is kept, and nothing is relaunched.
 fresh_domain

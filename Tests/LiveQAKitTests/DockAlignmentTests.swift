@@ -140,4 +140,33 @@ final class DockAlignmentTests: XCTestCase {
 
     XCTAssertFalse(try XCTUnwrap(checks["veil, bottom edge (8.5)"]).passes)
   }
+
+  // With no rim to find (a Dock as bright as what is behind it, no outline), the veil can't be
+  // judged against the rim: that check must find nothing, not fall back to the frames.
+  func testWithNoRimTheVeilAgainstTheRimFindsNothing() throws {
+    let flat = LumaImage(width: 400, height: 120, values: [Double](repeating: 60, count: 48_000))
+    var veiled = flat.values
+    for row in 0..<120 {
+      for column in 0..<400 {
+        let point = CGPoint(
+          x: area.x(atPixelColumn: Double(column) + 0.5), y: area.y(atPixelRow: Double(row) + 0.5))
+        if background.contains(point) {
+          veiled[row * 400 + column] *= 0.72
+        }
+      }
+    }
+    let asleep = LumaImage(width: 400, height: 120, values: veiled)
+    let alignment = DockAlignment(area: area, edge: .bottom, background: background, perch: perch)
+
+    let checks = Dictionary(
+      uniqueKeysWithValues: alignment.checks(bare: flat, awake: flat, asleep: asleep).map {
+        ($0.name, $0)
+      })
+
+    XCTAssertNil(try XCTUnwrap(checks["Dock rim, top edge (8.5)"]).found)
+    XCTAssertNotNil(try XCTUnwrap(checks["veil, top edge (8.5)"]).found)
+    let againstRim = try XCTUnwrap(checks["veil against the rim, top edge (8.5)"])
+    XCTAssertNil(againstRim.found)
+    XCTAssertFalse(againstRim.passes)
+  }
 }

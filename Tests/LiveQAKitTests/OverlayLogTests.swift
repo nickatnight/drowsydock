@@ -34,4 +34,16 @@ final class OverlayLogTests: XCTestCase {
     }
     XCTAssertNil(OverlayLog.perchFacing(in: "Overlay: hidden"))
   }
+
+  // The compact timestamp `log stream --style compact` starts each line with, in local time.
+  func testTheTimeIsReadFromTheLinesTimestamp() throws {
+    let utc = try XCTUnwrap(TimeZone(identifier: "UTC"))
+    let line =
+      "2026-11-10 00:31:07.123 Df DrowsyDock[123:456] [com.drowsydock.DrowsyDock:dock] Overlay: hidden"
+
+    let time = try XCTUnwrap(OverlayLog.time(of: line, in: utc))
+
+    XCTAssertEqual(time, 1_794_270_667.123, accuracy: 0.0005)
+    XCTAssertNil(OverlayLog.time(of: "Overlay: hidden"))
+  }
 }
