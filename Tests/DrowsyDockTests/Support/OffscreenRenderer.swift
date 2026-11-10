@@ -16,13 +16,15 @@ final class OffscreenRenderer {
   private static let step = 1.0 / 60
 
   let scene: SKScene
-  private(set) var time: TimeInterval = 0
+  // SpriteKit runs no actions after a first update at time 0, so the clock starts elsewhere. The
+  // tests only use time differences.
+  private(set) var time: TimeInterval = 1000
 
   private let device: any MTLDevice
   private let commandQueue: any MTLCommandQueue
   private let renderer: SKRenderer
 
-  /// Starts drawing `scene` at scene time 0. Pass `size` for a scene whose size follows its view's,
+  /// Starts drawing `scene`, updating it once at the starting time. Pass `size` for a scene whose size follows its view's,
   /// such as `DockCanvasScene`.
   init(scene: SKScene, size: CGSize? = nil) {
     // Every Mac that runs macOS 14 has a Metal device.
@@ -60,7 +62,7 @@ final class OffscreenRenderer {
   /// Runs the work already waiting on the main queue, such as SpriteKit completion blocks and
   /// main-actor tasks that a test clock has just woken.
   static func drainMainQueue() {
-    RunLoop.main.run(until: Date())
+    while CFRunLoopRunInMode(.defaultMode, 0, true) == .handledSource {}
   }
 
   /// Returns the frame at the current time, drawn over `backdrop`, an opaque RGB colour. Pass `nil`
@@ -110,11 +112,11 @@ final class OffscreenRenderer {
       from: MTLRegionMake2D(0, 0, width, height),
       mipmapLevel: 0
     )
-    var rgba = bgra
-    for start in stride(from: 0, to: rgba.count, by: 4) {
-      rgba[start] = bgra[start + 2]
-      rgba[start + 2] = bgra[start]
+    bgra.withUnsafeMutableBufferPointer { pixels in
+      for start in stride(from: 0, to: pixels.count, by: 4) {
+        pixels.swapAt(start, start + 2)
+      }
     }
-    return Bitmap(width: width, height: height, pixels: rgba)
+    return Bitmap(width: width, height: height, pixels: bgra)
   }
 }

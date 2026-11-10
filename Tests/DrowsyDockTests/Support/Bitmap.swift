@@ -27,12 +27,19 @@ struct Bitmap: Equatable {
 
   /// A bitmap filled with one opaque colour, given as RGB bytes.
   init(width: Int, height: Int, filledWith color: (red: UInt8, green: UInt8, blue: UInt8)) {
-    let pixel = [color.red, color.green, color.blue, 255]
     self.init(
-      width: width,
-      height: height,
-      pixels: Array([[UInt8]](repeating: pixel, count: width * height).joined())
-    )
+      width: width, height: height, pixels: [UInt8](repeating: 0, count: width * height * 4))
+    withContext { context in
+      context.setFillColor(
+        CGColor(
+          colorSpace: Self.colorSpace,
+          components: [
+            CGFloat(color.red) / 255, CGFloat(color.green) / 255, CGFloat(color.blue) / 255, 1,
+          ]
+        ) ?? .black
+      )
+      context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    }
   }
 
   /// Draws `image` into a new bitmap of the same size.
@@ -92,6 +99,16 @@ struct Bitmap: Equatable {
   /// Draws `image` over this bitmap with its bottom-left corner at `origin`, in pixels from the
   /// bitmap's bottom-left corner, as Core Graphics and AppKit place things.
   mutating func draw(_ image: CGImage, at origin: CGPoint) {
+    withContext { context in
+      context.interpolationQuality = .none
+      context.draw(
+        image,
+        in: CGRect(origin: origin, size: CGSize(width: image.width, height: image.height))
+      )
+    }
+  }
+
+  private mutating func withContext(_ body: (CGContext) -> Void) {
     let (width, height) = (self.width, self.height)
     pixels.withUnsafeMutableBytes { buffer in
       // The buffer holds exactly width × height RGBA pixels, which this format describes.
@@ -104,12 +121,26 @@ struct Bitmap: Equatable {
         space: Self.colorSpace,
         bitmapInfo: Self.bitmapInfo
       )!
-      context.interpolationQuality = .none
-      context.draw(
-        image,
-        in: CGRect(origin: origin, size: CGSize(width: image.width, height: image.height))
-      )
+      body(context)
     }
+  }
+
+  /// Returns `images` one above the other, top to bottom, on a background of `color`.
+  static func column(
+    _ images: [Bitmap],
+    gap: Int,
+    background color: (red: UInt8, green: UInt8, blue: UInt8)
+  ) -> Bitmap {
+    let width = images.map(\.width).max() ?? 0
+    let height = images.map(\.height).reduce(0, +) + gap * max(images.count - 1, 0)
+    var column = Bitmap(width: width, height: height, filledWith: color)
+    var top = height
+    for image in images {
+      top -= image.height
+      column.draw(image.cgImage, at: CGPoint(x: 0, y: top))
+      top -= gap
+    }
+    return column
   }
 
   /// Returns `images` side by side, left to right, on a background of `color`.

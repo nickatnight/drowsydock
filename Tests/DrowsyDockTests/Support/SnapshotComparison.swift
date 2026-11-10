@@ -1,3 +1,5 @@
+import Foundation
+
 /// How far an image may stray from its reference and still match it.
 struct SnapshotTolerance {
   /// The largest difference allowed in any one channel of a pixel, out of 255.
@@ -26,22 +28,41 @@ struct SnapshotComparison {
       return
     }
     sizesDiffer = false
+    // Most comparisons are of identical images; memcmp settles those at once, where the loop below
+    // takes seconds on a large strip in a debug build.
+    let isIdentical = expected.pixels.withUnsafeBytes { expected in
+      actual.pixels.withUnsafeBytes { actual in
+        memcmp(expected.baseAddress, actual.baseAddress, expected.count) == 0
+      }
+    }
+    guard !isIdentical else {
+      differingPixels = 0
+      diff = expected
+      return
+    }
     var diff = expected
     var count = 0
-    for start in stride(from: 0, to: expected.pixels.count, by: 4) {
-      let differs = (0..<4).contains { channel in
-        let a = expected.pixels[start + channel]
-        let b = actual.pixels[start + channel]
-        return (a > b ? a - b : b - a) > channelTolerance
-      }
-      if differs {
-        count += 1
-        diff.pixels.replaceSubrange(start..<start + 4, with: [255, 0, 0, 255])
-      } else {
-        for channel in 0..<3 {
-          diff.pixels[start + channel] = 128 + diff.pixels[start + channel] / 2
+    actual.pixels.withUnsafeBufferPointer { actual in
+      diff.pixels.withUnsafeMutableBufferPointer { diff in
+        for start in stride(from: 0, to: diff.count, by: 4) {
+          var differs = false
+          for channel in start..<start + 4 {
+            let a = diff[channel]
+            let b = actual[channel]
+            if (a > b ? a - b : b - a) > channelTolerance {
+              differs = true
+            }
+          }
+          if differs {
+            count += 1
+            (diff[start], diff[start + 1], diff[start + 2], diff[start + 3]) = (255, 0, 0, 255)
+          } else {
+            for channel in start..<start + 3 {
+              diff[channel] = 128 + diff[channel] / 2
+            }
+            diff[start + 3] = 255
+          }
         }
-        diff.pixels[start + 3] = 255
       }
     }
     differingPixels = count

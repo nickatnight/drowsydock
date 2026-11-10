@@ -50,6 +50,22 @@ final class OverlayFilm {
     OffscreenRenderer.advance([cat, canvas], by: seconds)
   }
 
+  /// Frames at `times`, in seconds from now and increasing: one above the other for a bottom Dock,
+  /// side by side for a side Dock.
+  func strip(at times: [TimeInterval]) -> Bitmap {
+    var elapsed: TimeInterval = 0
+    var frames: [Bitmap] = []
+    for time in times {
+      advance(by: time - elapsed)
+      elapsed = time
+      frames.append(render())
+    }
+    let isWide = area.width > area.height
+    return isWide
+      ? Bitmap.column(frames, gap: 4, background: (255, 255, 255))
+      : Bitmap.row(frames, gap: 4, background: (255, 255, 255))
+  }
+
   /// Both windows' area, with each window that shows drawn where it is placed.
   func render() -> Bitmap {
     var image = iconLayer.render(over: Self.backdrop)
