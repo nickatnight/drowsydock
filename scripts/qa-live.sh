@@ -34,15 +34,15 @@ restore_command="test -f '$backup' && defaults delete com.apple.dock && defaults
 # name|QA rows|what it checks
 scenarios=(
   "restore-selftest|-|saves the Dock preferences, changes nothing, restores them"
-  "launch|1.1 1.2 1.3|a menu-bar app with no Dock icon; Quit and Cmd-Q end it"
+  "launch|1.1 1.2 1.3 7.0|a menu-bar app with no Dock icon; Quit and Cmd-Q end it"
   "battery|3.0 3.1|the real battery's line matches pmset"
   "levels|3.9 3.10 3.11 3.12 3.13 3.14 3.15 3.16|every Simulate battery choice, in both orders"
   "position|5.1 5.2 7.1 8.9 11.5|the Dock on the left, right and bottom: geometry, perch and wave"
   "size|7.2|the overlay follows a Dock size change"
   "autohide|5.4 7.4 11.6|an auto-hidden Dock hides the cat and the wave"
-  "hover|8.11 9.8|the cat fades for its icon's label; a faded snore draws nothing"
-  "magnification|7.5 8.12|magnifying the Dock fades the cat and the veil, and they return"
-  "relaunch|7.8|the cat returns after killall Dock"
+  "hover|7.5b 8.11 9.8|the cat fades for its icon's label only; a faded snore draws nothing"
+  "magnification|7.5 7.5a 8.12|magnifying the Dock fades the cat and the veil, and they return"
+  "relaunch|7.8 7.8a 7.8b|the cat returns after killall Dock; an app's icon isn't the list"
   "align|8.5 8.15|veil and paws within 1 pt of the Dock's frames, from screenshots"
   "cpu|7.9 9.6 9.7|idle CPU against the budgets in CONSTRAINTS.md and exception E1"
   "idle-sample|3.7 7.6 8.13|no timer and no drawing while idle, from sample"
@@ -459,8 +459,10 @@ scenario_restore_selftest() {
 }
 
 scenario_launch() {
-  step "launch (QA 1.1 to 1.3)"
+  step "launch (QA 1.1 to 1.3, 7.0)"
   check 1.1 launch "the app runs" app_running
+  check 7.0 launch "the app observes the Dock list for AXCreated and AXUIElementDestroyed" \
+    wait_log 'Observing the Dock list for: .*AXCreated.*AXUIElementDestroyed' 3
   check 1.1 launch "the bundle is a menu-bar app (LSUIElement), so no Dock icon or Cmd-Tab entry" \
     test "$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$app/Contents/Info.plist" 2>/dev/null)" = true
   check 1.1 launch "the menu-bar item exists" menu_bar_item_exists
@@ -620,7 +622,7 @@ scenario_autohide() {
 }
 
 scenario_hover() {
-  step "hover (QA 8.11, 9.8)"
+  step "hover (QA 7.5b, 8.11, 9.8)"
   dock_set magnification -bool false
   simulate 80%
   pointer_away
@@ -631,6 +633,10 @@ scenario_hover() {
   mark_log
   pointer_to "$(mid_x "$dock_first_icon")" "$(mid_y "$dock_first_icon")"
   expect_overlay shown 3 8.11 hover "another icon brings it back"
+  mark_log
+  pause 2
+  check 7.5b hover "with magnification off, resting on another icon never fades the cat" \
+    no_log_since_mark "Overlay: fadedOut"
   simulate 5%
   pause 5
   pointer_to "$(mid_x "$dock_last_icon")" "$(mid_y "$dock_last_icon")"
@@ -647,7 +653,7 @@ scenario_hover() {
 }
 
 scenario_magnification() {
-  step "magnification (QA 7.5, 8.12)"
+  step "magnification (QA 7.5, 7.5a, 8.12)"
   dock_set magnification -bool true
   dock_set largesize -int 128
   simulate 5%
@@ -659,17 +665,33 @@ scenario_magnification() {
   mark_log
   pointer_away
   expect_overlay shown 3 "7.5 8.12" magnification "they return within 1 s of the Dock settling"
+  pointer_to "$(mid_x "$dock_first_icon")" "$(mid_y "$dock_first_icon")"
+  pause 2
+  mark_log
+  pointer_to "$(mid_x "$dock_first_icon")" "$(awk -F, '{print $2 + $4 + 60}' <<<"$dock_first_icon")"
+  expect_overlay shown 3 7.5a magnification "just above the icons the cat returns from the frame check"
+  pointer_away
   dock_set magnification -bool false
   simulate 80%
 }
 
 scenario_relaunch() {
-  step "relaunch (QA 7.8)"
+  step "relaunch (QA 7.8, 7.8a, 7.8b)"
   pointer_away
   mark_log
   act killall Dock
   check 7.8 relaunch "the log shows 'The Dock relaunched'" wait_log "The Dock relaunched" 10
   expect_overlay shown 10 7.8 relaunch "the cat returns once the Dock's icons are back"
+  check 7.8a relaunch "the observer is installed on the new Dock" \
+    wait_log "Observing the Dock list for:" 10
+  pause 2
+  mark_log
+  act open -g -a Calculator
+  pause 4
+  act osascript -e 'tell application "Calculator" to quit'
+  pause 3
+  check 7.8b relaunch "an app's icon coming and going isn't taken for the list's destruction" \
+    no_log_since_mark "The Dock list was destroyed|Observing the Dock list for:"
 }
 
 # align_checks ROWS LABEL: screenshots at No battery, 80% and 5%, compared with the AX frames.
