@@ -46,7 +46,7 @@ struct Bitmap: Equatable {
       height: image.height,
       pixels: [UInt8](repeating: 0, count: image.width * image.height * 4)
     )
-    draw(image, at: .zero)
+    draw(image, atBottomLeft: .zero)
   }
 
   init(contentsOf url: URL) throws {
@@ -92,7 +92,7 @@ struct Bitmap: Equatable {
     guard CGImageDestinationFinalize(destination) else { throw BitmapError.unwritable(url) }
   }
 
-  mutating func draw(_ image: CGImage, at origin: CGPoint) {
+  mutating func draw(_ image: CGImage, atBottomLeft origin: CGPoint) {
     withContext { context in
       context.interpolationQuality = .none
       context.draw(
@@ -130,7 +130,7 @@ struct Bitmap: Equatable {
     var top = height
     for image in images {
       top -= image.height
-      column.draw(image.cgImage, at: CGPoint(x: 0, y: top))
+      column.draw(image.cgImage, atBottomLeft: CGPoint(x: 0, y: top))
       top -= gap
     }
     return column
@@ -146,7 +146,7 @@ struct Bitmap: Equatable {
     var row = Bitmap(width: width, height: height, filledWith: color)
     var x = 0
     for image in images {
-      row.draw(image.cgImage, at: CGPoint(x: x, y: height - image.height))
+      row.draw(image.cgImage, atBottomLeft: CGPoint(x: x, y: height - image.height))
       x += image.width + gap
     }
     return row

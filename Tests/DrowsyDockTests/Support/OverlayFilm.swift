@@ -64,7 +64,7 @@ final class OverlayFilm {
     where window.visibility == .shown {
       image.draw(
         renderer.render(over: nil).cgImage,
-        at: CGPoint(
+        atBottomLeft: CGPoint(
           x: (window.frame.minX - area.minX) * scale,
           y: (window.frame.minY - area.minY) * scale
         )
