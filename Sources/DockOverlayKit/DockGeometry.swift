@@ -107,8 +107,8 @@ public struct DockGeometry: Equatable, Sendable {
   ) -> CGRect {
     guard let first = icons.first else { return list }
     let items = icons.dropFirst().reduce(first) { $0.union($1) }
-    // How far the items reach past the list toward the screen edge, or 0 when they don't. A
-    // background a whole thickness away is no drawn background; ADR 0013 measured 5 points.
+    // How far the items reach past the list toward the screen edge: zero or less when they don't.
+    // A background a whole thickness away is no drawn background; ADR 0013 measured 5 points.
     let overhang: CGFloat
     switch orientation {
     case .bottom: overhang = list.minY - items.minY
