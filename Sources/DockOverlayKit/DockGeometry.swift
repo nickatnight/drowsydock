@@ -41,7 +41,7 @@ public struct DockGeometry: Equatable, Sendable {
   public let frame: CGRect
 
   /// The frames of the Dock's items in Dock order, without separators. An item whose frame has a
-  /// non-finite component is left out.
+  /// non-finite component or edge is left out.
   public let iconFrames: [CGRect]
 
   /// The frame of the background the Dock draws behind its items.
@@ -124,9 +124,10 @@ public struct DockGeometry: Equatable, Sendable {
     }
   }
 
+  // Checking the edges covers every component, and also a finite origin and size whose sum
+  // overflows.
   private static func isFinite(_ rect: CGRect) -> Bool {
-    rect.origin.x.isFinite && rect.origin.y.isFinite && rect.width.isFinite
-      && rect.height.isFinite
+    [rect.minX, rect.minY, rect.maxX, rect.maxY].allSatisfy(\.isFinite)
   }
 
   /// Whether the Dock is off screen, as an auto-hidden Dock is until the pointer reaches the edge.
