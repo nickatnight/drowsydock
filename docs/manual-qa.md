@@ -214,6 +214,6 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 | 11.7 | Charging, then 5%, then hover the Trash in the middle of the wave | The wave stops at once and doesn't resume when the pointer leaves. |
 | 11.8 | Launch the app with the battery simulated or really below 10% | No wave at launch. |
 
-## Live QA helper (`QAHelper`)
+## Live QA (`scripts/qa-live.sh` and `QAHelper`)
 
-`QAHelper` (`scripts/qa/Sources/qa-helper`) reads the Dock over Accessibility, moves the pointer and checks screenshots for the live QA script. Its checks live in `LiveQAKit`, which `LiveQAKitTests` covers.
+`scripts/qa-live.sh` runs the live scenarios on the real Dock; `QAHelper` (`scripts/qa/Sources/qa-helper`) reads the Dock over Accessibility, moves the pointer and checks screenshots for it. Its checks live in `LiveQAKit`, which `LiveQAKitTests` covers. Run `scripts/qa-live.sh --list` for the scenarios and `--dry-run` to see every step.

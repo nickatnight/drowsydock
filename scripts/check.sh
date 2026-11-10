@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs the checks from CONSTRAINTS.md.
 #
-#   scripts/check.sh fast   compile, format, floor rules, secrets (run after every edit)
+#   scripts/check.sh fast   compile, format, live QA dry run, floor rules, secrets (every edit)
 #   scripts/check.sh task   fast + tests, coverage gate, bundle (run before every commit)
 #
 # The coverage gate compares against the merge base with $CHECK_BASE (default: main).
@@ -251,6 +251,10 @@ swift build --build-tests -Xswiftc -warnings-as-errors
 
 step "Format"
 swift format lint --strict --recursive "${source_roots[@]}" Tests
+
+step "Live QA script (syntax, and a dry run that must touch nothing)"
+bash -n scripts/qa-live.sh
+scripts/qa/check-dry-run.sh
 
 step "Floor rules"
 floor_rules
