@@ -161,6 +161,36 @@ final class TransitionSnapshotTests: XCTestCase {
     )
   }
 
+  // MARK: - Charging during a transition (job 003 H3)
+
+  // Counts the blue pixels: the "z"s and the snore bubble are the only blue parts of the cat, and
+  // the backdrop is bluer than red by only 16.
+  private func zAndBubblePixels(in frame: Bitmap) -> Int {
+    stride(from: 0, to: frame.pixels.count, by: 4).filter { start in
+      Int(frame.pixels[start + 2]) - Int(frame.pixels[start]) > 25
+    }.count
+  }
+
+  // QA 10.10: Charging stops the transition where it is. A "z" or the bubble that the interrupted
+  // transition hadn't faded in yet must not pop in before the wake-up fades it.
+  func testChargingMidTransitionShowsNoZOrBubbleThatWasntThere() {
+    let cases: [(from: DrowsinessState, to: DrowsinessState)] = [
+      (.yawning, .noddingOff), (.noddingOff, .asleep),
+    ]
+    for (from, to) in cases {
+      let film = CatFilm(resting: from)
+      film.advance(by: 2)
+      film.scene.show(.drowsiness(to), facing: nil)
+      film.advance(by: 0.1)
+      let before = zAndBubblePixels(in: film.frame())
+
+      film.scene.show(.waking, facing: nil)
+      film.advance(by: first)
+
+      XCTAssertLessThanOrEqual(zAndBubblePixels(in: film.frame()), before, "\(from) to \(to)")
+    }
+  }
+
   // MARK: - Leaving a loop
 
   // QA 10.11: nothing jumps in the first frame. The "z"s in the air fade where they are, and the
