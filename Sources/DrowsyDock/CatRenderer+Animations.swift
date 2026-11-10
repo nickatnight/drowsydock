@@ -99,14 +99,21 @@ extension CatRenderer {
       }
     }
     if next == .wakeUp {
-      for (z, alpha) in zip(zs, shownAlphas.zs) {
-        z.alpha = alpha
-      }
-      snoreBubble.alpha = shownAlphas.bubble
+      keepShownForWakeUpFade(zs: shownAlphas.zs, bubble: shownAlphas.bubble)
     }
     if easesLoopOut, let next {
       easeBack(from: loopState, before: next)
     }
+  }
+
+  // The wake-up fades the "z"s and the bubble out from where they are. `apply(pose)` set them to
+  // the interrupted transition's target, which may show ones not yet faded in, so they go back to
+  // what was on screen.
+  private func keepShownForWakeUpFade(zs alphas: [CGFloat], bubble: CGFloat) {
+    for (z, alpha) in zip(zs, alphas) {
+      z.alpha = alpha
+    }
+    snoreBubble.alpha = bubble
   }
 
   // Puts the loop's parts back where the loop left them, then eases them into the pose. The
