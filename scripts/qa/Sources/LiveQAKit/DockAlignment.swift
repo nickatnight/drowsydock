@@ -92,24 +92,41 @@ public struct DockAlignment {
   // MARK: - Finding edges
 
   enum Finder {
+    // A thin line such as the Dock's rim.
     case line
+    // An edge between two areas such as the veil's.
     case step
+
+    // How a profile index becomes a position: a line lies at its pixel's centre, a step at the
+    // edge between two pixels, which is the index itself.
+    var offsetIntoPixel: Double {
+      self == .line ? 0.5 : 0
+    }
   }
+
+  // Several narrow bands across an edge, whose median ignores one band that crosses a window edge
+  // behind the Dock.
+  private static let bandCount = 5
+
+  private static let bandWidth = 4.0
+
+  // How far from each end of an edge the bands stay, as a share of the Dock's thickness, so they
+  // miss the rounded corners: the corner radius is 0.28 of the thickness.
+  private static let bandInsetPerThickness = 0.4
 
   private func bands(from start: CGFloat, to end: CGFloat, axisIsY: Bool = false) -> [ClosedRange<
     Int
   >] {
-    let thickness = min(background.width, background.height)
-    let inset = thickness * 0.4
+    let inset = min(background.width, background.height) * Self.bandInsetPerThickness
     let first = start + inset
     let last = end - inset
     guard last > first else { return [] }
-    let width = 4.0
-    return (0..<5).compactMap { index in
-      let centre = first + (last - first) * (Double(index) + 0.5) / 5
+    return (0..<Self.bandCount).compactMap { index in
+      let centre = first + (last - first) * (Double(index) + 0.5) / Double(Self.bandCount)
       let pixel = axisIsY ? area.pixelRow(atY: centre) : area.pixelColumn(atX: centre)
-      let lower = Int((pixel - width * area.scale / 2).rounded())
-      let upper = Int((pixel + width * area.scale / 2).rounded())
+      let halfWidth = Self.bandWidth * area.scale / 2
+      let lower = Int((pixel - halfWidth).rounded())
+      let upper = Int((pixel + halfWidth).rounded())
       return lower < upper ? lower...upper : nil
     }
   }
@@ -133,7 +150,7 @@ public struct DockAlignment {
       guard band.lowerBound >= 0, band.upperBound < image.width else { return nil }
       let profile = image.profileDown(columns: band, rows: rows)
       guard let index = Self.index(in: profile, using: finder) else { return nil }
-      return Double(rows.lowerBound + index) + Self.centring(finder)
+      return Double(rows.lowerBound + index) + finder.offsetIntoPixel
     }
     return Self.median(found).map { area.y(atPixelRow: $0) }
   }
@@ -150,7 +167,7 @@ public struct DockAlignment {
       guard band.lowerBound >= 0, band.upperBound < image.height else { return nil }
       let profile = image.profileAcross(rows: band, columns: columns)
       guard let index = Self.index(in: profile, using: finder) else { return nil }
-      return Double(columns.lowerBound + index) + Self.centring(finder)
+      return Double(columns.lowerBound + index) + finder.offsetIntoPixel
     }
     return Self.median(found).map { area.x(atPixelColumn: $0) }
   }
@@ -176,10 +193,6 @@ public struct DockAlignment {
     case .step:
       return Profile.strongestStep(in: profile)
     }
-  }
-
-  private static func centring(_ finder: Finder) -> Double {
-    finder == .line ? 0.5 : 0
   }
 
   private static func median(_ values: [Double]) -> Double? {
