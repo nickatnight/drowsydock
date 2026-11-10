@@ -17,6 +17,7 @@ final class CrowdWaveSnapshotTests: XCTestCase {
   private func wave(on dock: DockGeometry) -> OverlayFilm {
     let overlay = MascotOverlay(catScene: MascotScene(clock: TestClock()))
     addTeardownBlock { overlay.show(nil) }
+    KeepAlive.keep(overlay)
     overlay.show(.drowsiness(.asleep))
     overlay.present(.shown(dock.perch(for: MascotOverlay.spriteSize), on: dock))
     let film = OverlayFilm(overlay, on: dock)

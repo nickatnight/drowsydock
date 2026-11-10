@@ -28,6 +28,7 @@ final class PoseSnapshotTests: XCTestCase {
   private func overlay(_ state: DrowsinessState, on dock: DockGeometry) -> Bitmap {
     let overlay = MascotOverlay()
     addTeardownBlock { overlay.show(nil) }
+    KeepAlive.keep(overlay)
     overlay.show(.drowsiness(state))
     overlay.present(.shown(dock.perch(for: MascotOverlay.spriteSize), on: dock))
     return OverlayFilm(overlay, on: dock).render()

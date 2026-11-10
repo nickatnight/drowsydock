@@ -253,6 +253,7 @@ final class TransitionSnapshotTests: XCTestCase {
       catScene: MascotScene(clock: clock, generator: SeededGenerator(seed: 2026))
     )
     addTeardownBlock { overlay.show(nil) }
+    KeepAlive.keep(overlay)
     return overlay
   }
 
