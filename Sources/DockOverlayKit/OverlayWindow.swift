@@ -32,7 +32,22 @@ public final class OverlayWindow {
 
   private static let fadeDuration: TimeInterval = 0.2
 
-  private var shouldEndVisible = false
+  /// What the window shows once a fade it is running ends.
+  public enum Visibility: Sendable {
+    /// Off screen.
+    case hidden
+    /// On screen but fully transparent, at its frame.
+    case fadedOut
+    /// On screen and opaque, at its frame.
+    case shown
+  }
+
+  /// The window's frame in AppKit global coordinates.
+  public var frame: CGRect { window.frame }
+
+  /// What the window shows once a fade it is running ends.
+  public private(set) var visibility = Visibility.hidden
+
   private var hasReportedUnusableFrame = false
 
   private let logger = Logger(
@@ -46,7 +61,7 @@ public final class OverlayWindow {
     guard accepts(frame) else { return }
     place(at: frame)
     fade(to: 1)
-    shouldEndVisible = true
+    visibility = .shown
   }
 
   /// Keeps the window at `frame` but fades it out. A frame that isn't `isUsableWindowFrame` hides
@@ -55,12 +70,12 @@ public final class OverlayWindow {
     guard accepts(frame) else { return }
     place(at: frame)
     fade(to: 0)
-    shouldEndVisible = false
+    visibility = .fadedOut
   }
 
   /// Takes the window off screen, at once or after fading it out.
   public func hide(fading: Bool = false) {
-    shouldEndVisible = false
+    visibility = .hidden
     guard fading, window.isVisible, window.alphaValue > 0 else {
       window.orderOut(nil)
       return
@@ -71,7 +86,7 @@ public final class OverlayWindow {
     } completionHandler: { [weak self] in
       // AppKit calls this on the main thread.
       MainActor.assumeIsolated {
-        guard let self, !self.shouldEndVisible else { return }
+        guard let self, self.visibility != .shown else { return }
         self.window.orderOut(nil)
       }
     }

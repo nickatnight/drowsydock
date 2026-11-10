@@ -14,10 +14,10 @@ final class MascotOverlay {
 
   private static let logger = Logger(subsystem: "com.drowsydock.DrowsyDock", category: "mascot")
 
-  private let catScene = MascotScene()
-  private let catWindow: OverlayWindow
-  private let canvasScene = DockCanvasScene()
-  private let canvasWindow: OverlayWindow
+  let catScene = MascotScene()
+  let catWindow: OverlayWindow
+  let canvasScene = DockCanvasScene()
+  let canvasWindow: OverlayWindow
   private var presentation = OverlayPresentation.hidden
   private var mood: MascotMood?
   private var isCrowdEffectPlaying = false
@@ -100,7 +100,9 @@ final class MascotOverlay {
     place(canvasWindow, at: canvas, isFaded: isFaded)
   }
 
-  private static func canvasFrame(around dock: DockGeometry) -> CGRect {
+  /// The frame of the window that holds the veil and the crowd effect: the Dock's background with
+  /// a margin for the "z"s, kept on the Dock's display.
+  static func canvasFrame(around dock: DockGeometry) -> CGRect {
     dock.backgroundFrame.insetBy(dx: -canvasMargin, dy: -canvasMargin)
       .intersection(dock.screenFrame)
   }
