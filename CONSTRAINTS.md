@@ -1,6 +1,6 @@
 # Constraints
 
-Last reviewed: 2026-11-09 (emgee job 003-mascot docs step after round 4: the Measured coverage and binary size; job 003-mascot rework 1: the Measured binary size and mascot CPU; job 003-mascot: the Bundle row bans every entitlement, ADR 0007; the Measured binary size; job 002-dock-overlay: hardened-runtime Bundle row, the floor rule's comment forms, the Measured binary size; drafted in job 001-foundation from the skill defaults)
+Last reviewed: 2026-11-09 (emgee job 003-mascot Gate 2: exception E1 for the asleep-loop CPU; emgee job 003-mascot docs step after round 4: the Measured coverage and binary size; job 003-mascot rework 1: the Measured binary size and mascot CPU; job 003-mascot: the Bundle row bans every entitlement, ADR 0007; the Measured binary size; job 002-dock-overlay: hardened-runtime Bundle row, the floor rule's comment forms, the Measured binary size; drafted in job 001-foundation from the skill defaults)
 
 ## Floor (always enforced)
 
@@ -45,4 +45,4 @@ Exempt from coverage: thin adapters over IOKit, AX, AppKit, SpriteKit and Servic
 
 | ID | Rule | Path | Reason | Owner | Expires |
 |---|---|---|---|---|---|
-| (none) | | | | | |
+| E1 | Idle CPU ≤ 3.0% in `noddingOff`/`asleep` | `Sources/DrowsyDock/MascotScene.swift` (`loopFramesPerSecond` = 15) | On the real app at job 003's Gate 2 (2026-11-09, QA 9.7, hands off) the loop measured 3.16% at 15% and 3.23% at 5%. The owner accepted the overage for the merge. Fix planned in job 004: lower `loopFramesPerSecond` (about 0.15% per frame per second, so 13 fps should land under 3.0%) and re-run QA 9.7. | project owner (accepted at job 003 Gate 2) | 2027-02-07 |
