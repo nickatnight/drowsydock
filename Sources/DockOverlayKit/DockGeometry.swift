@@ -66,7 +66,7 @@ public struct DockGeometry: Equatable, Sendable {
   /// and its items.
   public init(listFrame: AXRect, iconFrames: [AXRect], layout: DisplayLayout) {
     frame = layout.appKitRect(listFrame)
-    self.iconFrames = iconFrames.map(layout.appKitRect).filter(Self.isFinite)
+    self.iconFrames = iconFrames.map(layout.appKitRect).filter(Self.hasFiniteEdges)
     let display = layout.display(holding: frame)
     screenFrame = display.frame
     visibleScreenFrame = display.visibleFrame
@@ -122,7 +122,7 @@ public struct DockGeometry: Equatable, Sendable {
     }
   }
 
-  private static func isFinite(_ rect: CGRect) -> Bool {
+  private static func hasFiniteEdges(_ rect: CGRect) -> Bool {
     [rect.minX, rect.minY, rect.maxX, rect.maxY].allSatisfy(\.isFinite)
   }
 
