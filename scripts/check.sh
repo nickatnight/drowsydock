@@ -279,9 +279,10 @@ swift build --build-tests -Xswiftc -warnings-as-errors
 step "Format"
 swift format lint --strict --recursive "${source_roots[@]}" Tests
 
-step "Live QA script (syntax, and a dry run that must touch nothing)"
+step "Live QA script (syntax, a dry run that must touch nothing, the Dock restore on a scratch domain)"
 bash -n scripts/qa-live.sh
 scripts/qa/check-dry-run.sh
+scripts/qa/check-dock-restore.sh
 
 step "Floor rules"
 floor_rules

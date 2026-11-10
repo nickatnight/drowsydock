@@ -1,30 +1,48 @@
 #!/usr/bin/env bash
+# Proves that `scripts/qa-live.sh --dry-run` touches nothing. Every command that could change the
+# Dock, the app, the pointer, the screen or a file is a stub on PATH that records its call, the
+# helper is a recording stub through QA_HELPER, and QA_DIR points at a folder that must stay
+# absent. The run must call no stub, print no UNGUARDED line (qa-live.sh's own backstop for a
+# step that forgot run_or_print), and still reach every scenario and print the restore command.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 stubs="$(mktemp -d)"
-trap 'rm -rf "$stubs"' EXIT
+trap '/bin/rm -rf "$stubs"' EXIT
 calls="$stubs/calls.log"
 : >"$calls"
-for tool in defaults killall osascript open screencapture log sample top pmset plutil swift; do
+for tool in defaults killall osascript open screencapture log sample top pmset plutil swift rm \
+  mkdir mv kill pkill cmp qa-helper; do
   printf '#!/bin/sh\necho "%s $*" >>"%s"\nexit 1\n' "$tool" "$calls" >"$stubs/$tool"
   chmod +x "$stubs/$tool"
 done
+qa_dir="$stubs/qa"
 
-had_qa_dir=false
-[[ -e build/qa ]] && had_qa_dir=true
-output="$(PATH="$stubs:$PATH" scripts/qa-live.sh --dry-run 2>&1)"
+dry_run() {
+  PATH="$stubs:$PATH" QA_HELPER="$stubs/qa-helper" QA_DIR="$qa_dir" scripts/qa-live.sh "$@" 2>&1
+}
 
 failed=0
-if [[ -s $calls ]]; then
-  echo "qa-live.sh --dry-run ran commands it must only print:" >&2
-  cat "$calls" >&2
-  failed=1
-fi
-if ! $had_qa_dir && [[ -e build/qa ]]; then
-  echo "qa-live.sh --dry-run created build/qa" >&2
-  failed=1
-fi
+report_calls() {
+  if [[ -s $calls ]]; then
+    echo "qa-live.sh $1 ran commands it must only print:" >&2
+    cat "$calls" >&2
+    failed=1
+    : >"$calls"
+  fi
+  if grep -q UNGUARDED <<<"$2"; then
+    echo "qa-live.sh $1 reached commands outside run_or_print:" >&2
+    grep UNGUARDED <<<"$2" >&2
+    failed=1
+  fi
+  if [[ -e $qa_dir ]]; then
+    echo "qa-live.sh $1 created $qa_dir" >&2
+    failed=1
+  fi
+}
+
+output="$(dry_run --dry-run)"
+report_calls --dry-run "$output"
 while IFS= read -r name; do
   if ! grep -Eq "^==> $name( |:|$)" <<<"$output"; then
     echo "qa-live.sh --dry-run never reaches the $name scenario" >&2
@@ -37,14 +55,11 @@ for expected in "==> Preflight" "defaults import com.apple.dock" "would run: def
     failed=1
   fi
 done
-selftest="$(PATH="$stubs:$PATH" scripts/qa-live.sh --dry-run --only restore-selftest 2>&1)"
+
+selftest="$(dry_run --dry-run --only restore-selftest)"
+report_calls "--dry-run --only restore-selftest" "$selftest"
 if ! grep -q "^==> Preflight" <<<"$selftest" || grep -q "DrowsyDock.app" <<<"$selftest"; then
   echo "qa-live.sh --only restore-selftest must run its preflight and leave the app alone" >&2
-  failed=1
-fi
-if [[ -s $calls ]]; then
-  echo "qa-live.sh --dry-run --only restore-selftest ran commands:" >&2
-  cat "$calls" >&2
   failed=1
 fi
 exit "$failed"

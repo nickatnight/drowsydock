@@ -7,32 +7,42 @@
 #   scripts/qa-live.sh --dry-run       print every step, change nothing
 #   scripts/qa-live.sh --list          list the scenarios and the QA rows each checks
 #   scripts/qa-live.sh --restore       restore the Dock preferences that a killed run left changed
+#   scripts/qa-live.sh --keep-captures keep the screenshots and samples even when their checks pass
 #
-# It changes the Dock's preferences (position, size, auto-hide, magnification) with
-# `defaults write com.apple.dock` and `killall Dock`. Before any change it saves them to
-# build/qa/dock-backup.plist and prints the command that restores them; a trap restores them on
-# exit, error or Ctrl-C. A kill -9 skips the trap: run the printed command, or --restore.
+# It changes the Dock's preferences (position, size, auto-hide, magnification). Before any change
+# it saves them to build/qa/dock-backup.plist, checks the copy, and prints the command that
+# restores them; a trap restores them on exit, error or Ctrl-C, and keeps the backup if the
+# restore can't be verified. A kill -9 skips the trap: run the printed command, or --restore.
 #
 # It drives Debug ▸ Simulate battery through the app's real menu with System Events, moves the
 # pointer and takes screenshots through scripts/qa's helper, and reads the app's log. Your
 # terminal needs Accessibility and Screen Recording (System Settings ▸ Privacy & Security), and
 # DrowsyDock needs its own Accessibility grant. It prints PASS, FAIL or SKIP per QA row, writes
 # build/qa/report.md, and exits 1 if any row fails.
+#
+# build/qa keeps report.md and app.log. Screenshots and samples are deleted once their checks pass,
+# and kept as evidence when they fail. Every process started from your terminal inherits its
+# Accessibility and Screen Recording grants: consider a terminal profile used only for this run,
+# and revoking the grants afterwards. The run quits and relaunches build/DrowsyDock.app only.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 root="$PWD"
 
-qa_dir="$root/build/qa"
-backup="$qa_dir/dock-backup.plist"
+# QA_DIR and QA_HELPER exist for scripts/qa/check-dry-run.sh, which points them at stubs.
+qa_dir="${QA_DIR:-$root/build/qa}"
 report="$qa_dir/report.md"
 app_log="$qa_dir/app.log"
 app="$root/build/DrowsyDock.app"
-helper="$root/.build/release/qa-helper"
+app_binary="$app/Contents/MacOS/DrowsyDock"
+helper="${QA_HELPER:-$root/.build/release/qa-helper}"
 subsystem="com.drowsydock.DrowsyDock"
-restore_command="test -f '$backup' && defaults delete com.apple.dock && defaults import com.apple.dock '$backup' && killall Dock && rm '$backup'"
+
+# shellcheck source=scripts/qa/dock-preferences.sh
+source "$root/scripts/qa/dock-preferences.sh"
+dock_backup="$qa_dir/dock-backup.plist"
 
 scenarios=(
-  "restore-selftest|-|saves the Dock preferences, changes nothing, restores them"
+  "restore-selftest|-|saves the Dock preferences, changes one harmless key, restores them"
   "launch|1.1 1.2 1.3 7.0|a menu-bar app with no Dock icon; Quit and Cmd-Q end it"
   "battery|3.0 3.1|the real battery's line matches pmset"
   "levels|3.9 3.10 3.11 3.12 3.13 3.14 3.15 3.16|every Simulate battery choice, in both orders"
@@ -49,6 +59,9 @@ scenarios=(
 
 dry_run=false
 only=""
+mode_restore=false
+assume_yes=false
+keep_captures=false
 results=()
 failed=false
 owns_backup=false
@@ -56,7 +69,7 @@ needs_app=false
 log_pid=""
 
 usage() {
-  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 list() {
@@ -79,6 +92,8 @@ while (($#)); do
       exit 0
       ;;
     --restore) mode_restore=true ;;
+    --yes) assume_yes=true ;;
+    --keep-captures) keep_captures=true ;;
     -h | --help)
       usage
       exit 0
@@ -98,10 +113,31 @@ step() { printf '\n==> %s\n' "$*"; }
 
 run_or_print() {
   if $dry_run; then
-    printf '    would run: %s\n' "$*"
+    printf '    would run:'
+    printf ' %q' "$@"
+    printf '\n'
     return 0
   fi
   "$@"
+}
+
+# In a dry run, every command that could touch the Dock, the app, the pointer, the screen or a
+# file is replaced by a function that only reports it. A step that forgets run_or_print then prints
+# UNGUARDED instead of acting, and scripts/qa/check-dry-run.sh fails on that word.
+if $dry_run; then
+  for command_name in defaults killall osascript open screencapture sample top swift log rm \
+    mkdir mv kill pkill; do
+    eval "$command_name() { printf '    UNGUARDED: %s %s\\n' $command_name \"\$*\"; }"
+  done
+  unset command_name
+fi
+
+qa_helper() {
+  if $dry_run; then
+    printf '    UNGUARDED: qa-helper %s\n' "$*"
+    return 0
+  fi
+  "$helper" "$@"
 }
 
 result() {
@@ -140,7 +176,8 @@ write_report() {
     echo "| Result | QA rows | Scenario | Detail |"
     echo "|---|---|---|---|"
     local entry verdict rows scenario detail
-    for entry in "${results[@]}"; do
+    # Bash 3.2 treats an empty array as unbound under set -u, so guard the expansion.
+    for entry in ${results[@]+"${results[@]}"}; do
       IFS='|' read -r verdict rows scenario detail <<<"$entry"
       echo "| $verdict | $rows | $scenario | ${detail//|/\\|} |"
     done
@@ -150,40 +187,36 @@ write_report() {
 
 # MARK: - Dock preferences
 
-save_dock_backup() {
+owns_backup=false
+
+take_dock_backup() {
   step "Saving the Dock's preferences"
-  if [[ -f $backup ]] && ! $dry_run; then
-    say "A backup from a run that never restored it is still at $backup." >&2
+  if [[ -f $dock_backup ]] && ! $dry_run; then
+    say "A backup from a run that never restored it is still at $dock_backup." >&2
     say "Restore it first: scripts/qa-live.sh --restore" >&2
     exit 1
   fi
-  run_or_print mkdir -p "$qa_dir"
-  run_or_print defaults export com.apple.dock "$backup"
+  if $dry_run; then
+    printf '    would run: defaults export com.apple.dock %s, then check it parses and matches\n' \
+      "$dock_backup"
+  elif ! save_dock_backup; then
+    say "Couldn't save and verify the Dock's preferences at $dock_backup; changing nothing." >&2
+    exit 1
+  fi
   owns_backup=true
   say "If this run is killed, restore the Dock with:"
-  say "  $restore_command"
+  say "  $(dock_restore_command)"
 }
 
-dock_matches_backup() {
-  [[ -f $backup ]] || return 1
-  cmp -s <(defaults export com.apple.dock - | plutil -convert xml1 -o - -) \
-    <(plutil -convert xml1 -o - "$backup")
-}
-
-# Puts the Dock's preferences back exactly as saved, and deletes the backup. Safe to run twice.
-restore_dock() {
-  $dry_run && {
-    printf '    would run: %s\n' "$restore_command"
-    return
-  }
-  [[ -f $backup ]] || return 0
-  if dock_matches_backup; then
-    say "The Dock's preferences are unchanged."
-  else
-    say "Restoring the Dock's preferences."
-    defaults delete com.apple.dock && defaults import com.apple.dock "$backup" && killall Dock
+# Restores the Dock's preferences if this run saved them. Returns 1 when the restore can't be
+# verified; the backup is then kept and the command to retry printed.
+put_dock_back() {
+  $owns_backup || return 0
+  if $dry_run; then
+    printf '    would restore the Dock from %s and delete the backup once it matches\n' "$dock_backup"
+    return 0
   fi
-  rm -f "$backup"
+  restore_dock
 }
 
 dock_set() {
@@ -192,25 +225,47 @@ dock_set() {
   pause 3
 }
 
+# Signals are ignored from here on, so a second Ctrl-C can't cut the restore short.
 cleanup() {
   local status=$?
-  trap - EXIT INT TERM
+  trap '' INT TERM HUP
+  trap - EXIT
   if $needs_app && ! $dry_run && app_running; then
     simulate Real 2>/dev/null
   fi
   if [[ -n $log_pid ]]; then kill "$log_pid" 2>/dev/null; fi
-  if $owns_backup; then restore_dock; fi
+  if ! put_dock_back; then
+    result FAIL - dock "the Dock's preferences couldn't be restored; the backup is kept at $dock_backup"
+    status=1
+  fi
   write_report
   exit "$status"
 }
 
-if [[ ${mode_restore:-false} == true ]]; then
-  if [[ ! -f $backup ]]; then
-    say "No backup at $backup; nothing to restore."
-    exit 0
+# --restore: shows how old the backup is and what it would change, and asks before applying it.
+restore_from_backup() {
+  if [[ ! -f $dock_backup ]]; then
+    say "No backup at $dock_backup; nothing to restore."
+    return 0
+  fi
+  say "Backup saved $(stat -f '%Sm' "$dock_backup")."
+  say "Restoring it changes these lines of the Dock's preferences (- now, + backup):"
+  diff <(dock_domain_xml) <(plutil -convert xml1 -o - "$dock_backup") | grep -E '^[<>]' |
+    sed 's/^</  -/; s/^>/  +/' | head -n 40
+  if ! $assume_yes; then
+    local answer
+    read -r -p "Restore the Dock's preferences from this backup? [y/N] " answer
+    [[ $answer == y || $answer == Y ]] || {
+      say "Left as it is; the backup is kept."
+      return 1
+    }
   fi
   restore_dock
-  exit 0
+}
+
+if $mode_restore; then
+  restore_from_backup
+  exit $?
 fi
 
 # MARK: - Waiting and the app's log
@@ -305,7 +360,12 @@ end tell
 APPLESCRIPT
 }
 
-app_running() { pgrep -x DrowsyDock >/dev/null; }
+# This build's process only, never another installed copy.
+app_pid() { pgrep -f "^$app_binary" | head -n 1; }
+
+app_running() { [[ -n $(app_pid) ]]; }
+
+app_stopped() { ! app_running; }
 
 menu_bar_item_exists() {
   [[ $(osascript -e 'tell application "System Events" to exists menu bar item 1 of last menu bar of process "DrowsyDock"') == true ]]
@@ -319,11 +379,11 @@ launch_app() {
 
 quit_app() {
   if $dry_run; then
-    printf '    would run: osascript -e %s (if it runs)\n' "'tell application \"DrowsyDock\" to quit'"
+    printf '    would run: kill -TERM <the pid of %s> (if it runs)\n' "$app_binary"
     return 0
   fi
   app_running || return 0
-  osascript -e 'tell application "DrowsyDock" to quit'
+  kill -TERM "$(app_pid)"
   local waited=0
   while app_running && ((waited < 50)); do
     sleep 0.1
@@ -343,9 +403,14 @@ read_dock() {
     return 0
   fi
   local output key value
-  output="$("$helper" dock "$@")" || return 1
+  output="$(qa_helper dock "$@")" || return 1
   while IFS='=' read -r key value; do
-    printf -v "dock_${key//-/_}" '%s' "$value"
+    case $key in
+      orientation | hidden | icons | list | background | facing | perch | capture | screen | \
+        scale | primary-height | first-icon | last-icon)
+        printf -v "dock_${key//-/_}" '%s' "$value"
+        ;;
+    esac
   done <<<"$output"
 }
 
@@ -360,7 +425,7 @@ read_dock_and_logged_perch() {
   fi
   local line
   line="$(grep -E "Overlay: (shown|fadedOut)" "$app_log" | tail -n 1)"
-  dock_logged_perch="$("$helper" logged-perch "$line")" || return 1
+  dock_logged_perch="$(qa_helper logged-perch "$line")" || return 1
   read_dock sprite="$(field "$dock_logged_perch" 3),$(field "$dock_logged_perch" 4)"
 }
 
@@ -378,7 +443,8 @@ mid_y() { awk -F, '{print $2 + $4 / 2}' <<<"$1"; }
 
 pointer_away() {
   read_dock || return 1
-  run_or_print "$helper" move-pointer "$(mid_x "$dock_screen")" "$(awk -F, '{print $2 + $4 * 0.6}' <<<"$dock_screen")"
+  run_or_print "$helper" move-pointer "$(mid_x "$dock_screen")" \
+    "$(awk -F, '{print $2 + $4 * 0.6}' <<<"$dock_screen")"
 }
 
 pointer_to() {
@@ -433,7 +499,7 @@ preflight() {
   say "Your terminal needs Accessibility (pointer moves, the menu) and Screen Recording (screenshots)."
   if ! $dry_run; then
     local permissions
-    permissions="$("$helper" permissions)"
+    permissions="$(qa_helper permissions)"
     if ! grep -q 'accessibility=true' <<<"$permissions"; then
       say "Grant your terminal Accessibility in System Settings ▸ Privacy & Security, then run again." >&2
       exit 1
@@ -448,11 +514,21 @@ preflight() {
   run_or_print mkdir -p "$qa_dir"
   if ! $dry_run; then
     : >"$app_log"
-    log stream --style compact --level debug --predicate "subsystem == \"$subsystem\"" >>"$app_log" 2>&1 &
+    log stream --style compact --level debug \
+      --predicate "subsystem == \"$subsystem\" AND process == \"DrowsyDock\"" >>"$app_log" 2>&1 &
     log_pid=$!
     sleep 2
   else
     printf '    would run: log stream --level debug --predicate %s >%s &\n' "'subsystem == \"$subsystem\"'" "$app_log"
+  fi
+
+  if ! $dry_run; then
+    local others
+    others="$(pgrep -x DrowsyDock | grep -vx "$(app_pid)" || true)"
+    if [[ -n $others ]]; then
+      say "Another DrowsyDock is running (pid $others). Quit it, so the menu and the log belong to this build." >&2
+      exit 1
+    fi
   fi
 
   say "DrowsyDock needs its Accessibility grant: relaunching it to read the grant from its log."
@@ -469,13 +545,30 @@ preflight() {
 
 # MARK: - Scenarios
 
+selftest_key="qa-live-selftest"
+
+selftest_key_is_gone() {
+  ! defaults read com.apple.dock "$selftest_key" >/dev/null 2>&1
+}
+
+# Runs the real restore once: one harmless key the Dock ignores, then the restore that must remove
+# it, then a fresh backup for the scenarios that follow.
 scenario_restore_selftest() {
-  step "restore-selftest: save, change nothing, restore"
-  restore_dock
-  if ! $dry_run; then
-    check - restore-selftest "the backup is gone and nothing was left changed" test ! -f "$backup"
+  step "restore-selftest: save, add one harmless key, restore"
+  run_or_print defaults write com.apple.dock "$selftest_key" -bool true
+  if $dry_run; then
+    put_dock_back
+  else
+    local original
+    original="$(plutil -convert xml1 -o - "$dock_backup")"
+    check - restore-selftest "the restore succeeds" put_dock_back
+    check - restore-selftest "the harmless key is gone" selftest_key_is_gone
+    check - restore-selftest "the Dock's preferences equal the backup" \
+      test "$(dock_domain_xml)" = "$original"
+    check - restore-selftest "the backup is deleted after a verified restore" test ! -e "$dock_backup"
   fi
-  save_dock_backup
+  owns_backup=false
+  take_dock_backup
 }
 
 scenario_launch() {
@@ -488,12 +581,12 @@ scenario_launch() {
   check 1.1 launch "the menu-bar item exists" menu_bar_item_exists
   menu "Quit DrowsyDock"
   pause 2
-  check 1.2 launch "Quit DrowsyDock ends the app" bash -c '! pgrep -x DrowsyDock >/dev/null'
+  check 1.2 launch "Quit DrowsyDock ends the app" app_stopped
   launch_app
   run_or_print osascript -e 'tell application "System Events" to tell process "DrowsyDock" to click menu bar item 1 of last menu bar' \
     -e 'delay 0.3' -e 'tell application "System Events" to keystroke "q" using command down'
   pause 2
-  check 1.3 launch "Cmd-Q with the menu open ends the app" bash -c '! pgrep -x DrowsyDock >/dev/null'
+  check 1.3 launch "Cmd-Q with the menu open ends the app" app_stopped
   launch_app
 }
 
@@ -698,6 +791,10 @@ scenario_relaunch() {
   check 7.8a relaunch "the observer is installed on the new Dock" \
     wait_log "Observing the Dock list for:" 10
   pause 2
+  if ! $dry_run && pgrep -x Calculator >/dev/null; then
+    result SKIP 7.8b relaunch "Calculator is already open; the run doesn't quit an app you're using"
+    return
+  fi
   mark_log
   run_or_print open -g -a Calculator
   pause 4
@@ -728,9 +825,22 @@ align_checks() {
   local line
   while IFS= read -r line; do
     result "${line%% *}" "$rows" "align, $label" "${line#* }"
-  done < <("$helper" align orientation="$dock_orientation" scale="$dock_scale" \
+  done < <(qa_helper align orientation="$dock_orientation" scale="$dock_scale" \
     capture="$dock_capture" background="$dock_background" perch="$dock_logged_perch" \
     bare="$qa_dir/bare.png" awake="$qa_dir/awake.png" asleep="$qa_dir/asleep.png")
+  forget_captures bare.png awake.png asleep.png
+}
+
+# Deletes screenshots and samples once their checks passed, unless --keep-captures. A failed
+# check keeps them as evidence.
+forget_captures() {
+  $dry_run && return
+  $keep_captures && return
+  $failed && return
+  local file
+  for file in "$@"; do
+    rm -f "$qa_dir/$file"
+  done
 }
 
 scenario_align() {
@@ -829,9 +939,10 @@ done
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+trap 'exit 129' HUP
 
 preflight
-save_dock_backup
+take_dock_backup
 
 for entry in "${scenarios[@]}"; do
   name="${entry%%|*}"
