@@ -14,7 +14,7 @@ final class MascotOverlay {
 
   private static let logger = Logger(subsystem: "com.drowsydock.DrowsyDock", category: "mascot")
 
-  let catScene = MascotScene()
+  let catScene: MascotScene
   let catWindow: OverlayWindow
   let canvasScene = DockCanvasScene()
   let canvasWindow: OverlayWindow
@@ -22,7 +22,9 @@ final class MascotOverlay {
   private var mood: MascotMood?
   private var isCrowdEffectPlaying = false
 
-  init() {
+  /// Creates the overlay, hidden, drawing the cat with `catScene`.
+  init(catScene: MascotScene = MascotScene()) {
+    self.catScene = catScene
     let catHost = SceneHostView(scene: catScene)
     let canvasHost = SceneHostView(scene: canvasScene)
     catScene.host = catHost

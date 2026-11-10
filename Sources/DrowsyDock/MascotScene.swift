@@ -19,9 +19,17 @@ final class MascotScene: SKScene, HostedScene {
   // Bumped whenever running work stops. SpriteKit can deliver a completion after its action was
   // removed, and a sleeping task can wake after it was cancelled, so each checks this first.
   private var generation = 0
-  private var generator = SystemRandomNumberGenerator()
+  private let clock: any Clock<Duration>
+  private var generator: any RandomNumberGenerator
 
-  override init() {
+  /// Creates the scene. `clock` times the pauses between gestures and `generator` draws them; tests
+  /// pass a clock they advance and a seeded generator.
+  init(
+    clock: any Clock<Duration> = ContinuousClock(),
+    generator: any RandomNumberGenerator = SystemRandomNumberGenerator()
+  ) {
+    self.clock = clock
+    self.generator = generator
     super.init(size: CatRenderer.canvasSize)
     backgroundColor = .clear
     anchorPoint = .zero
@@ -110,8 +118,8 @@ final class MascotScene: SKScene, HostedScene {
     }
     switch AmbientSchedule.next(for: state, using: &generator) {
     case .oneShot(let gesture, let pause):
-      nextGesture = Task { [weak self, generation] in
-        guard (try? await Task.sleep(for: pause)) != nil, !Task.isCancelled else { return }
+      nextGesture = Task { [weak self, generation, clock] in
+        guard (try? await clock.sleep(for: pause)) != nil, !Task.isCancelled else { return }
         guard let self, self.generation == generation else { return }
         play(gesture)
       }
