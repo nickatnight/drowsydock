@@ -15,26 +15,43 @@ final class Job003ScreenshotTests: XCTestCase {
     layout: DisplayLayout(primary: CGRect(x: 0, y: 0, width: 1512, height: 982))
   )
 
+  // The full screenshot's top-left pixel shows AppKit point (312.4, 159), at 2 pixels a point.
+  // Job 003 fitted it from the Finder icon's centre and the old veil's top edge (`veilfit`).
+  private static let screenshotTopLeft = CGPoint(x: 312.4, y: 159)
+
+  private static let scale = 2.0
+
+  // Each crop's pixel rectangle within the full screenshot.
   private func crop(_ name: String, x: Double, y: Double, width: Double, height: Double) throws -> (
     LumaImage, CaptureArea
   ) {
     let image = try LumaImage(contentsOf: Self.fixtures.appendingPathComponent("\(name).png"))
+    let origin = Self.screenshotTopLeft
     let frame = CGRect(
-      x: 312.4 + x / 2,
-      y: 159 - (y + height) / 2,
-      width: width / 2,
-      height: height / 2
+      x: origin.x + x / Self.scale,
+      y: origin.y - (y + height) / Self.scale,
+      width: width / Self.scale,
+      height: height / Self.scale
     )
-    return (image, CaptureArea(frame: frame, scale: 2))
+    return (image, CaptureArea(frame: frame, scale: Self.scale))
   }
+
+  // Bands of columns or rows inside each crop that avoid its edges, and the rows or columns to
+  // search: around the veil's top edge but above the Dock's rim, which is a stronger feature,
+  // around the rim's top edge, and around its right end.
+  private let insideColumns = 10...70
+  private let aboveTheRim = 5...27
+  private let aroundTheTopRim = 15...45
+  private let aroundTheRightEnd = 10...60
+  private let midDockRows = 20...40
 
   func testTheStepFinderPutsTheOldVeilOnTheListFrameFivePointsAboveTheBackground() throws {
     let (image, area) = try crop("veil-top-over-window", x: 720, y: 120, width: 80, height: 50)
 
     let row = try XCTUnwrap(
-      Profile.strongestStep(in: image.profileDown(columns: 10...70, rows: 5...27))
+      Profile.strongestStep(in: image.profileDown(columns: insideColumns, rows: aboveTheRim))
     )
-    let found = area.y(atPixelRow: Double(5 + row))
+    let found = area.y(atPixelRow: Double(aboveTheRim.lowerBound + row))
 
     XCTAssertTrue(EdgeCheck(name: "old veil", expected: dock.frame.maxY, found: found).passes)
     let check = EdgeCheck(name: "veil", expected: dock.backgroundFrame.maxY, found: found)
@@ -46,9 +63,9 @@ final class Job003ScreenshotTests: XCTestCase {
     let (image, area) = try crop("rim-top-over-dark", x: 1430, y: 120, width: 80, height: 55)
 
     let row = try XCTUnwrap(
-      Profile.thinLine(in: image.profileDown(columns: 10...70, rows: 15...45))
+      Profile.thinLine(in: image.profileDown(columns: insideColumns, rows: aroundTheTopRim))
     )
-    let found = area.y(atPixelRow: Double(15 + row) + 0.5)
+    let found = area.y(atPixelRow: Double(aroundTheTopRim.lowerBound + row) + 0.5)
 
     XCTAssertTrue(EdgeCheck(name: "rim", expected: dock.backgroundFrame.maxY, found: found).passes)
     XCTAssertFalse(EdgeCheck(name: "rim", expected: dock.frame.maxY, found: found).passes)
@@ -58,9 +75,9 @@ final class Job003ScreenshotTests: XCTestCase {
     let (image, area) = try crop("rim-right-end", x: 1625, y: 200, width: 80, height: 60)
 
     let column = try XCTUnwrap(
-      Profile.thinLine(in: image.profileAcross(rows: 20...40, columns: 10...60))
+      Profile.thinLine(in: image.profileAcross(rows: midDockRows, columns: aroundTheRightEnd))
     )
-    let found = area.x(atPixelColumn: Double(10 + column) + 0.5)
+    let found = area.x(atPixelColumn: Double(aroundTheRightEnd.lowerBound + column) + 0.5)
 
     XCTAssertTrue(EdgeCheck(name: "rim", expected: dock.backgroundFrame.maxX, found: found).passes)
   }
