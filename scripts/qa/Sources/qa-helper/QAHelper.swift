@@ -6,9 +6,6 @@ import LiveQAKit
 @main
 @MainActor
 enum QAHelper {
-  static let spriteSize = CGSize(width: 64, height: 80)
-  static let canvasMargin: CGFloat = 48
-
   static func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data("qa-helper: \(message)\n".utf8))
     exit(2)
@@ -28,16 +25,15 @@ enum QAHelper {
     NSScreen.screens.first?.frame.height ?? 0
   }
 
-  static func printDock() {
+  // With `sprite`, the size the app draws the cat at (from its log), it also prints where
+  // DockGeometry perches that sprite and the area to capture around the Dock and the perch.
+  static func printDock(sprite: CGSize?) {
     let geometry: DockGeometry
     do {
       geometry = try DockReader.read()
     } catch {
       fail("Dock geometry unavailable: \(error)")
     }
-    let perch = geometry.perch(for: spriteSize)
-    let canvas = geometry.backgroundFrame.insetBy(dx: -canvasMargin, dy: -canvasMargin)
-      .intersection(geometry.screenFrame)
     let scale = NSScreen.screens.first { $0.frame == geometry.screenFrame }?.backingScaleFactor ?? 2
     let orientation: String
     switch geometry.orientation {
@@ -50,9 +46,18 @@ enum QAHelper {
     print("icons=\(geometry.iconFrames.count)")
     print("list=\(describe(geometry.frame))")
     print("background=\(describe(geometry.backgroundFrame))")
-    print("perch=\(describe(perch.frame))")
-    print("facing=\(perch.facing == .left ? "left" : "right")")
-    print("capture=\(describe(canvas.union(perch.frame).integral))")
+    print("facing=\(geometry.perch(for: .zero).facing == .left ? "left" : "right")")
+    if let sprite {
+      let perch = geometry.perch(for: sprite).frame
+      let area = CaptureArea.around(
+        background: geometry.backgroundFrame,
+        perch: perch,
+        on: geometry.screenFrame,
+        scale: scale
+      )
+      print("perch=\(describe(perch))")
+      print("capture=\(describe(area.frame))")
+    }
     print("screen=\(describe(geometry.screenFrame))")
     print("scale=\(scale)")
     print("primary-height=\(primaryHeight())")
@@ -121,7 +126,14 @@ enum QAHelper {
       print("accessibility=\(AXIsProcessTrusted())")
       print("screen-recording=\(CGPreflightScreenCaptureAccess())")
     case "dock":
-      printDock()
+      let sprite = arguments.dropFirst().first { $0.hasPrefix("sprite=") }
+        .map { rect("0,0," + $0.dropFirst("sprite=".count)).size }
+      printDock(sprite: sprite)
+    case "logged-perch":
+      guard arguments.count == 2, let perch = OverlayLog.perchFrame(in: arguments[1]) else {
+        fail("no DockPerch frame in the log line")
+      }
+      print(describe(perch))
     case "pointer":
       let location = NSEvent.mouseLocation
       print("\(location.x),\(location.y)")
@@ -133,7 +145,10 @@ enum QAHelper {
     case "align":
       align(Array(arguments.dropFirst()))
     default:
-      fail("usage: qa-helper permissions|dock|pointer|move-pointer X Y|align KEY=VALUE…")
+      fail(
+        "usage: qa-helper permissions|dock [sprite=W,H]|logged-perch LINE|pointer"
+          + "|move-pointer X Y|align KEY=VALUE…"
+      )
     }
   }
 }

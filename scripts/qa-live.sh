@@ -324,19 +324,45 @@ quit_app() {
   done
 }
 
+# read_dock [sprite=W,H]: reads the Dock over Accessibility into shell variables named after the
+# helper's keys: dock_orientation, dock_background, dock_screen, dock_first_icon, dock_last_icon,
+# dock_facing, dock_scale, dock_primary_height, and with a sprite size dock_perch and dock_capture.
 read_dock() {
   if $dry_run; then
-    printf '    would run: %s dock\n' "$helper"
+    printf '    would run: %s dock %s\n' "$helper" "$*"
     dock_orientation=bottom dock_hidden=false dock_background=0,0,0,0 dock_perch=0,0,64,80
     dock_capture=0,0,0,0 dock_scale=2 dock_primary_height=0 dock_last_icon=0,0,0,0
     dock_first_icon=0,0,0,0 dock_screen=0,0,0,0 dock_facing=left
     return 0
   fi
   local output key value
-  output="$("$helper" dock)" || return 1
+  output="$("$helper" dock "$@")" || return 1
   while IFS='=' read -r key value; do
     printf -v "dock_${key//-/_}" '%s' "$value"
   done <<<"$output"
+}
+
+# Reads the perch the app last logged into dock_logged_perch, then the Dock with that sprite size,
+# so the checks use the size the app draws rather than a copy of it.
+read_dock_and_logged_perch() {
+  if $dry_run; then
+    printf '    would read the perch from the newest "Overlay: shown" line in %s\n' "$app_log"
+    dock_logged_perch=0,0,64,80
+    read_dock sprite=64,80
+    return 0
+  fi
+  local line
+  line="$(grep -E "Overlay: (shown|fadedOut)" "$app_log" | tail -n 1)"
+  dock_logged_perch="$("$helper" logged-perch "$line")" || return 1
+  read_dock sprite="$(field "$dock_logged_perch" 3),$(field "$dock_logged_perch" 4)"
+}
+
+# same_frame A B: whether two x,y,width,height frames agree within half a point.
+same_frame() {
+  awk -F, -v a="$1" -v b="$2" 'BEGIN {
+    split(a, p, ","); split(b, q, ",")
+    for (i = 1; i <= 4; i++) if (p[i] - q[i] > 0.5 || q[i] - p[i] > 0.5) exit 1
+  }'
 }
 
 field() { cut -d, -f"$2" <<<"$1"; }
@@ -567,13 +593,9 @@ scenario_size() {
     mark_log
     dock_set tilesize -int "$size"
     expect_overlay shown 8 7.2 size "the cat follows a Dock at tile size $size"
-    if ! $dry_run; then
-      read_dock
-      local logged
-      logged="$(last_log "Overlay: shown")"
-      check 7.2 size "the logged perch is the perch Accessibility gives" \
-        grep -q "x: $(field "$dock_perch" 1)" <<<"$logged"
-    fi
+    read_dock_and_logged_perch
+    check 7.2 size "the logged perch is the perch Accessibility gives at tile size $size" \
+      same_frame "$dock_logged_perch" "$dock_perch"
   done
 }
 
@@ -681,7 +703,7 @@ scenario_relaunch() {
 align_checks() {
   local rows="$1" label="$2"
   pointer_away
-  read_dock
+  read_dock_and_logged_perch
   simulate "No battery"
   pause 2
   capture bare
@@ -700,7 +722,7 @@ align_checks() {
   while IFS= read -r line; do
     result "${line%% *}" "$rows" "align, $label" "${line#* }"
   done < <("$helper" align orientation="$dock_orientation" scale="$dock_scale" \
-    capture="$dock_capture" background="$dock_background" perch="$dock_perch" \
+    capture="$dock_capture" background="$dock_background" perch="$dock_logged_perch" \
     bare="$qa_dir/bare.png" awake="$qa_dir/awake.png" asleep="$qa_dir/asleep.png")
 }
 

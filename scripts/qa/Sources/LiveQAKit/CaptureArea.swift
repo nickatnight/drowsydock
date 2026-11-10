@@ -13,6 +13,19 @@ public struct CaptureArea: Equatable, Sendable {
     self.scale = scale
   }
 
+  /// The area `DockAlignment` needs: the Dock's background with room for its edge searches on
+  /// every side, and the cat's perch, kept on the Dock's display and on whole points.
+  public static func around(
+    background: CGRect,
+    perch: CGRect,
+    on screen: CGRect,
+    scale: Double
+  ) -> CaptureArea {
+    let room = 2 * DockAlignment.searchDistance
+    let frame = background.insetBy(dx: -room, dy: -room).union(perch).intersection(screen).integral
+    return CaptureArea(frame: frame, scale: scale)
+  }
+
   /// The pixel row, from the screenshot's top, that shows AppKit y `y`. Pixel row `r` spans
   /// `r ..< r + 1`, so an edge between two rows lies at a whole number.
   public func pixelRow(atY y: Double) -> Double {
