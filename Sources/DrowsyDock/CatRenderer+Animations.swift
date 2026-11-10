@@ -66,8 +66,6 @@ extension CatRenderer {
   /// Stops every animation and puts the cat in its pose. When `next` is about to play and a loop
   /// was running, the loop's parts don't jump: the "z"s in flight fade, and the body, bubble and
   /// head ease back over `MascotTimeline.loopEaseOut`, except a part that `next` moves at once.
-  /// Before the wake-up, which fades the "z"s and the bubble out, they keep the opacity they have
-  /// on screen, so an interrupted transition's "z"s or bubble never pop in first.
   func stopAnimations(before next: MascotAnimation?) {
     let loopState = (torso: torso.yScale, bubble: snoreBubble.yScale, headY: head.position.y)
     let shownAlphas = (zs: zs.map(\.alpha), bubble: snoreBubble.alpha)

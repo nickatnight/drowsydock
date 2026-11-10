@@ -310,8 +310,6 @@ final class DockGeometryTests: XCTestCase {
     XCTAssertEqual(dock.backgroundFrame, CGRect(x: 370, y: 0, width: 700, height: 79))
   }
 
-  // Each component is finite, but x + width overflows to infinity (job 003 round 4, LOW 3 and
-  // I-8): the crowd effect would get an infinite position, and a right Dock would slide.
   func testAnItemWhoseFarEdgeOverflowsIsLeftOut() {
     let dock = DockGeometry(
       listFrame: ax(1356, 200, 79, 500),

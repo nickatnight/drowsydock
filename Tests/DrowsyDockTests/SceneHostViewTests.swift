@@ -5,9 +5,6 @@ import XCTest
 
 @testable import DrowsyDock
 
-// QA 8.13, 9.8 and the frame-count side of 3.7, 7.6 and 10.11 (c): frames drawn by the real
-// SceneHostViews in the real MascotOverlay, counted while a stand-in display link calls them at
-// the rate each view asks for. A paused view gets no calls, as a paused CADisplayLink makes none.
 @MainActor
 final class SceneHostViewTests: XCTestCase {
   private let dock = DockFixture.bottom
@@ -46,7 +43,6 @@ final class SceneHostViewTests: XCTestCase {
     try XCTUnwrap(overlay.canvasScene.host)
   }
 
-  /// Runs a stand-in display link for `seconds` and returns the frames each host drew.
   @discardableResult
   private func runDisplayLinks(
     _ hosts: [SceneHostView],
@@ -67,7 +63,6 @@ final class SceneHostViewTests: XCTestCase {
     return zip(hosts, before).map { $0.framesDrawn - $1 }
   }
 
-  // QA 8.13: an idle pose draws one frame for the change, then nothing.
   func testAnIdlePoseDrawsOneFrameAndThenNothing() throws {
     for state in [DrowsinessState.awake, .drowsy, .yawning] {
       let overlay = try overlay(showing: state)
@@ -80,8 +75,6 @@ final class SceneHostViewTests: XCTestCase {
     }
   }
 
-  // QA 8.13 and 10.11 (c): after the snore, the loop's ease-out, the crossfade, the veil's fade
-  // and the canvas pausing, nothing draws.
   func testLeavingTheSnoreForAwakeEndsWithEveryViewPaused() throws {
     let overlay = try overlay(showing: .asleep)
     let views = try hosts(of: overlay)
@@ -96,10 +89,6 @@ final class SceneHostViewTests: XCTestCase {
     XCTAssertTrue(views.allSatisfy(\.isPaused))
   }
 
-  // H16 and QA 9.7: the loops draw at 12 frames a second, which keeps the asleep loop under the
-  // 3.0% CPU budget (about 0.15% per frame per second; 15 fps measured 3.16% and 3.23% on the
-  // user's Mac). The display link only delivers rates that divide the display's refresh rate: on a
-  // 120 Hz display a request for 13 fps drew 15. So the rate must divide 60 and 120 (ADR 0017).
   func testTheLoopsDrawTwelveFramesASecond() throws {
     for state in [DrowsinessState.noddingOff, .asleep] {
       let overlay = try overlay(showing: state)
@@ -112,6 +101,8 @@ final class SceneHostViewTests: XCTestCase {
     }
   }
 
+  // The display link only delivers rates that divide the display's refresh rate: on a 120 Hz
+  // display a request for 13 fps drew 15 (ADR 0017).
   func testEveryFrameRateDividesSixtyAndOneHundredTwentyHertz() {
     for rate in [MascotScene.loopFramesPerSecond, MascotScene.oneShotFramesPerSecond] {
       XCTAssertEqual(60 % rate, 0, "\(rate) fps")
@@ -119,7 +110,6 @@ final class SceneHostViewTests: XCTestCase {
     }
   }
 
-  // ADR 0011: a transition draws at 30 frames a second, then stops.
   func testATransitionDrawsThirtyFramesASecondUntilItEnds() throws {
     let overlay = try overlay(showing: .awake)
     let cat = try catHost(overlay)
@@ -129,12 +119,10 @@ final class SceneHostViewTests: XCTestCase {
 
     XCTAssertEqual(cat.framesPerSecond, 30)
     let frames = runDisplayLinks([cat], for: 2)[0]
-    // 0.6 s at 30 fps is 18 frames, plus the first and the one after the completion arrives.
     XCTAssertTrue((18...22).contains(frames), "\(frames) frames for a 0.6 s crossfade")
     XCTAssertTrue(cat.isPaused)
   }
 
-  // QA 8.5: the canvas draws the veil once and pauses while the veil is still.
   func testTheVeilDrawsOnceThenTheCanvasPauses() throws {
     let overlay = try overlay(showing: .asleep)
     let canvas = try canvasHost(overlay)
@@ -143,7 +131,6 @@ final class SceneHostViewTests: XCTestCase {
     XCTAssertTrue(canvas.isPaused)
   }
 
-  // QA 11.1: the canvas draws while the wave runs, then pauses.
   func testTheCanvasDrawsUntilTheWaveEndsThenPauses() throws {
     let overlay = try overlay(showing: .asleep)
     let canvas = try canvasHost(overlay)
@@ -158,7 +145,6 @@ final class SceneHostViewTests: XCTestCase {
     XCTAssertTrue(canvas.isPaused)
   }
 
-  // QA 9.8: while the cat is faded out at 5%, the snore draws nothing; it resumes after.
   func testAFadedOutCatDrawsNothingAndResumesWhenShown() throws {
     let overlay = try overlay(showing: .asleep)
     let cat = try catHost(overlay)

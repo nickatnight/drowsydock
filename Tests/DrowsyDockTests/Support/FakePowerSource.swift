@@ -2,8 +2,6 @@ import DrowsyDockCore
 
 @testable import DrowsyDock
 
-/// A battery the test sets, standing in for IOKit. `change(to:)` reports a new reading the way the
-/// IOKit notification does.
 @MainActor
 final class FakePowerSource: PowerSource {
   var reading: BatteryReading?

@@ -18,10 +18,7 @@ case "$mode" in
 esac
 
 coverage_minimum=80
-# The coverage gate covers the files in these targets that import no adapter framework. Every
-# other file under the source roots is exempt and needs a manual-QA entry instead.
 gated_targets=(Sources/DrowsyDockCore Sources/DockOverlayKit scripts/qa/Sources/LiveQAKit)
-# Swift sources: the app's targets and the live QA helper's (scripts/qa-live.sh).
 source_roots=(Sources scripts/qa/Sources)
 # An import may carry attributes (`@preconcurrency`, `@_exported`, `@_spi(Name)`), an access level
 # (`internal import`) and a kind (`import class AppKit.NSColor`). HIServices holds the AX API, and

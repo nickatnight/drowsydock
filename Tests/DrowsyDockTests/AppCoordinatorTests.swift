@@ -5,8 +5,6 @@ import XCTest
 
 @testable import DrowsyDock
 
-// The app's wiring, driven through AppCoordinator with a fake battery, a fake Dock tracker and a
-// test clock, and checked on the menu line, the real overlay windows and the crowd effect.
 @MainActor
 final class AppCoordinatorTests: XCTestCase {
   @MainActor
@@ -70,7 +68,6 @@ final class AppCoordinatorTests: XCTestCase {
     addTeardownBlock { coordinator.overlay.show(nil) }
     KeepAlive.keep(coordinator)
     coordinator.startDockTracking()
-    // The coordinator calls makeDockTracker in its initializer.
     return Rig(
       coordinator: coordinator,
       power: power,
@@ -80,7 +77,6 @@ final class AppCoordinatorTests: XCTestCase {
     )
   }
 
-  // The waking task registers its sleep asynchronously, so wait for it before moving the clock.
   private func endWaking(_ rig: Rig) {
     waitUntil("the end of waking is scheduled") { rig.clock.sleeperCount == 1 }
     rig.clock.advance(by: DrowsinessTracker.wakingDuration)
@@ -91,7 +87,6 @@ final class AppCoordinatorTests: XCTestCase {
     rig.overlay.canvasScene.needsAnotherFrame
   }
 
-  // Runs the canvas until the wave has ended.
   private func finishWave(_ rig: Rig) {
     let canvas = OffscreenRenderer(
       scene: rig.overlay.canvasScene,
@@ -102,7 +97,6 @@ final class AppCoordinatorTests: XCTestCase {
 
   // MARK: - The menu line
 
-  // QA 3.9 to 3.13, and the same levels in reverse order: a simulated level is a jump.
   func testEachSimulatedLevelShowsItsStateInEitherOrder() {
     let rig = rig()
     let lines = [
@@ -119,7 +113,6 @@ final class AppCoordinatorTests: XCTestCase {
     }
   }
 
-  // QA 3.14: Charging wakes the cat, and 3 s later it settles awake, not earlier.
   func testChargingShowsWakingThenAwakeThreeSecondsLater() {
     let rig = rig()
     rig.percent(5)
@@ -135,7 +128,6 @@ final class AppCoordinatorTests: XCTestCase {
     waitUntil("waking ends") { rig.line == "5% · Charging · Awake" }
   }
 
-  // QA 3.15
   func testNoBatteryShowsNoBatteryDetected() {
     let rig = rig()
 
@@ -144,7 +136,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertEqual(rig.line, "No battery detected")
   }
 
-  // QA 3.16: back to the real battery's line, derived afresh, not stuck at Asleep.
   func testRealAfterASimulationShowsTheRealBatteryAgain() {
     let rig = rig()
     rig.percent(5)
@@ -154,7 +145,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertEqual(rig.line, "46% · Discharging · Drowsy")
   }
 
-  // QA 3.1 and 3.5: the real battery's changes and Low Power Mode reach the line.
   func testTheRealBatterysChangesAndLowPowerModeReachTheLine() {
     let rig = rig()
 
@@ -163,7 +153,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertEqual(rig.line, "24% · Discharging · Yawning · Low Power")
   }
 
-  // QA 3.3: unplugging reaches the line as a discharging state.
   func testUnpluggingShowsTheDischargingState() {
     let rig = rig()
     rig.power.change(to: BatteryReading(clampingPercentage: 46, powerState: .charging))
@@ -173,7 +162,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertEqual(rig.line, "46% · Discharging · Drowsy")
   }
 
-  // QA 3.4 and 3.2a: a full or held battery on AC power wakes the cat, then reads Plugged in.
   func testAFullBatteryOnACPowerSettlesOnPluggedInAwake() {
     let rig = rig()
 
@@ -184,7 +172,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertEqual(rig.line, "100% · Plugged in · Awake")
   }
 
-  // QA 3.2b: plug in, unplug and plug in again within 3 s: waking ends 3 s after the last plug-in.
   func testWakingEndsThreeSecondsAfterTheLastPlugIn() {
     let rig = rig()
     let charging = BatteryReading(clampingPercentage: 46, powerState: .charging)
@@ -205,7 +192,6 @@ final class AppCoordinatorTests: XCTestCase {
 
   // MARK: - When the overlay shows
 
-  // QA 6.6: without the grant the tracker is told so, and no cat shows anywhere.
   func testWithoutTheGrantTheTrackerIsToldAndNothingShows() {
     let rig = rig(granted: false)
 
@@ -215,7 +201,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .hidden)
   }
 
-  // QA 4.3 and 4.4, the app's side: opening the menu re-reads the grant and tells the tracker.
   func testOpeningTheMenuPicksUpAChangedGrant() {
     let rig = rig(granted: false)
 
@@ -229,7 +214,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertFalse(rig.coordinator.isAccessibilityGranted)
   }
 
-  // QA 6.1 and 8.1: the cat shows at the perch once the tracker places it.
   func testTheCatShowsAtThePerchTheTrackerReports() {
     let rig = rig()
     rig.percent(80)
@@ -241,7 +225,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .hidden)
   }
 
-  // QA 8.8: No battery hides the cat and the veil; 80% brings the cat back.
   func testNoBatteryHidesTheCatAndTheVeilUntilABatteryIsBack() {
     let rig = rig()
     rig.tracker.present(shown)
@@ -257,7 +240,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .hidden)
   }
 
-  // QA 8.5, 8.6 and 10.4: the veil shows at 5% only, over the Dock's drawn background.
   func testTheVeilShowsAtFivePercentAndGoesAtFifteen() {
     let rig = rig()
     rig.tracker.present(shown)
@@ -274,8 +256,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .hidden)
   }
 
-  // H14 I-9: a perch frame the window refuses hides the cat and stops its scene, so nothing draws
-  // for a window that isn't there.
   func testARefusedPerchFrameHidesTheCatAndStopsItsScene() {
     let rig = rig()
     rig.percent(5)
@@ -292,7 +272,6 @@ final class AppCoordinatorTests: XCTestCase {
 
   // MARK: - The pointer over the Dock
 
-  // QA 8.11: the cat fades out while the pointer is on its icon and comes back after.
   func testHoveringThePerchFadesTheCatOutAndBack() {
     let rig = rig()
     rig.percent(80)
@@ -305,7 +284,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertEqual(rig.overlay.catWindow.visibility, .shown)
   }
 
-  // QA 8.11 and 8.12 at 5%: the veil fades with the cat, and the snore stops while faded.
   func testAtFivePercentTheVeilFadesWithTheCat() {
     let rig = rig()
     rig.percent(5)
@@ -323,7 +301,6 @@ final class AppCoordinatorTests: XCTestCase {
 
   // MARK: - The whole Dock nods off
 
-  // QA 11.1, the wiring: falling asleep on a shown Dock plays the wave.
   func testFallingAsleepPlaysTheWave() {
     let rig = rig()
     rig.tracker.present(shown)
@@ -334,7 +311,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertTrue(isWavePlaying(rig))
   }
 
-  // QA 11.2 and 11.3: no second wave in the same discharge cycle; a charge arms it again.
   func testTheWavePlaysOncePerDischargeCycle() {
     let rig = rig()
     rig.tracker.present(shown)
@@ -352,7 +328,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertTrue(isWavePlaying(rig))
   }
 
-  // QA 11.4: picking 5% twice after a charge plays one wave.
   func testPickingFivePercentTwicePlaysOneWave() {
     let rig = rig()
     rig.tracker.present(shown)
@@ -366,8 +341,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertFalse(isWavePlaying(rig))
   }
 
-  // QA 11.6: falling asleep while the Dock is hidden uses up the cycle without a wave, and the cat
-  // appears asleep once the Dock shows.
   func testFallingAsleepWhileTheDockIsHiddenUsesUpTheCycle() {
     let rig = rig()
     rig.tracker.present(.hidden)
@@ -385,7 +358,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertFalse(isWavePlaying(rig))
   }
 
-  // QA 11.7: hovering stops the wave, and it doesn't resume when the pointer leaves.
   func testHoveringStopsTheWaveForGood() {
     let rig = rig()
     rig.tracker.present(shown)
@@ -400,7 +372,6 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertFalse(isWavePlaying(rig))
   }
 
-  // QA 11.8: launching below 10% plays no wave.
   func testLaunchingAsleepPlaysNoWave() {
     let rig = rig(battery: reading(5))
 

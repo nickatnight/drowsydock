@@ -1,4 +1,3 @@
-/// A random number generator that gives the same sequence for the same seed (SplitMix64).
 struct SeededGenerator: RandomNumberGenerator {
   private var state: UInt64
 

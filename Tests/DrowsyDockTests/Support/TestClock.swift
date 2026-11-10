@@ -1,8 +1,6 @@
 import Foundation
 import os
 
-/// A clock that only moves when the test calls `advance(by:)`. A sleep resumes once the clock has
-/// passed its deadline, and throws `CancellationError` when its task is cancelled.
 final class TestClock: Clock {
   struct Instant: InstantProtocol {
     let offset: Duration
@@ -37,10 +35,8 @@ final class TestClock: Clock {
 
   var minimumResolution: Duration { .zero }
 
-  /// The number of sleeps waiting for the clock to reach their deadline.
   var sleeperCount: Int { state.withLock { $0.sleepers.count } }
 
-  /// The earliest deadline among the waiting sleeps, as a duration from now.
   var timeToNextDeadline: Duration? {
     state.withLock { state in
       state.sleepers.values.map(\.deadline).min().map { state.now.duration(to: $0) }
@@ -78,7 +74,6 @@ final class TestClock: Clock {
     }
   }
 
-  /// Moves the clock on and wakes every sleep whose deadline it reaches.
   func advance(by duration: Duration) {
     let due = state.withLock { state -> [Sleeper] in
       state.now = state.now.advanced(by: duration)

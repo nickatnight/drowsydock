@@ -2,7 +2,6 @@ import DrowsyDockCore
 import Foundation
 import IOKit.ps
 
-/// The Mac's real battery, read through IOKit, and Low Power Mode, read from `ProcessInfo`.
 struct IOKitPowerSource: PowerSource {
   var isLowPowerModeOn: Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }
 

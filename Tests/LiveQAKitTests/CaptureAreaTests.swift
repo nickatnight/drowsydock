@@ -17,7 +17,6 @@ final class CaptureAreaTests: XCTestCase {
     XCTAssertEqual(area.x(atPixelColumn: 1628), 1139)
   }
 
-  // screencapture -R counts y down from the top of the primary display.
   func testTheScreencaptureRegionCountsYFromTheTop() {
     XCTAssertEqual(area.screencaptureRegion(primaryHeight: 982), "325,850,862,132")
   }

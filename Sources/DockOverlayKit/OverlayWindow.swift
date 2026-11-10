@@ -5,7 +5,6 @@ import os
 /// full-screen apps, and lets every click through to whatever is below it.
 @MainActor
 public final class OverlayWindow {
-  // Internal so the kit's tests can check the window's properties.
   let window: NSWindow
 
   /// Creates the window, hidden, with the view it draws.
@@ -102,7 +101,7 @@ public final class OverlayWindow {
   }
 
   // AppKit aborts the app when given a null or non-finite frame, so such a frame means there is
-  // nothing to show. Logged once per run of unusable frames: a usable frame re-arms the log.
+  // nothing to show.
   private func accepts(_ frame: CGRect) -> Bool {
     guard !frame.isUsableWindowFrame else {
       hasReportedUnusableFrame = false

@@ -27,8 +27,6 @@ final class ProfileTests: XCTestCase {
     XCTAssertEqual(Profile.thinLine(in: [29, 29, 29, 29, 9, 31, 31, 31]), 4)
   }
 
-  // A step is no line: the samples two either side differ, so the middle stands out half as much
-  // as a line of the same height.
   func testALineOutranksAStepOfTheSameHeight() {
     XCTAssertEqual(
       Profile.thinLine(in: [0, 0, 0, 0, 0, 50, 50, 50, 50, 50, 50, 100, 50, 50, 50]), 11)

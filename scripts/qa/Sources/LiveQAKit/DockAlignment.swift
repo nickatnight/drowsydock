@@ -20,10 +20,8 @@ public struct DockAlignment {
   /// smaller than the Dock's thickness.
   public static let searchDistance = 6.0
 
-  // A pixel whose brightness changed by more than this belongs to the cat, not to noise.
   private static let catThreshold = 20.0
 
-  // Below this brightness a pixel is too dark to tell whether the veil covers it.
   private static let veilFloor = 8.0
 
   public let area: CaptureArea
@@ -93,15 +91,11 @@ public struct DockAlignment {
 
   // MARK: - Finding edges
 
-  // A rim is a line about a pixel wide, centred on the background's edge, so its position is its
-  // pixel's centre. A step lies between two pixels, so its position is the first pixel's edge.
   enum Finder {
     case line
     case step
   }
 
-  // Five narrow bands spread over the straight part of an edge, away from the rounded ends and the
-  // cat. The median of what they find ignores one band that crosses a window edge behind the Dock.
   private func bands(from start: CGFloat, to end: CGFloat, axisIsY: Bool = false) -> [ClosedRange<
     Int
   >] {
@@ -161,7 +155,6 @@ public struct DockAlignment {
     return Self.median(found).map { area.x(atPixelColumn: $0) }
   }
 
-  // The lowest pixel row in the perch's columns where the cat differs from the bare Dock.
   private func paws(in cat: LumaImage) -> Double? {
     let first = max(Int(area.pixelColumn(atX: perch.minX).rounded()), 0)
     let last = min(Int(area.pixelColumn(atX: perch.maxX).rounded()), cat.width) - 1

@@ -22,7 +22,6 @@ final class MascotTimelineTests: XCTestCase {
     XCTAssertLessThanOrEqual(MascotTimeline.loopEaseOut, MascotTimeline.flexiblePhase(of: .yawn))
   }
 
-  // The wake-up's stretch moves the body and the head; it must start after they have eased back.
   func testTheLoopEaseOutEndsBeforeTheWakeUpStretches() {
     XCTAssertLessThanOrEqual(MascotTimeline.loopEaseOut, MascotTimeline.WakeUp.stretchDelay)
   }

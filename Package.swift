@@ -7,7 +7,6 @@ let package = Package(
   platforms: [.macOS(.v14)],
   products: [
     .executable(name: "DrowsyDock", targets: ["DrowsyDock"]),
-    // The live QA helper for scripts/qa-live.sh. scripts/bundle.sh builds only DrowsyDock.
     .executable(name: "qa-helper", targets: ["qa-helper"]),
   ],
   dependencies: [],

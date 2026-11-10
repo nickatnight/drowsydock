@@ -4,17 +4,10 @@ import XCTest
 
 @testable import DrowsyDock
 
-// QA section 10 and 9.9: each transition filmed at fixed scene times after the change, and how the
-// overlay ends a transition the pointer interrupts. A strip's first frame is the first frame drawn
-// after the change, 1/30 s in.
 @MainActor
 final class TransitionSnapshotTests: XCTestCase {
   private let tolerance = SnapshotTolerance(channel: 2, differingPixels: 4)
 
-  // For a frame compared with a still pose's reference after an animation. SpriteKit caches each
-  // rasterized group when it draws it, and a cache drawn while the ears still turned (the first
-  // 0.12 s of a wake-up) sits a fraction of a pixel off: edge pixels differ by up to 32, and
-  // nothing else does. A wrong pose moves edges by whole pixels, which differ by over 100.
   private let restingPoseTolerance = SnapshotTolerance(channel: 40, differingPixels: 4)
 
   private let first = 1.0 / 30
@@ -23,7 +16,6 @@ final class TransitionSnapshotTests: XCTestCase {
     try Snapshot.skipUnlessReferenceArchitecture()
   }
 
-  // Compares with a still pose's reference without ever recording over it.
   private func assertFrame(
     _ frame: Bitmap,
     matches pose: String,
@@ -51,7 +43,6 @@ final class TransitionSnapshotTests: XCTestCase {
 
   // MARK: - One transition at a time
 
-  // QA 10.1: a quick crossfade; the lids sink, the head leans and the ears fold together.
   func testAwakeToDrowsyCrossfades() {
     let film = CatFilm(resting: .awake)
     film.scene.show(.drowsiness(.drowsy), facing: nil)
@@ -63,7 +54,6 @@ final class TransitionSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 10.2: the cat settles into the yawning pose, then yawns and nods. About 3.4 s.
   func testDrowsyToYawningYawns() {
     let film = CatFilm(resting: .drowsy)
     film.scene.show(.drowsiness(.yawning), facing: nil)
@@ -75,7 +65,6 @@ final class TransitionSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 10.3: the head droops as the eyes fall shut, jerks back up, and settles; the "z" fades in.
   func testYawningToNoddingOffNodsOff() {
     let film = CatFilm(resting: .yawning)
     film.scene.show(.drowsiness(.noddingOff), facing: nil)
@@ -87,7 +76,6 @@ final class TransitionSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 10.4: a crossfade into the asleep pose; the bubble and two "z"s fade in.
   func testNoddingOffToAsleepCrossfades() {
     let film = CatFilm(resting: .noddingOff)
     film.advance(by: 2)
@@ -100,8 +88,6 @@ final class TransitionSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 10.5 and 8.7: the eyes snap open, the bubble pops, the cat stretches, three sparkles
-  // twinkle, and it ends with a blink in the awake pose.
   func testAsleepToWakingWakesUpAndEndsAwake() {
     let film = CatFilm(resting: .asleep)
     film.advance(by: 2)
@@ -117,7 +103,6 @@ final class TransitionSnapshotTests: XCTestCase {
     assertFrame(film.frame(), matches: "pose-awake-left")
   }
 
-  // QA 10.6: the yawn plays to its end, then one crossfade straight to asleep, with no nod-off.
   func testChangesDuringAYawnWaitAndCollapseToTheLastOne() {
     let film = CatFilm(resting: .drowsy)
     film.scene.show(.drowsiness(.yawning), facing: nil)
@@ -133,7 +118,6 @@ final class TransitionSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 10.10: Charging during the yawn stops it and plays the wake-up at once.
   func testChargingDuringTheYawnPlaysTheWakeUpAtOnce() {
     let film = CatFilm(resting: .drowsy)
     film.scene.show(.drowsiness(.yawning), facing: nil)
@@ -147,7 +131,6 @@ final class TransitionSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 10.10: Charging during the nod-off stops it and plays the wake-up at once.
   func testChargingDuringTheNodOffPlaysTheWakeUpAtOnce() {
     let film = CatFilm(resting: .yawning)
     film.scene.show(.drowsiness(.noddingOff), facing: nil)
@@ -163,16 +146,12 @@ final class TransitionSnapshotTests: XCTestCase {
 
   // MARK: - Charging during a transition (job 003 H3)
 
-  // Counts the blue pixels: the "z"s and the snore bubble are the only blue parts of the cat, and
-  // the backdrop is bluer than red by only 16.
   private func zAndBubblePixels(in frame: Bitmap) -> Int {
     stride(from: 0, to: frame.pixels.count, by: 4).filter { start in
       Int(frame.pixels[start + 2]) - Int(frame.pixels[start]) > 25
     }.count
   }
 
-  // QA 10.10: Charging stops the transition where it is. A "z" or the bubble that the interrupted
-  // transition hadn't faded in yet must not pop in before the wake-up fades it.
   func testChargingMidTransitionShowsNoZOrBubbleThatWasntThere() {
     let cases: [(from: DrowsinessState, to: DrowsinessState)] = [
       (.yawning, .noddingOff), (.noddingOff, .asleep),
@@ -193,8 +172,6 @@ final class TransitionSnapshotTests: XCTestCase {
 
   // MARK: - Leaving a loop
 
-  // QA 10.11: nothing jumps in the first frame. The "z"s in the air fade where they are, and the
-  // bubble and body ease back while the crossfade carries the face to awake.
   func testLeavingTheSnoreForAwakeEasesTheLoopOut() {
     let film = CatFilm(resting: .asleep)
     film.advance(by: 2)
@@ -207,7 +184,6 @@ final class TransitionSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 10.11: the same from the floating "z"s and the bobbing head.
   func testLeavingTheFloatingZsForAwakeEasesTheLoopOut() {
     let film = CatFilm(resting: .noddingOff)
     film.advance(by: 2)
@@ -220,8 +196,6 @@ final class TransitionSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 10.11 (a) and 8.6: the head droops from wherever the breath left it, and the body and
-  // bubble ease back.
   func testLeavingTheSnoreForNoddingOffDroopsFromWhereTheHeadIs() {
     let film = CatFilm(resting: .asleep)
     film.advance(by: 2)
@@ -234,8 +208,6 @@ final class TransitionSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 10.11 (b): the bubble pops from its current size and the body is back at rest before the
-  // stretch.
   func testLeavingTheSnoreForWakingPopsTheBubbleFromItsSize() {
     let film = CatFilm(resting: .asleep)
     film.advance(by: 2)
@@ -248,7 +220,6 @@ final class TransitionSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 10.11 (b), from the floating "z"s.
   func testLeavingTheFloatingZsForWakingDoesNotJump() {
     let film = CatFilm(resting: .noddingOff)
     film.advance(by: 2)
@@ -261,8 +232,6 @@ final class TransitionSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 9.9: a change in the middle of a yawn stops it at once, and a crossfade carries the cat to
-  // the awake pose.
   func testAChangeInTheMiddleOfAnAmbientYawnStopsItAndCrossfades() {
     let film = CatFilm(resting: .yawning)
     film.playNextGesture(in: self)
@@ -297,8 +266,6 @@ final class TransitionSnapshotTests: XCTestCase {
     .fadedOut(dock.perch(for: MascotOverlay.spriteSize), on: dock)
   }
 
-  // QA 10.7: hovering in the middle of the crossfade fades the cat out; it comes back in the
-  // asleep pose without replaying the crossfade.
   func testHoveringDuringTheCrossfadeBringsTheCatBackAsleep() {
     let clock = TestClock()
     let overlay = overlay(clock: clock)
@@ -318,8 +285,6 @@ final class TransitionSnapshotTests: XCTestCase {
     assertFrame(cat.render(over: CatFilm.backdrop), matches: "pose-asleep-left")
   }
 
-  // QA 10.8: with the Dock hidden, a change switches at once, so the cat appears in the new pose
-  // without replaying its animation.
   func testAChangeWhileTheDockIsHiddenShowsTheNewPoseAtOnce() {
     let clock = TestClock()
     let overlay = overlay(clock: clock)
@@ -336,10 +301,6 @@ final class TransitionSnapshotTests: XCTestCase {
     assertFrame(cat.render(over: CatFilm.backdrop), matches: "pose-yawning-left")
   }
 
-  // QA 10.9: hovering as each transition starts brings the cat back in the new state's pose, at
-  // its normal width, with no leftover "z"s or bubble. Then the next ambient behaviour starts: a
-  // loop at once, or a gesture scheduled while the cat stays still. Waking has none of its own;
-  // it starts once waking ends and the cat is awake, as BatteryMonitor reports after 3 s.
   func testHoveringAsEachTransitionStartsBringsTheCatBackInTheNewPose() {
     let cases: [(from: MascotMood, to: MascotMood, pose: String, loops: Bool)] = [
       (.drowsiness(.drowsy), .drowsiness(.yawning), "pose-yawning-left", false),

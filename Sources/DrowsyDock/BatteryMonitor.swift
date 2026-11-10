@@ -2,17 +2,12 @@ import DrowsyDockCore
 import Observation
 import os
 
-/// Where `BatteryMonitor` reads the battery, and hears that it may have changed.
 @MainActor
 protocol PowerSource {
-  /// Whether Low Power Mode is on.
   var isLowPowerModeOn: Bool { get }
 
-  /// Returns the internal battery's reading, or `nil` when the Mac has none.
   func readBattery() -> BatteryReading?
 
-  /// Calls `onChange` whenever the power source or Low Power Mode may have changed, for as long as
-  /// the returned subscription is kept.
   func subscribe(onChange: @escaping @MainActor @Sendable () -> Void) throws -> AnyObject
 }
 
@@ -39,7 +34,6 @@ final class BatteryMonitor {
     StatusLine.text(for: session.tracker, isLowPowerModeOn: isLowPowerModeOn)
   }
 
-  /// Starts reading `source`. `clock` times the end of `waking`; tests pass a clock they advance.
   init(
     source: any PowerSource = IOKitPowerSource(),
     clock: any Clock<Duration> = ContinuousClock()

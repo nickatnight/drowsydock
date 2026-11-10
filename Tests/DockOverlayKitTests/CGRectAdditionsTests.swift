@@ -35,7 +35,6 @@ final class CGRectAdditionsTests: XCTestCase {
   }
 
   // AppKit's window frames are bounded by the window server's 32-bit coordinates, edge by edge.
-  // Each frame has one edge outside that range and the other three inside it.
   func testAFrameWithAnyEdgeOutsideTheWindowServersRangeIsNotUsable() {
     XCTAssertFalse(CGRect(x: -3e9, y: 20, width: 3e9 + 100, height: 80).isUsableWindowFrame)
     XCTAssertFalse(CGRect(x: 20, y: -3e9, width: 64, height: 3e9 + 100).isUsableWindowFrame)

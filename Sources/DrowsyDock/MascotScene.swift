@@ -22,8 +22,6 @@ final class MascotScene: SKScene, HostedScene {
   private let clock: any Clock<Duration>
   private var generator: any RandomNumberGenerator
 
-  /// Creates the scene. `clock` times the pauses between gestures and `generator` draws them; tests
-  /// pass a clock they advance and a seeded generator.
   init(
     clock: any Clock<Duration> = ContinuousClock(),
     generator: any RandomNumberGenerator = SystemRandomNumberGenerator()

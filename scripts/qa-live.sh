@@ -31,7 +31,6 @@ helper="$root/.build/release/qa-helper"
 subsystem="com.drowsydock.DrowsyDock"
 restore_command="test -f '$backup' && defaults delete com.apple.dock && defaults import com.apple.dock '$backup' && killall Dock && rm '$backup'"
 
-# name|QA rows|what it checks
 scenarios=(
   "restore-selftest|-|saves the Dock preferences, changes nothing, restores them"
   "launch|1.1 1.2 1.3 7.0|a menu-bar app with no Dock icon; Quit and Cmd-Q end it"
@@ -97,7 +96,6 @@ done
 say() { printf '%s\n' "$*"; }
 step() { printf '\n==> %s\n' "$*"; }
 
-# Runs a command, or prints it in a dry run.
 act() {
   if $dry_run; then
     printf '    would run: %s\n' "$*"
@@ -106,7 +104,6 @@ act() {
   "$@"
 }
 
-# result PASS|FAIL|SKIP "rows" "scenario" "detail"
 result() {
   local verdict="$1" rows="$2" scenario="$3" detail="$4"
   if $dry_run; then
@@ -118,7 +115,6 @@ result() {
   if [[ $verdict == FAIL ]]; then failed=true; fi
 }
 
-# pass_if CONDITION-COMMAND rows scenario detail: PASS when the command succeeds.
 check() {
   local rows="$1" scenario="$2" detail="$3"
   shift 3
@@ -190,7 +186,6 @@ restore_dock() {
   rm -f "$backup"
 }
 
-# dock_set KEY -TYPE VALUE: changes one Dock preference and relaunches the Dock.
 dock_set() {
   act defaults write com.apple.dock "$@"
   act killall Dock
@@ -234,7 +229,6 @@ mark_log() {
   log_mark="$(wc -l <"$app_log" | tr -d ' ')"
 }
 
-# wait_log PATTERN SECONDS: waits for a log line after the mark that matches PATTERN (grep -E).
 wait_log() {
   local pattern="$1" seconds="$2" waited=0
   if $dry_run; then
@@ -249,7 +243,6 @@ wait_log() {
   return 1
 }
 
-# The newest log line after the mark that matches PATTERN.
 last_log() {
   tail -n "+$((log_mark + 1))" "$app_log" | grep -E -- "$1" | tail -n 1
 }
@@ -260,7 +253,6 @@ no_log_since_mark() {
 
 # MARK: - Driving the app
 
-# menu ITEM… clicks through DrowsyDock's menu-bar menu, such as: menu Debug "Simulate battery" 80%
 menu() {
   if $dry_run; then
     printf '    would click in the menu: %s\n' "$(printf '%s ▸ ' "$@" | sed 's/ ▸ $//')"
@@ -291,7 +283,6 @@ simulate() {
   menu Debug "Simulate battery" "$1"
 }
 
-# The first line of the open menu: the battery line.
 menu_first_line() {
   osascript <<'APPLESCRIPT'
 tell application "System Events"
@@ -333,7 +324,6 @@ quit_app() {
   done
 }
 
-# Dock geometry through the helper, as shell variables: dock_orientation, dock_background, …
 read_dock() {
   if $dry_run; then
     printf '    would run: %s dock\n' "$helper"
@@ -353,7 +343,6 @@ field() { cut -d, -f"$2" <<<"$1"; }
 mid_x() { awk -F, '{print $1 + $3 / 2}' <<<"$1"; }
 mid_y() { awk -F, '{print $2 + $4 / 2}' <<<"$1"; }
 
-# Moves the pointer to the middle of the Dock's display, well away from the Dock.
 pointer_away() {
   read_dock || return 1
   act "$helper" move-pointer "$(mid_x "$dock_screen")" "$(awk -F, '{print $2 + $4 * 0.6}' <<<"$dock_screen")"
@@ -363,7 +352,6 @@ pointer_to() {
   act "$helper" move-pointer "$1" "$2"
 }
 
-# capture NAME: a screenshot of the Dock's capture area into build/qa/NAME.png.
 capture() {
   local region
   if $dry_run; then
@@ -387,7 +375,6 @@ preflight() {
     }
   done
 
-  # Restoring the Dock's preferences needs nothing more; every other scenario needs the app.
   $needs_app || return 0
 
   say "The app must be a fresh bundle from main."
@@ -499,7 +486,6 @@ scenario_battery() {
   fi
 }
 
-# expect_line CHOICE LINE ROWS: picks CHOICE and waits for 'Changed: LINE'.
 expect_line() {
   mark_log
   simulate "$1"
@@ -511,7 +497,6 @@ scenario_levels() {
   simulate Real
   local order
   for order in "80 40 25 15 5" "5 15 25 40 80"; do
-    # Picking the choice already shown changes nothing and logs nothing, so start from No battery.
     simulate "No battery"
     local percent state
     for percent in $order; do
@@ -540,7 +525,6 @@ scenario_levels() {
     wait_log "Changed: .* \\(real\\)" 3
 }
 
-# expect_overlay STATE SECONDS ROWS SCENARIO DETAIL: waits for 'Overlay: STATE' after the mark.
 expect_overlay() {
   check "$3" "$4" "$5" wait_log "Overlay: $1" "$2"
 }
@@ -694,7 +678,6 @@ scenario_relaunch() {
     no_log_since_mark "The Dock list was destroyed|Observing the Dock list for:"
 }
 
-# align_checks ROWS LABEL: screenshots at No battery, 80% and 5%, compared with the AX frames.
 align_checks() {
   local rows="$1" label="$2"
   pointer_away
@@ -727,13 +710,11 @@ scenario_align() {
   simulate 80%
 }
 
-# cpu_average SECONDS: the app's mean CPU over a hands-off run, as CONSTRAINTS.md measures it.
 cpu_average() {
   top -l "$(($1 + 1))" -s 1 -stats cpu -pid "$(pgrep -x DrowsyDock)" |
     awk 'NR>1 && /^[0-9.]+[[:space:]]*$/ {s+=$1; n++} END {printf "%.2f", s/n}'
 }
 
-# cpu_check CHOICE BUDGET ROWS
 cpu_check() {
   local choice="$1" budget="$2" rows="$3" average
   simulate "$choice"
@@ -761,7 +742,6 @@ scenario_cpu() {
   simulate 80%
 }
 
-# sample_idle NAME ROWS DETAIL: after 10 s hands off, the main thread waits and nothing draws.
 sample_idle() {
   local name="$1" rows="$2" detail="$3"
   pointer_away

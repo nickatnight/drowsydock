@@ -3,7 +3,6 @@ import LiveQAKit
 import XCTest
 
 final class LumaImageTests: XCTestCase {
-  // 3 x 2: rows top to bottom.
   private let image = LumaImage(width: 3, height: 2, values: [10, 20, 30, 40, 50, 60])
 
   func testAProfileDownAveragesEachRowOverTheColumns() {
@@ -14,8 +13,6 @@ final class LumaImageTests: XCTestCase {
     XCTAssertEqual(image.profileAcross(rows: 0...1, columns: 0...2), [25, 35, 45])
   }
 
-  // A veil at 0.28 leaves 0.72 of every pixel, bright or dark; a pixel too dark to tell counts as
-  // unchanged.
   func testTheRatioIsTheShareOfTheOtherImagesBrightness() {
     let bare = LumaImage(width: 3, height: 1, values: [100, 50, 4])
     let veiled = LumaImage(width: 3, height: 1, values: [72, 36, 2])

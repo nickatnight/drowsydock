@@ -2,8 +2,6 @@ import CoreGraphics
 import LiveQAKit
 import XCTest
 
-// Synthetic screenshots of a bottom Dock at 2x: a 200 x 60-point area, the Dock's background at
-// (20, 5, 160, 30) with a one-pixel rim just inside its edge, the cat in the perch above it.
 final class DockAlignmentTests: XCTestCase {
   private let area = CaptureArea(frame: CGRect(x: 0, y: 0, width: 200, height: 60), scale: 2)
   private let background = CGRect(x: 20, y: 5, width: 160, height: 30)
@@ -16,8 +14,6 @@ final class DockAlignmentTests: XCTestCase {
     static let cat = 200.0
   }
 
-  // Draws the screen. `veil` is the frame the veil covers, `catBottom` the y where the cat's paws
-  // end.
   private func screenshot(veil: CGRect? = nil, catBottom: Double? = nil) -> LumaImage {
     let (width, height) = (400, 120)
     var values = [Double](repeating: Pixel.desktop, count: width * height)
@@ -83,7 +79,6 @@ final class DockAlignmentTests: XCTestCase {
     XCTAssertEqual(try XCTUnwrap(end.offset), -2, accuracy: 0.01)
   }
 
-  // QA 8.15: before ADR 0013 the paws floated 5 points above the Dock's outline.
   func testPawsFivePointsAboveTheRimFail() throws {
     let checks = checks(veil: background, catBottom: background.maxY + 5)
 
@@ -92,7 +87,6 @@ final class DockAlignmentTests: XCTestCase {
     XCTAssertEqual(try XCTUnwrap(paws.offset), 5, accuracy: 0.01)
   }
 
-  // A run where the veil or the cat never appeared must fail, not find an edge in nothing.
   func testIdenticalScreenshotsFindNoVeilAndNoCat() {
     let alignment = DockAlignment(area: area, edge: .bottom, background: background, perch: perch)
     let bare = screenshot()

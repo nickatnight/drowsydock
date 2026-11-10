@@ -3,8 +3,6 @@ import XCTest
 
 @testable import DrowsyDock
 
-// QA 9.1 to 9.5: what the cat does while it rests. The pauses come from AmbientSchedule through a
-// seeded generator and pass on a test clock; the frames come at fixed scene times.
 @MainActor
 final class AmbientSnapshotTests: XCTestCase {
   private let tolerance = SnapshotTolerance(channel: 2, differingPixels: 4)
@@ -13,7 +11,6 @@ final class AmbientSnapshotTests: XCTestCase {
     try Snapshot.skipUnlessReferenceArchitecture()
   }
 
-  // QA 9.1: a quick blink after 8 to 20 s, and nothing moves before it or after it.
   func testAnAwakeCatBlinksAfterAPauseAndIsStillOtherwise() throws {
     let film = CatFilm(resting: .awake)
     waitUntil("the blink is scheduled") { film.clock.sleeperCount == 1 }
@@ -35,7 +32,6 @@ final class AmbientSnapshotTests: XCTestCase {
     XCTAssertEqual(film.frame(), still)
   }
 
-  // QA 9.2: a slow blink, the heavy lids sinking shut, holding and lifting back.
   func testADrowsyCatBlinksSlowly() throws {
     let film = CatFilm(resting: .drowsy)
     let pause = film.playNextGesture(in: self)
@@ -48,8 +44,6 @@ final class AmbientSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 9.3: about every 45 s the head leans back, the mouth opens wide, the eyes squeeze shut,
-  // then the head nods forward, jerks back up and settles.
   func testAYawningCatYawnsAndNods() throws {
     let film = CatFilm(resting: .yawning)
     let pause = film.playNextGesture(in: self)
@@ -62,8 +56,6 @@ final class AmbientSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 9.4: small "z"s rise from behind the head one after another, and the head bobs. The
-  // static "z" is gone while the loop runs.
   func testANoddingOffCatFloatsZsAndBobsItsHead() {
     let film = CatFilm(resting: .noddingOff)
 
@@ -75,7 +67,6 @@ final class AmbientSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 9.5: the body rises on each breath; on each breath out the bubble swells and a "z" rises.
   func testAnAsleepCatSnores() {
     let film = CatFilm(resting: .asleep)
 

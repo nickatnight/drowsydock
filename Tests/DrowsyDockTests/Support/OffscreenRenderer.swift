@@ -3,12 +3,6 @@ import Foundation
 import Metal
 import SpriteKit
 
-/// Draws a SpriteKit scene into a Metal texture the way `SceneHostView` draws it on screen, at a
-/// scene time the test sets: 2 pixels per point, on the system's default Metal device.
-///
-/// Time only moves when the test calls `advance(by:)`, in steps of 1/60 s. Between steps the main
-/// queue runs, because SpriteKit delivers `SKAction.run(_:queue:)` blocks there, as it does
-/// between frames in the app.
 @MainActor
 final class OffscreenRenderer {
   static let scale = 2
@@ -24,8 +18,6 @@ final class OffscreenRenderer {
   private let commandQueue: any MTLCommandQueue
   private let renderer: SKRenderer
 
-  /// Starts drawing `scene`, updating it once at the starting time. Pass `size` for a scene whose size follows its view's,
-  /// such as `DockCanvasScene`.
   init(scene: SKScene, size: CGSize? = nil) {
     // Every Mac that runs macOS 14 has a Metal device.
     device = MTLCreateSystemDefaultDevice()!
@@ -39,13 +31,10 @@ final class OffscreenRenderer {
     renderer.update(atTime: time)
   }
 
-  /// Moves scene time on by `seconds`.
   func advance(by seconds: TimeInterval) {
     Self.advance([self], by: seconds)
   }
 
-  /// Moves several renderers' scene time on together, step by step, so that work one scene sends
-  /// to the main queue lands between the same frames for all of them.
   static func advance(_ renderers: [OffscreenRenderer], by seconds: TimeInterval) {
     guard let first = renderers.first else { return }
     let end = first.time + seconds
@@ -59,14 +48,10 @@ final class OffscreenRenderer {
     }
   }
 
-  /// Runs the work already waiting on the main queue, such as SpriteKit completion blocks and
-  /// main-actor tasks that a test clock has just woken.
   static func drainMainQueue() {
     while CFRunLoopRunInMode(.defaultMode, 0, true) == .handledSource {}
   }
 
-  /// Returns the frame at the current time, drawn over `backdrop`, an opaque RGB colour. Pass `nil`
-  /// to keep the scene's transparency, for compositing.
   func render(over backdrop: (red: UInt8, green: UInt8, blue: UInt8)?) -> Bitmap {
     let width = Int(scene.size.width) * Self.scale
     let height = Int(scene.size.height) * Self.scale

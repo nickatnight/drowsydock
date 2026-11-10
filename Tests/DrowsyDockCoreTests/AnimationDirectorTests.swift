@@ -252,8 +252,6 @@ final class AnimationDirectorTests: XCTestCase {
   }
 
   func testChargingDuringAYawnStillPlaysTheWakeUpAndEndsAwake() {
-    // Charging right after the yawn starts: waking and its end both arrive before the yawn would
-    // end.
     XCTAssertGreaterThan(MascotAnimation.yawn.duration, DrowsinessTracker.wakingDuration)
     let run = steps(from: drowsy, requests: [yawning, waking, awake])
 

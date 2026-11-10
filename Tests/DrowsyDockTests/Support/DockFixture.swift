@@ -1,12 +1,6 @@
 import CoreGraphics
 import DockOverlayKit
 
-/// Dock geometries as macOS 27 reports them, on a 1512 × 982-point display.
-///
-/// The display sits 50,000 points from the real ones, so an overlay window placed on one of these
-/// Docks during a test is on no screen. The bottom Dock is the user's from job 003 (ADR 0013): the
-/// list at Accessibility (373, 893, 766, 79) with its twelve 63 × 79-point items 5 points lower.
-/// The side Docks follow the same rule, 5 points from their edge.
 enum DockFixture {
   static let offset: CGFloat = 50_000
 

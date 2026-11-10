@@ -2,9 +2,6 @@ import Foundation
 import XCTest
 
 extension XCTestCase {
-  /// Runs the main run loop until `condition` holds, for work that arrives asynchronously, such as
-  /// a task that a test clock woke. Fails after `timeout` seconds of real time, which only a broken
-  /// test reaches.
   @MainActor
   func waitUntil(
     _ description: String,

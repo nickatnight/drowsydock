@@ -2,8 +2,6 @@ import CoreGraphics
 import LiveQAKit
 import XCTest
 
-// Synthetic screenshots of a left Dock at 2x: a 60 x 200-point area, the Dock's background at
-// (5, 20, 30, 160) with a one-pixel rim along its inner edge, and the cat on its top end.
 final class SideDockAlignmentTests: XCTestCase {
   private let area = CaptureArea(frame: CGRect(x: 0, y: 0, width: 60, height: 200), scale: 2)
   private let background = CGRect(x: 5, y: 20, width: 30, height: 160)
@@ -42,7 +40,6 @@ final class SideDockAlignmentTests: XCTestCase {
     )
   }
 
-  // QA 8.9: the veil follows a side Dock's inner edge, and the cat sits on its top end.
   func testAVeilAndCatPlacedOnALeftDockPassEveryCheck() {
     let checks = checks(veil: background)
 

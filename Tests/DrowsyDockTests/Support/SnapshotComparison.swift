@@ -1,23 +1,16 @@
 import Foundation
 
-/// How far an image may stray from its reference and still match it.
 struct SnapshotTolerance {
-  /// The largest difference allowed in any one channel of a pixel, out of 255.
   let channel: UInt8
 
-  /// How many pixels may differ by more than `channel` before the images stop matching.
   let differingPixels: Int
 }
 
-/// Compares an image with its reference, pixel by pixel.
 struct SnapshotComparison {
-  /// The number of pixels with a channel that differs by more than the tolerance.
   let differingPixels: Int
 
-  /// The reference, faded, with every differing pixel painted solid red.
   let diff: Bitmap
 
-  /// Whether the sizes differ, in which case every pixel counts as differing.
   let sizesDiffer: Bool
 
   init(expected: Bitmap, actual: Bitmap, channelTolerance: UInt8) {
@@ -28,8 +21,6 @@ struct SnapshotComparison {
       return
     }
     sizesDiffer = false
-    // Most comparisons are of identical images; memcmp settles those at once, where the loop below
-    // takes seconds on a large strip in a debug build.
     let isIdentical = expected.pixels.withUnsafeBytes { expected in
       actual.pixels.withUnsafeBytes { actual in
         memcmp(expected.baseAddress, actual.baseAddress, expected.count) == 0

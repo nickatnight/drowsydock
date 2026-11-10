@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Proves that `scripts/qa-live.sh --dry-run` touches nothing: every command that could change the
-# Dock, the app, the pointer, the screen or the log is replaced by a stub that records its call, and
-# the dry run must call none of them, create no build/qa folder, and still print every scenario and
-# the Dock-restore command. scripts/check.sh fast runs it.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 

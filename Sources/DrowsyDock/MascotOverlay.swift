@@ -22,7 +22,6 @@ final class MascotOverlay {
   private var mood: MascotMood?
   private var isCrowdEffectPlaying = false
 
-  /// Creates the overlay, hidden, drawing the cat with `catScene`.
   init(catScene: MascotScene = MascotScene()) {
     self.catScene = catScene
     let catHost = SceneHostView(scene: catScene)
@@ -81,7 +80,6 @@ final class MascotOverlay {
       (perch, dock, isFaded) = (fadedPerch, fadedDock, true)
     }
 
-    // A window that refuses its frame is hidden, so its scene must not keep drawing.
     let isPlaced = place(catWindow, at: perch.frame, isFaded: isFaded)
     catScene.setActive(isPlaced && !isFaded)
     catScene.show(mood, facing: perch.facing)
@@ -103,8 +101,6 @@ final class MascotOverlay {
     place(canvasWindow, at: canvas, isFaded: isFaded)
   }
 
-  /// The frame of the window that holds the veil and the crowd effect: the Dock's background with
-  /// a margin for the "z"s, kept on the Dock's display.
   static func canvasFrame(around dock: DockGeometry) -> CGRect {
     dock.backgroundFrame.insetBy(dx: -canvasMargin, dy: -canvasMargin)
       .intersection(dock.screenFrame)
@@ -115,7 +111,6 @@ final class MascotOverlay {
     canvasScene.stopCrowdEffect()
   }
 
-  // Returns whether the window took the frame.
   @discardableResult
   private func place(_ window: OverlayWindow, at frame: CGRect, isFaded: Bool) -> Bool {
     isFaded ? window.fadeOut(at: frame) : window.show(at: frame)

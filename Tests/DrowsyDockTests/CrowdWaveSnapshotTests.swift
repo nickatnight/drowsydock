@@ -4,8 +4,6 @@ import XCTest
 
 @testable import DrowsyDock
 
-// QA 11.1 and 11.5: the whole Dock nods off, drawn by the real MascotOverlay over fixture Docks.
-// Each icon's artwork darkens for 0.3 s and puffs a "z"; the wave runs along the Dock.
 @MainActor
 final class CrowdWaveSnapshotTests: XCTestCase {
   private let tolerance = SnapshotTolerance(channel: 2, differingPixels: 4)
@@ -25,8 +23,6 @@ final class CrowdWaveSnapshotTests: XCTestCase {
     return film
   }
 
-  // QA 11.1: left to right along a bottom Dock; the dark shape covers each icon's rounded square
-  // and nothing more, and the whole wave ends within 4 s (2.65 s for twelve icons).
   func testTheWaveRunsLeftToRightAlongABottomDock() {
     let film = wave(on: DockFixture.bottom)
 
@@ -38,7 +34,6 @@ final class CrowdWaveSnapshotTests: XCTestCase {
     XCTAssertFalse(film.overlay.canvasScene.needsAnotherFrame)
   }
 
-  // QA 11.5: from the top icon down a left Dock, with the "z"s drifting right, into the screen.
   func testTheWaveRunsDownALeftDockAndTheZsDriftIntoTheScreen() {
     let film = wave(on: DockFixture.left)
 
@@ -49,7 +44,6 @@ final class CrowdWaveSnapshotTests: XCTestCase {
     )
   }
 
-  // QA 11.5: on a right Dock the "z"s drift left.
   func testOnARightDockTheZsDriftLeft() {
     let film = wave(on: DockFixture.right)
 

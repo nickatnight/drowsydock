@@ -4,11 +4,8 @@ import DrowsyDockCore
 import Observation
 import os
 
-/// What `AppCoordinator` needs from the Dock tracker: to hear about the Accessibility grant. The
-/// tracker reports what the overlay shows through the closure it was made with.
 @MainActor
 protocol DockTracking: AnyObject {
-  /// Starts following the Dock when `isGranted`, and stops when not.
   func accessibilityChanged(isGranted: Bool)
 }
 
@@ -43,7 +40,6 @@ final class AppCoordinator {
   @ObservationIgnored private let dockTracker: any DockTracking
   @ObservationIgnored private var crowdEffect: CrowdEffectRule
 
-  /// Wires the real battery, Accessibility grant, Dock tracker and overlay.
   convenience init() {
     self.init(
       battery: BatteryMonitor(),
@@ -58,8 +54,6 @@ final class AppCoordinator {
     )
   }
 
-  /// Wires the given parts. `makeDockTracker` gets the closure through which the tracker tells the
-  /// overlay what to show.
   init(
     battery: BatteryMonitor,
     overlay: MascotOverlay,

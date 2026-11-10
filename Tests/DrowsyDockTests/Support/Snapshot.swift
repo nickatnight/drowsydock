@@ -1,11 +1,6 @@
 import Foundation
 import XCTest
 
-/// Compares rendered images with the reference PNGs under `Tests/DrowsyDockTests/Snapshots/`.
-///
-/// `RECORD_SNAPSHOTS=1 swift test` rewrites every reference it reaches, and fails each of those
-/// tests, so a recording run never passes as a check. A mismatch writes the actual image and a
-/// diff image under `.build/snapshot-failures/` and names them in the failure.
 enum Snapshot {
   private static let supportDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
 
@@ -20,8 +15,6 @@ enum Snapshot {
     ProcessInfo.processInfo.environment["RECORD_SNAPSHOTS"] == "1"
   }
 
-  /// Skips the test on a Mac whose GPU didn't draw the references. They were recorded on Apple
-  /// silicon; an Intel GPU antialiases edges differently.
   static func skipUnlessReferenceArchitecture() throws {
     #if !arch(arm64)
       throw XCTSkip("Snapshot references were recorded on Apple silicon (arm64)")
@@ -80,7 +73,6 @@ enum Snapshot {
     )
   }
 
-  // A pass removes the images an earlier failure left, so the folder only shows current failures.
   private static func removeFailures(named name: String) {
     for suffix in ["actual", "diff"] {
       try? FileManager.default.removeItem(

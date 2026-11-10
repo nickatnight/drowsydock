@@ -3,19 +3,9 @@ import ApplicationServices
 import DockOverlayKit
 import LiveQAKit
 
-// The Swift helper for scripts/qa-live.sh. It reads the Dock over Accessibility (read only), moves
-// the pointer, and checks screenshots. The script runs it; nothing in the app bundle includes it.
-//
-//   qa-helper permissions               prints "accessibility=…" and "screen-recording=…"
-//   qa-helper dock                      prints the Dock's geometry as key=value lines
-//   qa-helper pointer                   prints the pointer's position, in AppKit points
-//   qa-helper move-pointer X Y          moves the pointer to AppKit point (X, Y)
-//   qa-helper align KEY=VALUE…          compares screenshots with the Dock's frames (QA 8.5, 8.15)
-
 @main
 @MainActor
 enum QAHelper {
-  // Must match MascotOverlay.spriteSize and its canvas margin in the app.
   static let spriteSize = CGSize(width: 64, height: 80)
   static let canvasMargin: CGFloat = 48
 

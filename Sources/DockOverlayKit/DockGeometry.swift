@@ -107,8 +107,6 @@ public struct DockGeometry: Equatable, Sendable {
   ) -> CGRect {
     guard let first = icons.first else { return list }
     let items = icons.dropFirst().reduce(first) { $0.union($1) }
-    // How far the items reach past the list toward the screen edge: zero or less when they don't.
-    // A background a whole thickness away is no drawn background; ADR 0013 measured 5 points.
     let overhang: CGFloat
     switch orientation {
     case .bottom: overhang = list.minY - items.minY
@@ -124,8 +122,6 @@ public struct DockGeometry: Equatable, Sendable {
     }
   }
 
-  // Checking the edges covers every component, and also a finite origin and size whose sum
-  // overflows.
   private static func isFinite(_ rect: CGRect) -> Bool {
     [rect.minX, rect.minY, rect.maxX, rect.maxY].allSatisfy(\.isFinite)
   }

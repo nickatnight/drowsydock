@@ -3,7 +3,6 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-/// An sRGB image with 8 bits per channel, premultiplied RGBA, rows from top to bottom.
 struct Bitmap: Equatable {
   enum BitmapError: Error {
     case unreadable(URL)
@@ -25,7 +24,6 @@ struct Bitmap: Equatable {
     self.pixels = pixels
   }
 
-  /// A bitmap filled with one opaque colour, given as RGB bytes.
   init(width: Int, height: Int, filledWith color: (red: UInt8, green: UInt8, blue: UInt8)) {
     self.init(
       width: width, height: height, pixels: [UInt8](repeating: 0, count: width * height * 4))
@@ -42,7 +40,6 @@ struct Bitmap: Equatable {
     }
   }
 
-  /// Draws `image` into a new bitmap of the same size.
   init(_ image: CGImage) {
     self.init(
       width: image.width,
@@ -52,7 +49,6 @@ struct Bitmap: Equatable {
     draw(image, at: .zero)
   }
 
-  /// Reads a PNG.
   init(contentsOf url: URL) throws {
     guard
       let source = CGImageSourceCreateWithURL(url as CFURL, nil),
@@ -96,8 +92,6 @@ struct Bitmap: Equatable {
     guard CGImageDestinationFinalize(destination) else { throw BitmapError.unwritable(url) }
   }
 
-  /// Draws `image` over this bitmap with its bottom-left corner at `origin`, in pixels from the
-  /// bitmap's bottom-left corner, as Core Graphics and AppKit place things.
   mutating func draw(_ image: CGImage, at origin: CGPoint) {
     withContext { context in
       context.interpolationQuality = .none
@@ -125,7 +119,6 @@ struct Bitmap: Equatable {
     }
   }
 
-  /// Returns `images` one above the other, top to bottom, on a background of `color`.
   static func column(
     _ images: [Bitmap],
     gap: Int,
@@ -143,7 +136,6 @@ struct Bitmap: Equatable {
     return column
   }
 
-  /// Returns `images` side by side, left to right, on a background of `color`.
   static func row(
     _ images: [Bitmap],
     gap: Int,

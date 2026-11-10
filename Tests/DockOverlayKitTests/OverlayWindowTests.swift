@@ -3,8 +3,6 @@ import XCTest
 
 @testable import DockOverlayKit
 
-// QA 6.2 to 6.4 and 6.7: the window's properties, on the real OverlayWindow. Frames sit 50,000
-// points from every display, so nothing shows on screen.
 @MainActor
 final class OverlayWindowTests: XCTestCase {
   // AppKit runs a window's fade on after the test that started it, and a window freed mid-fade
@@ -20,12 +18,10 @@ final class OverlayWindowTests: XCTestCase {
     return overlay
   }
 
-  // QA 6.2 and 6.3: clicks and drops go through to whatever is under the cat.
   func testItIgnoresTheMouse() {
     XCTAssertTrue(overlay().window.ignoresMouseEvents)
   }
 
-  // QA 6.3: it never takes focus and stays out of Cmd-Tab and window cycling.
   func testItCanNotBecomeKeyAndStaysOutOfTheWindowCycle() {
     let window = overlay().window
 
@@ -34,8 +30,6 @@ final class OverlayWindowTests: XCTestCase {
     XCTAssertTrue(window.collectionBehavior.contains(.ignoresCycle))
   }
 
-  // QA 6.4 and 6.5: it shows on every Space, beside full-screen apps too, and doesn't slide with
-  // the Space animation.
   func testItJoinsEverySpaceAndStaysPutWhenSpacesChange() {
     let behavior = overlay().window.collectionBehavior
 
@@ -44,7 +38,6 @@ final class OverlayWindowTests: XCTestCase {
     XCTAssertTrue(behavior.contains(.fullScreenAuxiliary))
   }
 
-  // QA 6.1: the cat draws over the Dock, just above it and below everything else.
   func testItSitsOneLevelAboveTheDock() {
     XCTAssertEqual(
       overlay().window.level.rawValue,
@@ -52,7 +45,6 @@ final class OverlayWindowTests: XCTestCase {
     )
   }
 
-  // QA 6.7: Hide Others in another app leaves it on the Dock.
   func testHideOthersCanNotHideIt() {
     XCTAssertFalse(overlay().window.canHide)
   }

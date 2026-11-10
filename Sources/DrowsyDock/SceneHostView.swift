@@ -35,10 +35,8 @@ final class SceneHostView: NSView {
     }
   }
 
-  /// How many frames the view has drawn.
   private(set) var framesDrawn = 0
 
-  /// The link that calls `drawFrame(atTime:)`, once the view is in a window.
   private(set) var displayLink: CADisplayLink?
 
   private let renderer: SKRenderer
@@ -123,8 +121,6 @@ final class SceneHostView: NSView {
     drawFrame(atTime: CACurrentMediaTime())
   }
 
-  /// Draws the scene as it is at `time`, in seconds on the media clock, then pauses unless the
-  /// scene needs another frame. The display link calls it; tests call it to stand in for one.
   func drawFrame(atTime time: CFTimeInterval) {
     guard
       metalLayer.drawableSize != .zero,
