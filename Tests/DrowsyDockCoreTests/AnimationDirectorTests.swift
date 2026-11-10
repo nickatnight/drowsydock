@@ -123,6 +123,21 @@ final class AnimationDirectorTests: XCTestCase {
     XCTAssertEqual(director.finishAnimation(), .init(animation: .nodOff, target: noddingOff))
   }
 
+  func testOnlyWakingInterruptsAnAnimationEveryOtherMoodWaits() {
+    let animations: [(from: MascotMood, to: MascotMood)] = [
+      (awake, drowsy), (drowsy, yawning), (yawning, noddingOff), (asleep, waking),
+    ]
+    for (from, to) in animations {
+      for mood in everyMood where mood != .waking {
+        var director = AnimationDirector(showing: from)
+        _ = director.request(to)
+
+        XCTAssertNil(director.request(mood), "\(mood) during \(from) to \(to)")
+        XCTAssertTrue(director.isAnimating, "\(mood) during \(from) to \(to)")
+      }
+    }
+  }
+
   func testBackToBackRequestsCollapseToTheLastOne() {
     var director = AnimationDirector(showing: awake)
     _ = director.request(drowsy)
