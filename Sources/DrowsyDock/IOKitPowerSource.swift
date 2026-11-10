@@ -2,10 +2,11 @@ import DrowsyDockCore
 import Foundation
 import IOKit.ps
 
-enum IOKitPowerSource {
-  static var isLowPowerModeOn: Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }
+/// The Mac's real battery, read through IOKit, and Low Power Mode, read from `ProcessInfo`.
+struct IOKitPowerSource: PowerSource {
+  var isLowPowerModeOn: Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }
 
-  static func readBattery() -> BatteryReading? {
+  func readBattery() -> BatteryReading? {
     guard
       let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
       let list = IOPSCopyPowerSourcesList(info)?.takeRetainedValue()
@@ -15,6 +16,10 @@ enum IOKitPowerSource {
       IOPSGetPowerSourceDescription(info, source)?.takeUnretainedValue() as? [String: Any]
     }
     return PowerSourceParser.reading(from: descriptions)
+  }
+
+  func subscribe(onChange: @escaping @MainActor @Sendable () -> Void) throws -> AnyObject {
+    try Subscription(onChange: onChange)
   }
 
   /// `Subscription` is not main-actor isolated, so its `deinit` may read these non-Sendable

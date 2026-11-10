@@ -5,7 +5,8 @@ import os
 /// full-screen apps, and lets every click through to whatever is below it.
 @MainActor
 public final class OverlayWindow {
-  private let window: NSWindow
+  // Internal so the kit's tests can check the window's properties.
+  let window: NSWindow
 
   /// Creates the window, hidden, with the view it draws.
   public init(contentView: NSView) {

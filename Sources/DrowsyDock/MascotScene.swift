@@ -5,8 +5,8 @@ import SpriteKit
 /// The SpriteKit scene that holds the cat.
 @MainActor
 final class MascotScene: SKScene, HostedScene {
-  private static let oneShotFramesPerSecond = 30
-  private static let loopFramesPerSecond = 15
+  static let oneShotFramesPerSecond = 30
+  static let loopFramesPerSecond = 15
 
   weak var host: SceneHostView?
 

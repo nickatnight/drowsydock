@@ -2,6 +2,20 @@ import DrowsyDockCore
 import Observation
 import os
 
+/// Where `BatteryMonitor` reads the battery, and hears that it may have changed.
+@MainActor
+protocol PowerSource {
+  /// Whether Low Power Mode is on.
+  var isLowPowerModeOn: Bool { get }
+
+  /// Returns the internal battery's reading, or `nil` when the Mac has none.
+  func readBattery() -> BatteryReading?
+
+  /// Calls `onChange` whenever the power source or Low Power Mode may have changed, for as long as
+  /// the returned subscription is kept.
+  func subscribe(onChange: @escaping @MainActor @Sendable () -> Void) throws -> AnyObject
+}
+
 @MainActor
 @Observable
 final class BatteryMonitor {
@@ -16,20 +30,28 @@ final class BatteryMonitor {
   /// Called after each change of the tracker's phase, with the new phase.
   @ObservationIgnored var onPhaseChange: ((DrowsinessTracker.Phase) -> Void)?
 
-  @ObservationIgnored private var powerChanges: IOKitPowerSource.Subscription?
+  @ObservationIgnored private let source: any PowerSource
+  @ObservationIgnored private let clock: any Clock<Duration>
+  @ObservationIgnored private var powerChanges: AnyObject?
   @ObservationIgnored private var wakingTask: Task<Void, Never>?
 
   var statusText: String {
     StatusLine.text(for: session.tracker, isLowPowerModeOn: isLowPowerModeOn)
   }
 
-  init() {
-    session = BatterySession(realReading: IOKitPowerSource.readBattery())
-    isLowPowerModeOn = IOKitPowerSource.isLowPowerModeOn
+  /// Starts reading `source`. `clock` times the end of `waking`; tests pass a clock they advance.
+  init(
+    source: any PowerSource = IOKitPowerSource(),
+    clock: any Clock<Duration> = ContinuousClock()
+  ) {
+    self.source = source
+    self.clock = clock
+    session = BatterySession(realReading: source.readBattery())
+    isLowPowerModeOn = source.isLowPowerModeOn
     Self.logger.notice("Started: \(self.logLine, privacy: .public)")
 
     do {
-      powerChanges = try IOKitPowerSource.Subscription { [weak self] in
+      powerChanges = try source.subscribe { [weak self] in
         self?.powerSourceDidChange()
       }
     } catch {
@@ -45,9 +67,9 @@ final class BatteryMonitor {
 
   private func powerSourceDidChange() {
     Self.logger.debug("Power source notification")
-    let reading = IOKitPowerSource.readBattery()
+    let reading = source.readBattery()
     changeStatus {
-      isLowPowerModeOn = IOKitPowerSource.isLowPowerModeOn
+      isLowPowerModeOn = source.isLowPowerModeOn
       session.receive(reading)
     }
   }
@@ -66,8 +88,8 @@ final class BatteryMonitor {
   private func scheduleEndOfWakingIfEntered(from previousPhase: DrowsinessTracker.Phase) {
     guard session.tracker.phase == .waking, previousPhase != .waking else { return }
     wakingTask?.cancel()
-    wakingTask = Task { [weak self] in
-      guard (try? await Task.sleep(for: DrowsinessTracker.wakingDuration)) != nil, let self else {
+    wakingTask = Task { [weak self, clock] in
+      guard (try? await clock.sleep(for: DrowsinessTracker.wakingDuration)) != nil, let self else {
         return
       }
       changeStatus { session.finishWaking() }

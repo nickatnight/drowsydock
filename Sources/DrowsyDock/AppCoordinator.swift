@@ -4,6 +4,14 @@ import DrowsyDockCore
 import Observation
 import os
 
+/// What `AppCoordinator` needs from the Dock tracker: to hear about the Accessibility grant. The
+/// tracker reports what the overlay shows through the closure it was made with.
+@MainActor
+protocol DockTracking: AnyObject {
+  /// Starts following the Dock when `isGranted`, and stops when not.
+  func accessibilityChanged(isGranted: Bool)
+}
+
 @MainActor
 @Observable
 final class AppCoordinator {
@@ -24,20 +32,46 @@ final class AppCoordinator {
   private static let accessibilityListChanged = Notification.Name("com.apple.accessibility.api")
   private static let grantRecheckDelay = Duration.seconds(1)
 
-  let battery = BatteryMonitor()
+  let battery: BatteryMonitor
   private(set) var isAccessibilityGranted: Bool
 
+  @ObservationIgnored let overlay: MascotOverlay
   @ObservationIgnored private var menuObserver: (any NSObjectProtocol)?
   @ObservationIgnored private var accessibilityObserver: (any NSObjectProtocol)?
   @ObservationIgnored private var grantRecheck: Task<Void, Never>?
-  @ObservationIgnored private let dockTracker: DockTracker
-  @ObservationIgnored private let overlay = MascotOverlay()
+  @ObservationIgnored private let readsAccessibilityGrant: @MainActor () -> Bool
+  @ObservationIgnored private let dockTracker: any DockTracking
   @ObservationIgnored private var crowdEffect: CrowdEffectRule
 
-  init() {
-    isAccessibilityGranted = AccessibilityPermission.isGranted
+  /// Wires the real battery, Accessibility grant, Dock tracker and overlay.
+  convenience init() {
+    self.init(
+      battery: BatteryMonitor(),
+      overlay: MascotOverlay(),
+      readsAccessibilityGrant: { AccessibilityPermission.isGranted },
+      makeDockTracker: { onPresentationChange in
+        DockTracker(
+          spriteSize: MascotOverlay.spriteSize,
+          onPresentationChange: onPresentationChange
+        )
+      }
+    )
+  }
+
+  /// Wires the given parts. `makeDockTracker` gets the closure through which the tracker tells the
+  /// overlay what to show.
+  init(
+    battery: BatteryMonitor,
+    overlay: MascotOverlay,
+    readsAccessibilityGrant: @escaping @MainActor () -> Bool,
+    makeDockTracker: (@escaping @MainActor (OverlayPresentation) -> Void) -> any DockTracking
+  ) {
+    self.battery = battery
+    self.overlay = overlay
+    self.readsAccessibilityGrant = readsAccessibilityGrant
+    isAccessibilityGranted = readsAccessibilityGrant()
     crowdEffect = CrowdEffectRule(startingIn: battery.session.tracker.phase)
-    dockTracker = DockTracker(spriteSize: MascotOverlay.spriteSize) { [overlay] presentation in
+    dockTracker = makeDockTracker { [overlay] presentation in
       overlay.present(presentation)
     }
     overlay.show(battery.session.tracker.phase.mood)
@@ -111,7 +145,7 @@ final class AppCoordinator {
   }
 
   private func refreshAccessibility() {
-    let isGranted = AccessibilityPermission.isGranted
+    let isGranted = readsAccessibilityGrant()
     guard isGranted != isAccessibilityGranted else { return }
     isAccessibilityGranted = isGranted
     Self.logger.notice("Accessibility granted: \(isGranted, privacy: .public)")

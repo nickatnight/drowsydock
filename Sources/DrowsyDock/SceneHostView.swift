@@ -35,10 +35,15 @@ final class SceneHostView: NSView {
     }
   }
 
+  /// How many frames the view has drawn.
+  private(set) var framesDrawn = 0
+
+  /// The link that calls `drawFrame(atTime:)`, once the view is in a window.
+  private(set) var displayLink: CADisplayLink?
+
   private let renderer: SKRenderer
   private let commandQueue: MTLCommandQueue
   private let metalLayer = CAMetalLayer()
-  private var displayLink: CADisplayLink?
 
   /// Creates a view drawing `scene`, or returns `nil` when the Mac has no Metal device.
   init?(scene: any HostedScene) {
@@ -97,7 +102,7 @@ final class SceneHostView: NSView {
 
   private func updateDisplayLink() {
     if displayLink == nil, window != nil {
-      let link = displayLink(target: self, selector: #selector(drawFrame(_:)))
+      let link = displayLink(target: self, selector: #selector(displayLinkFired(_:)))
       link.add(to: .main, forMode: .common)
       displayLink = link
       applyFrameRate()
@@ -114,13 +119,19 @@ final class SceneHostView: NSView {
     )
   }
 
-  @objc private func drawFrame(_ link: CADisplayLink) {
+  @objc private func displayLinkFired(_ link: CADisplayLink) {
+    drawFrame(atTime: CACurrentMediaTime())
+  }
+
+  /// Draws the scene as it is at `time`, in seconds on the media clock, then pauses unless the
+  /// scene needs another frame. The display link calls it; tests call it to stand in for one.
+  func drawFrame(atTime time: CFTimeInterval) {
     guard
       metalLayer.drawableSize != .zero,
       let drawable = metalLayer.nextDrawable(),
       let commandBuffer = commandQueue.makeCommandBuffer()
     else { return }
-    renderer.update(atTime: CACurrentMediaTime())
+    renderer.update(atTime: time)
     let pass = MTLRenderPassDescriptor()
     pass.colorAttachments[0].texture = drawable.texture
     pass.colorAttachments[0].loadAction = .clear
@@ -133,6 +144,7 @@ final class SceneHostView: NSView {
     )
     commandBuffer.present(drawable)
     commandBuffer.commit()
+    framesDrawn += 1
     if !scene.needsAnotherFrame {
       isPaused = true
     }
