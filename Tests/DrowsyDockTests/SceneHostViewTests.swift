@@ -97,7 +97,12 @@ final class SceneHostViewTests: XCTestCase {
       XCTAssertEqual(runDisplayLinks([cat], for: 2), [24], "\(state)")
       XCTAssertFalse(cat.isPaused, "\(state)")
       XCTAssertEqual(cat.framesPerSecond, 12, "\(state)")
-      XCTAssertEqual(cat.displayLink?.preferredFrameRateRange.preferred, 12, "\(state)")
+      // ADR 0011 and 0017: minimum, maximum and preferred are all the rate, so the system can't
+      // pick a faster one.
+      let range = try XCTUnwrap(cat.displayLink?.preferredFrameRateRange, "\(state)")
+      XCTAssertEqual(range.preferred, 12, "\(state)")
+      XCTAssertEqual(range.minimum, 12, "\(state)")
+      XCTAssertEqual(range.maximum, 12, "\(state)")
     }
   }
 

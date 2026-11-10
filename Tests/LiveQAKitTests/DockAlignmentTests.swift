@@ -14,7 +14,14 @@ final class DockAlignmentTests: XCTestCase {
     static let cat = 200.0
   }
 
-  private func screenshot(veil: CGRect? = nil, catBottom: Double? = nil) -> LumaImage {
+  // `drawn` is where the Dock really draws its background, which is `background` unless a test
+  // moves it away from the Accessibility frames.
+  private func screenshot(
+    veil: CGRect? = nil,
+    catBottom: Double? = nil,
+    drawn: CGRect? = nil
+  ) -> LumaImage {
+    let drawn = drawn ?? background
     let (width, height) = (400, 120)
     var values = [Double](repeating: Pixel.desktop, count: width * height)
     for row in 0..<height {
@@ -22,8 +29,10 @@ final class DockAlignmentTests: XCTestCase {
         let point = CGPoint(
           x: area.x(atPixelColumn: Double(column) + 0.5), y: area.y(atPixelRow: Double(row) + 0.5))
         var value = Pixel.desktop
-        if background.contains(point) {
-          let onRim = point.y > background.maxY - 0.5 || point.x > background.maxX - 0.5
+        if drawn.contains(point) {
+          let onRim =
+            point.y > drawn.maxY - 0.5 || point.y < drawn.minY + 0.5
+            || point.x > drawn.maxX - 0.5 || point.x < drawn.minX + 0.5
           value = onRim ? Pixel.rim : Pixel.dock
         }
         if let veil, veil.contains(point) {
@@ -40,12 +49,16 @@ final class DockAlignmentTests: XCTestCase {
     return LumaImage(width: width, height: height, values: values)
   }
 
-  private func checks(veil: CGRect, catBottom: Double) -> [String: EdgeCheck] {
+  private func checks(
+    veil: CGRect,
+    catBottom: Double,
+    drawn: CGRect? = nil
+  ) -> [String: EdgeCheck] {
     let alignment = DockAlignment(area: area, edge: .bottom, background: background, perch: perch)
     let checks = alignment.checks(
-      bare: screenshot(),
-      awake: screenshot(catBottom: catBottom),
-      asleep: screenshot(veil: veil, catBottom: catBottom)
+      bare: screenshot(drawn: drawn),
+      awake: screenshot(catBottom: catBottom, drawn: drawn),
+      asleep: screenshot(veil: veil, catBottom: catBottom, drawn: drawn)
     )
     return Dictionary(uniqueKeysWithValues: checks.map { ($0.name, $0) })
   }
@@ -53,7 +66,7 @@ final class DockAlignmentTests: XCTestCase {
   func testAVeilAndCatPlacedOnTheBackgroundPassEveryCheck() {
     let checks = checks(veil: background, catBottom: background.maxY)
 
-    XCTAssertEqual(checks.count, 5)
+    XCTAssertEqual(checks.count, 13)
     for check in checks.values {
       XCTAssertTrue(check.passes, check.report)
     }
@@ -93,10 +106,38 @@ final class DockAlignmentTests: XCTestCase {
 
     let checks = alignment.checks(bare: bare, awake: bare, asleep: bare)
 
-    let missing = checks.filter { $0.found == nil }.map(\.name)
-    XCTAssertEqual(
-      Set(missing),
-      ["veil, top edge (8.5)", "veil, right end (8.5)", "paws on the Dock's top edge (8.15)"]
-    )
+    let missing = Set(checks.filter { $0.found == nil }.map(\.name))
+    let rims = Set(checks.filter { $0.name.hasPrefix("Dock rim") }.map(\.name))
+    XCTAssertEqual(missing, Set(checks.map(\.name)).subtracting(rims))
+  }
+
+  // QA 8.5 asks for the veil within 1 pt of the outline itself. The Accessibility frames could be
+  // off while the veil sits on the outline, or the other way round.
+  func testAVeilOnTheDrawnOutlinePassesAgainstTheRimEvenWhereTheFramesAreOff() throws {
+    let drawn = background.offsetBy(dx: 0, dy: 2)
+    let checks = checks(veil: drawn, catBottom: drawn.maxY, drawn: drawn)
+
+    XCTAssertFalse(try XCTUnwrap(checks["Dock rim, top edge (8.5)"]).passes)
+    XCTAssertTrue(try XCTUnwrap(checks["veil against the rim, top edge (8.5)"]).passes)
+  }
+
+  func testAVeilTwoPointsShortOfTheLeftEndFailsAgainstTheFramesAndTheRim() throws {
+    let veil = CGRect(
+      x: background.minX + 2, y: background.minY, width: background.width - 2,
+      height: background.height)
+    let checks = checks(veil: veil, catBottom: background.maxY)
+
+    XCTAssertFalse(try XCTUnwrap(checks["veil, left end (8.5)"]).passes)
+    XCTAssertFalse(try XCTUnwrap(checks["veil against the rim, left end (8.5)"]).passes)
+    XCTAssertTrue(try XCTUnwrap(checks["veil, right end (8.5)"]).passes)
+  }
+
+  func testAVeilThatStopsShortOfTheBottomEdgeFails() throws {
+    let veil = CGRect(
+      x: background.minX, y: background.minY + 2, width: background.width,
+      height: background.height - 2)
+    let checks = checks(veil: veil, catBottom: background.maxY)
+
+    XCTAssertFalse(try XCTUnwrap(checks["veil, bottom edge (8.5)"]).passes)
   }
 }

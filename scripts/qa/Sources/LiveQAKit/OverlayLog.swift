@@ -15,4 +15,13 @@ public enum OverlayLog {
     guard numbers.count == 4 else { return nil }
     return CGRect(x: numbers[0], y: numbers[1], width: numbers[2], height: numbers[3])
   }
+
+  /// Returns the way the logged perch faces, "left" or "right", or `nil` when the line holds none.
+  public static func perchFacing(in line: String) -> String? {
+    guard let start = line.range(of: "DockPerch(frame: ") else { return nil }
+    let rest = line[start.upperBound...]
+    guard let facing = rest.range(of: "Facing.") else { return nil }
+    let word = rest[facing.upperBound...].prefix { $0.isLetter }
+    return word == "left" || word == "right" ? String(word) : nil
+  }
 }

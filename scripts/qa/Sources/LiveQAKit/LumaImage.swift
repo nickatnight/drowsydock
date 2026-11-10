@@ -91,6 +91,13 @@ public struct LumaImage: Equatable, Sendable {
     )
   }
 
+  /// Returns how many pixels differ from the same pixel of `other`, which must have the same size,
+  /// by more than `threshold`.
+  public func countOfPixels(differingFrom other: LumaImage, by threshold: Double) -> Int {
+    precondition(width == other.width && height == other.height, "same size")
+    return zip(values, other.values).filter { abs($0 - $1) > threshold }.count
+  }
+
   /// Returns how much brighter each pixel of `self` is than the same pixel of `other`, which must
   /// have the same size.
   public func subtracting(_ other: LumaImage) -> LumaImage {

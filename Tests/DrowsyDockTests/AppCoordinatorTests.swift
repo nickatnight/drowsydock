@@ -1,8 +1,8 @@
 import AppKit
-import DockOverlayKit
 import DrowsyDockCore
 import XCTest
 
+@testable import DockOverlayKit
 @testable import DrowsyDock
 
 @MainActor
@@ -23,6 +23,8 @@ final class AppCoordinatorTests: XCTestCase {
     let tracker: FakeDockTracker
     let clock: TestClock
     let grant: Grant
+    let catFades: FadeRecorder
+    let canvasFades: FadeRecorder
 
     var line: String { coordinator.battery.statusText }
     var overlay: MascotOverlay { coordinator.overlay }
@@ -72,7 +74,9 @@ final class AppCoordinatorTests: XCTestCase {
       power: power,
       tracker: tracker,
       clock: clock,
-      grant: grant
+      grant: grant,
+      catFades: FadeRecorder(coordinator.overlay.catWindow),
+      canvasFades: FadeRecorder(coordinator.overlay.canvasWindow)
     )
   }
 
@@ -191,11 +195,24 @@ final class AppCoordinatorTests: XCTestCase {
 
   // MARK: - When the overlay shows
 
-  func testWithoutTheGrantTheTrackerIsToldAndNothingShows() {
+  // The tracker's own rule (DockTrackerTests.testTheOverlayStaysHiddenWithoutTheGrant) hides the
+  // overlay without the grant. This test proves the coordinator's part: the grant reaches the
+  // tracker at launch and when it is revoked, and the tracker's hidden presentation hides the cat.
+  func testTheGrantReachesTheTrackerAndItsHiddenPresentationHidesTheCat() {
     let rig = rig(granted: false)
-
     XCTAssertEqual(rig.tracker.grants, [false])
     XCTAssertFalse(rig.coordinator.isAccessibilityGranted)
+    XCTAssertEqual(rig.overlay.catWindow.visibility, .hidden)
+    rig.grant.isGranted = true
+    NotificationCenter.default.post(name: NSMenu.didBeginTrackingNotification, object: nil)
+    rig.percent(80)
+    rig.tracker.present(shown)
+    XCTAssertEqual(rig.overlay.catWindow.visibility, .shown)
+
+    rig.grant.isGranted = false
+    NotificationCenter.default.post(name: NSMenu.didBeginTrackingNotification, object: nil)
+
+    XCTAssertEqual(rig.tracker.grants, [false, true, false])
     XCTAssertEqual(rig.overlay.catWindow.visibility, .hidden)
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .hidden)
   }
@@ -253,6 +270,9 @@ final class AppCoordinatorTests: XCTestCase {
     rig.percent(15)
 
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .hidden)
+    XCTAssertEqual(rig.canvasFades.lastFade?.alpha, 0, "the veil fades out (10.11)")
+    XCTAssertEqual(rig.canvasFades.lastFade?.duration, 0.2)
+    XCTAssertFalse(rig.overlay.canvasWindow.window.isVisible)
   }
 
   func testARefusedPerchFrameHidesTheCatAndStopsItsScene() {
@@ -278,9 +298,15 @@ final class AppCoordinatorTests: XCTestCase {
 
     rig.tracker.present(fadedOut)
     XCTAssertEqual(rig.overlay.catWindow.visibility, .fadedOut)
+    XCTAssertEqual(rig.catFades.lastFade?.alpha, 0)
+    XCTAssertEqual(rig.catFades.lastFade?.duration, 0.2, "the label is readable within 0.2 s")
+    XCTAssertEqual(rig.overlay.catWindow.window.alphaValue, 0)
+    XCTAssertTrue(rig.overlay.catWindow.window.isVisible)
     rig.tracker.present(shown)
 
     XCTAssertEqual(rig.overlay.catWindow.visibility, .shown)
+    XCTAssertEqual(rig.catFades.lastFade?.alpha, 1)
+    XCTAssertEqual(rig.overlay.catWindow.window.alphaValue, 1)
   }
 
   func testAtFivePercentTheVeilFadesWithTheCat() {
@@ -291,10 +317,14 @@ final class AppCoordinatorTests: XCTestCase {
 
     rig.tracker.present(fadedOut)
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .fadedOut)
+    XCTAssertEqual(rig.canvasFades.lastFade?.alpha, 0)
+    XCTAssertEqual(rig.catFades.lastFade?.alpha, 0)
+    XCTAssertEqual(rig.overlay.canvasWindow.window.alphaValue, 0)
     XCTAssertFalse(rig.overlay.catScene.needsAnotherFrame)
     rig.tracker.present(shown)
 
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .shown)
+    XCTAssertEqual(rig.overlay.canvasWindow.window.alphaValue, 1)
     XCTAssertTrue(rig.overlay.catScene.needsAnotherFrame)
   }
 
@@ -366,6 +396,7 @@ final class AppCoordinatorTests: XCTestCase {
 
     rig.tracker.present(fadedOut)
     XCTAssertFalse(isWavePlaying(rig))
+    XCTAssertEqual(rig.canvasFades.lastFade?.alpha, 0)
     rig.tracker.present(shown)
 
     XCTAssertFalse(isWavePlaying(rig))

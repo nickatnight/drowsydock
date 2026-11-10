@@ -136,6 +136,28 @@ enum QAHelper {
       let sprite = arguments.dropFirst().first { $0.hasPrefix("sprite=") }
         .map { size(String($0.dropFirst("sprite=".count))) }
       printDock(sprite: sprite)
+    case "logged-facing":
+      guard arguments.count == 2, let facing = OverlayLog.perchFacing(in: arguments[1]) else {
+        fail("no DockPerch facing in the log line")
+      }
+      print(facing)
+    case "region":
+      guard arguments.count == 2 else { fail("usage: qa-helper region X,Y,W,H") }
+      let area = CaptureArea(frame: rect(arguments[1]), scale: 1)
+      print(area.screencaptureRegion(primaryHeight: primaryHeight()))
+    case "differing-pixels":
+      guard arguments.count == 3 else { fail("usage: qa-helper differing-pixels A.png B.png") }
+      do {
+        let first = try LumaImage(contentsOf: URL(fileURLWithPath: arguments[1]))
+        let second = try LumaImage(contentsOf: URL(fileURLWithPath: arguments[2]))
+        guard first.width == second.width, first.height == second.height else {
+          fail("the screenshots differ in size")
+        }
+        let differing = first.countOfPixels(differingFrom: second, by: 24)
+        print("\(differing) \(first.values.count)")
+      } catch {
+        fail("couldn't read a screenshot: \(error)")
+      }
     case "logged-perch":
       guard arguments.count == 2, let perch = OverlayLog.perchFrame(in: arguments[1]) else {
         fail("no DockPerch frame in the log line")
@@ -153,7 +175,8 @@ enum QAHelper {
       align(Array(arguments.dropFirst()))
     default:
       fail(
-        "usage: qa-helper permissions|dock [sprite=W,H]|logged-perch LINE|pointer"
+        "usage: qa-helper permissions|dock [sprite=W,H]|logged-perch LINE|logged-facing LINE"
+          + "|region X,Y,W,H|differing-pixels A B|pointer"
           + "|move-pointer X Y|align KEY=VALUE…"
       )
     }

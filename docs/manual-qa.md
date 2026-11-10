@@ -101,7 +101,7 @@ Start without the grant: `tccutil reset Accessibility com.drowsydock.DrowsyDock`
 |---|---|---|
 | 8.14 | Look at the cat on a Retina display and, if you have one, on a non-Retina display. | Outlines are smooth on both, with no blurry or jagged edges. |
 | 3.17 | With the grant and the cat showing, open the menu, go to Debug ▸ Simulate battery, move up and down through the levels, then pick 5%. Open it again and pick 80%. | The submenus open and the highlight follows the pointer as in other menu-bar menus. The menu closes with its usual fade, and the cat starts its transition (10.4, 10.11) as the menu disappears. A harness that drove this same SwiftUI menu measured AppKit's own work when the menu closes at 34 to 58 ms of main-thread time whether or not the app did anything. DrowsyDock's part was under 10 ms on the first pick and under 1.5 ms after that, and it runs after menu tracking has ended. If the menu stutters anyway, repeat the picks while `sample DrowsyDock 10 1 -file menu.txt` runs and attach `menu.txt`. |
-| E.1 | Choose each Simulate battery level and Charging once, and look at the cat on the Dock for a few seconds each. | Each pose and its ambient behaviour look like the snapshots under `Tests/DrowsyDockTests/Snapshots/`, and nothing looks broken: no clipped ears, no stray shapes, the veil over the Dock. |
+| E.1 | Choose each Simulate battery level and Charging once, and look at the cat on the Dock for a few seconds each. | Each pose and its ambient behaviour look like the snapshots under `Tests/DrowsyDockTests/Snapshots/`, and nothing looks broken: no clipped ears, no stray shapes, the veil over the Dock. Once, after Charging then 5%, watch the wave: each dark square sits on its icon's artwork with no taller box above or below it (11.1; the snapshot draws its own fixture icons, so only the real Dock shows the fit). |
 
 That is 27 rows. Not runnable yet:
 
@@ -136,10 +136,10 @@ That is 27 rows. Not runnable yet:
 | 5.2 | Move the Dock to the left, then the right (System Settings ▸ Desktop & Dock ▸ Position on screen), and log again each time | `DockGeometryTests` (left and right perches) | `position` |
 | 5.4 | Turn on "Automatically hide and show the Dock", move the pointer away so the Dock hides, then log from the menu | `DockGeometryTests` (hidden frames) | `autohide` |
 | 5.5 | With the Dock visible, compare `perch` with the screen | `DockGeometryTests.testOnABottomDockThePerchSitsOnTheTopEdgeInsideTheLastIcon`, `PoseSnapshotTests.testAwakeOnABottomDockThereIsNoVeil` | `align` |
-| 6.1 | With the grant and a bottom Dock, launch the app | `AppCoordinatorTests.testTheCatShowsAtThePerchTheTrackerReports`, `OverlayWindowTests.testItSitsOneLevelAboveTheDock` | – |
+| 6.1 | With the grant and a bottom Dock, launch the app | `AppCoordinatorTests.testTheCatShowsAtThePerchTheTrackerReports`, `OverlayWindowTests.testItSitsOneLevelAboveTheDock` | `align` |
 | 6.2 | Click the Dock icon under the cat, then drag a file onto it | `OverlayWindowTests.testItIgnoresTheMouse` | – |
 | 6.3 | Click on the desktop and in other apps' windows where the cat overlaps them | `OverlayWindowTests.testItIgnoresTheMouse`, `OverlayWindowTests.testItCanNotBecomeKeyAndStaysOutOfTheWindowCycle` | – |
-| 6.6 | Without the grant, launch the app | `AppCoordinatorTests.testWithoutTheGrantTheTrackerIsToldAndNothingShows`, `DockTrackerTests.testTheOverlayStaysHiddenWithoutTheGrant` | – |
+| 6.6 | Without the grant, launch the app | `DockTrackerTests.testTheOverlayStaysHiddenWithoutTheGrant` (the rule), `AppCoordinatorTests.testTheGrantReachesTheTrackerAndItsHiddenPresentationHidesTheCat` (the wiring) | – |
 | 6.7 | With the cat showing, switch to another app and press Cmd-Opt-H (Hide Others) | `OverlayWindowTests.testHideOthersCanNotHideIt` | – |
 | 7.0 | Launch with the grant and read the log | – | `launch` |
 | 7.1 | In System Settings ▸ Desktop & Dock, set Position on screen to Left, then Right, then Bottom | `DockTrackerTests.testAReadWhileHoveringThatFindsALeftDockShowsTheLeftPerch` | `position` |
@@ -195,6 +195,10 @@ That is 27 rows. Not runnable yet:
 | 11.6 | Turn on Dock auto-hide and let the Dock hide | `AppCoordinatorTests.testFallingAsleepWhileTheDockIsHiddenUsesUpTheCycle` | `autohide` |
 | 11.7 | Charging, then 5%, then hover the Trash in the middle of the wave: The wave stops at once and doesn't resume when the pointer leaves | `AppCoordinatorTests.testHoveringStopsTheWaveForGood` | – |
 | 11.8 | Launch the app with the battery simulated or really below 10%: No wave at launch | `AppCoordinatorTests.testLaunchingAsleepPlaysNoWave` | – |
+
+### When every snapshot fails at once
+
+The references were drawn on the Mac `Tests/DrowsyDockTests/Snapshots/RECORDED_ON` names. Another Apple GPU, or a macOS update that changes SpriteKit's antialiasing, can fail all of them together; each failure message names both environments. Look at the diff images under `.build/snapshot-failures/` first. Re-record with `RECORD_SNAPSHOTS=1 swift test` only after a person has seen that just antialiased edges moved (ADR 0016).
 
 ## Coverage-exempt files
 

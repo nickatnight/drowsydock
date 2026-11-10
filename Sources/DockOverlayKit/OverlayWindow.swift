@@ -88,15 +88,9 @@ public final class OverlayWindow {
       window.orderOut(nil)
       return
     }
-    NSAnimationContext.runAnimationGroup { context in
-      context.duration = Self.fadeDuration
-      window.animator().alphaValue = 0
-    } completionHandler: { [weak self] in
-      // AppKit calls this on the main thread.
-      MainActor.assumeIsolated {
-        guard let self, self.visibility != .shown else { return }
-        self.window.orderOut(nil)
-      }
+    fader(window, 0, Self.fadeDuration) { [weak self] in
+      guard let self, self.visibility != .shown else { return }
+      self.window.orderOut(nil)
     }
   }
 
@@ -127,9 +121,27 @@ public final class OverlayWindow {
 
   private func fade(to alpha: CGFloat) {
     guard window.alphaValue != alpha else { return }
+    fader(window, alpha, Self.fadeDuration) {}
+  }
+
+  // Runs a fade of `window` to `alpha` over `duration` seconds, then `completion`. Internal so the
+  // kit's and the app's tests can record each fade and end it at once: AppKit runs window
+  // animations only while a display is awake.
+  var fader: @MainActor (NSWindow, CGFloat, TimeInterval, @escaping @MainActor () -> Void) -> Void =
+    OverlayWindow.animatedFade
+
+  static func animatedFade(
+    _ window: NSWindow,
+    to alpha: CGFloat,
+    over duration: TimeInterval,
+    then completion: @escaping @MainActor () -> Void
+  ) {
     NSAnimationContext.runAnimationGroup { context in
-      context.duration = Self.fadeDuration
+      context.duration = duration
       window.animator().alphaValue = alpha
+    } completionHandler: {
+      // AppKit calls this on the main thread.
+      MainActor.assumeIsolated(completion)
     }
   }
 }

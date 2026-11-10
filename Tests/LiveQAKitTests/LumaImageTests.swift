@@ -20,6 +20,13 @@ final class LumaImageTests: XCTestCase {
     XCTAssertEqual(veiled.ratio(to: bare, floor: 8).values, [0.72, 0.72, 1])
   }
 
+  func testCountsThePixelsThatDifferByMoreThanTheThreshold() {
+    let other = LumaImage(width: 3, height: 2, values: [10, 45, 30, 40, 50, 100])
+
+    XCTAssertEqual(image.countOfPixels(differingFrom: other, by: 24), 2)
+    XCTAssertEqual(image.countOfPixels(differingFrom: image, by: 0), 0)
+  }
+
   func testSubtractingGivesEachPixelsChange() {
     let other = LumaImage(width: 3, height: 2, values: [10, 10, 10, 10, 10, 10])
 

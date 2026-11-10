@@ -41,57 +41,73 @@ public struct DockAlignment {
     self.perch = perch
   }
 
-  /// Returns every check that applies to this Dock.
+  /// Returns every check that applies to this Dock: for each edge it can see, the rim and the veil
+  /// against the Accessibility frames and the veil against the rim itself, then the paws.
   public func checks(bare: LumaImage, awake: LumaImage, asleep: LumaImage) -> [EdgeCheck] {
     let veil = asleep.ratio(to: bare, floor: Self.veilFloor)
     let cat = awake.subtracting(bare)
-    switch edge {
-    case .bottom:
-      let columns = bands(from: background.minX, to: perch.minX)
-      let rows = bands(from: background.minY, to: background.maxY, axisIsY: true)
-      return [
+    var checks: [EdgeCheck] = []
+    for side in sides {
+      let rim = find(side, in: bare, finder: .line)
+      let veilEdge = find(side, in: veil, finder: .step)
+      checks += [
+        EdgeCheck(name: "Dock rim, \(side.name) (\(row))", expected: side.expected, found: rim),
+        EdgeCheck(name: "veil, \(side.name) (\(row))", expected: side.expected, found: veilEdge),
         EdgeCheck(
-          name: "Dock rim, top edge (8.5)",
-          expected: background.maxY,
-          found: edgeY(in: bare, near: background.maxY, columns: columns, finder: .line)
+          name: "veil against the rim, \(side.name) (\(row))",
+          expected: rim ?? side.expected,
+          found: rim == nil ? nil : veilEdge
         ),
-        EdgeCheck(
-          name: "Dock rim, right end (8.5)",
-          expected: background.maxX,
-          found: edgeX(in: bare, near: background.maxX, rows: rows, finder: .line)
-        ),
-        EdgeCheck(
-          name: "veil, top edge (8.5)",
-          expected: background.maxY,
-          found: edgeY(in: veil, near: background.maxY, columns: columns, finder: .step)
-        ),
-        EdgeCheck(
-          name: "veil, right end (8.5)",
-          expected: background.maxX,
-          found: edgeX(in: veil, near: background.maxX, rows: rows, finder: .step)
-        ),
-        EdgeCheck(
-          name: "paws on the Dock's top edge (8.15)", expected: background.maxY,
-          found: paws(in: cat)),
-      ]
-    case .left, .right:
-      let inner = edge == .left ? background.maxX : background.minX
-      let rows = bands(from: background.minY, to: perch.minY - 10, axisIsY: true)
-      return [
-        EdgeCheck(
-          name: "Dock rim, inner edge (8.9)",
-          expected: inner,
-          found: edgeX(in: bare, near: inner, rows: rows, finder: .line)
-        ),
-        EdgeCheck(
-          name: "veil, inner edge (8.9)",
-          expected: inner,
-          found: edgeX(in: veil, near: inner, rows: rows, finder: .step)
-        ),
-        EdgeCheck(
-          name: "paws on the Dock's top end (8.9)", expected: background.maxY, found: paws(in: cat)),
       ]
     }
+    let pawsName =
+      edge == .bottom ? "paws on the Dock's top edge (8.15)" : "paws on the Dock's top end (8.9)"
+    checks.append(EdgeCheck(name: pawsName, expected: background.maxY, found: paws(in: cat)))
+    return checks
+  }
+
+  // The QA row the edge checks belong to.
+  private var row: String {
+    edge == .bottom ? "8.5" : "8.9"
+  }
+
+  // One edge of the Dock's background, and the bands of pixels across it to search.
+  private struct Side {
+    let name: String
+    let expected: CGFloat
+    // Whether the edge runs across the screen, so it is found by searching down columns.
+    let isHorizontal: Bool
+    let bands: [PixelBand]
+  }
+
+  // A bottom Dock shows all four edges; a side Dock shows its inner edge and its bottom end, with
+  // the cat on its top end.
+  private var sides: [Side] {
+    let columns = bands(from: background.minX, to: perch.minX)
+    switch edge {
+    case .bottom:
+      let rows = bands(from: background.minY, to: background.maxY, axisIsY: true)
+      return [
+        Side(name: "top edge", expected: background.maxY, isHorizontal: true, bands: columns),
+        Side(name: "bottom edge", expected: background.minY, isHorizontal: true, bands: columns),
+        Side(name: "left end", expected: background.minX, isHorizontal: false, bands: rows),
+        Side(name: "right end", expected: background.maxX, isHorizontal: false, bands: rows),
+      ]
+    case .left, .right:
+      let rows = bands(from: background.minY, to: perch.minY - 10, axisIsY: true)
+      let across = bands(from: background.minX, to: background.maxX)
+      let inner = edge == .left ? background.maxX : background.minX
+      return [
+        Side(name: "inner edge", expected: inner, isHorizontal: false, bands: rows),
+        Side(name: "bottom end", expected: background.minY, isHorizontal: true, bands: across),
+      ]
+    }
+  }
+
+  private func find(_ side: Side, in image: LumaImage, finder: Finder) -> Double? {
+    side.isHorizontal
+      ? edgeY(in: image, near: side.expected, columns: side.bands, finder: finder)
+      : edgeX(in: image, near: side.expected, rows: side.bands, finder: finder)
   }
 
   // MARK: - Finding edges

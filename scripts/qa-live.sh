@@ -46,13 +46,13 @@ scenarios=(
   "launch|1.1 1.2 1.3 7.0|a menu-bar app with no Dock icon; Quit and Cmd-Q end it"
   "battery|3.0 3.1|the real battery's line matches pmset"
   "levels|3.9 3.10 3.11 3.12 3.13 3.14 3.15 3.16|every Simulate battery choice, in both orders"
-  "position|5.1 5.2 7.1 8.9 11.5|the Dock on the left, right and bottom: geometry, perch and wave"
-  "size|7.2|the overlay follows a Dock size change"
+  "position|5.1 5.2 7.1 8.9 11.5|the Dock on the left, right and bottom, set live: perch, facing, wave"
+  "size|7.2|the overlay follows a live Dock size change within 1 s"
   "autohide|5.4 7.4 11.6|an auto-hidden Dock hides the cat and the wave"
-  "hover|7.5b 8.11 9.8|the cat fades for its icon's label only; a faded snore draws nothing"
+  "hover|7.5b 8.11 9.8|the cat fades for its icon's label only (screenshot); a faded snore draws nothing"
   "magnification|7.5 7.5a 8.12|magnifying the Dock fades the cat and the veil, and they return"
-  "relaunch|7.8 7.8a 7.8b|the cat returns after killall Dock; an app's icon isn't the list"
-  "align|8.5 8.15|veil and paws within 1 pt of the Dock's frames, from screenshots"
+  "relaunch|7.8 7.8a 7.8b|the cat returns after killall Dock and follows an app's icon"
+  "align|5.5 6.1 8.5 8.15|perch size and place; veil, rim and paws within 1 pt, from screenshots"
   "cpu|7.9 9.6 9.7|idle CPU against the budgets in CONSTRAINTS.md and exception E1"
   "idle-sample|3.7 7.6 8.13|no timer and no drawing while idle, from sample"
 )
@@ -224,10 +224,12 @@ put_dock_back() {
   restore_dock
 }
 
-dock_set() {
-  run_or_print defaults write com.apple.dock "$@"
-  run_or_print killall Dock
-  pause 3
+# Changes one Dock preference the way System Settings does, through System Events, so the Dock
+# keeps running and the app sees the change through com.apple.dock.prefchanged and Accessibility.
+# PROPERTY and VALUE come from this script's own fixed set, such as "screen edge" left.
+dock_preference() {
+  run_or_print osascript -e \
+    "tell application \"System Events\" to tell dock preferences to set $1 to $2"
 }
 
 # Signals are ignored from here on, so a second Ctrl-C can't cut the restore short.
@@ -736,6 +738,59 @@ scenario_levels() {
     wait_log "Changed: .* \\(real\\)" 3
 }
 
+# Seconds since the epoch, to the millisecond.
+now() {
+  perl -MTime::HiRes=time -e 'printf "%.3f\n", time'
+}
+
+# log stream delivers a line some time after the app logs it; a row's budget gets this much more.
+log_allowance=0.5
+
+change_started=0
+mark_change() {
+  mark_log
+  $dry_run || change_started="$(now)"
+}
+
+# expect_overlay_within STATE BUDGET ROWS SCENARIO DETAIL: the Overlay: STATE line must arrive
+# within BUDGET seconds of mark_change, plus the log's allowance. Reports the measured latency.
+expect_overlay_within() {
+  local state="$1" budget="$2" rows="$3" scenario="$4" detail="$5"
+  if $dry_run; then
+    printf '    would check: %s within %s s, plus %s s for the log (QA %s)\n' \
+      "$detail" "$budget" "$log_allowance" "$rows"
+    return 0
+  fi
+  local limit
+  limit="$(awk -v b="$budget" -v a="$log_allowance" 'BEGIN { print int(b + a + 3) }')"
+  if ! wait_log "Overlay: $state" "$limit"; then
+    result FAIL "$rows" "$scenario" "$detail: no 'Overlay: $state' line within $limit s"
+    return 1
+  fi
+  local latency
+  latency="$(awk -v n="$(now)" -v s="$change_started" 'BEGIN { printf "%.2f", n - s }')"
+  if awk -v l="$latency" -v b="$budget" -v a="$log_allowance" 'BEGIN { exit !(l <= b + a) }'; then
+    result PASS "$rows" "$scenario" "$detail: after $latency s (budget $budget s + $log_allowance s log)"
+  else
+    result FAIL "$rows" "$scenario" "$detail: after $latency s (budget $budget s + $log_allowance s log)"
+    return 1
+  fi
+}
+
+# The perch the app logged must be the one DockGeometry gives for the Dock as it is now.
+expect_logged_perch_matches() {
+  local rows="$1" scenario="$2" detail="$3"
+  if $dry_run; then
+    printf '    would check: %s (QA %s)\n' "$detail" "$rows"
+    return 0
+  fi
+  if ! read_dock_and_logged_perch; then
+    result FAIL "$rows" "$scenario" "$detail: couldn't read the logged perch or the Dock"
+    return 1
+  fi
+  check "$rows" "$scenario" "$detail" same_frame "$dock_logged_perch" "$dock_perch"
+}
+
 expect_overlay() {
   check "$3" "$4" "$5" wait_log "Overlay: $1" "$2"
 }
@@ -745,9 +800,10 @@ scenario_position() {
   pointer_away
   local side
   for side in left right bottom; do
-    mark_log
-    dock_set orientation -string "$side"
-    expect_overlay shown 8 "7.1" position "the cat returns at the $side Dock's perch"
+    mark_change
+    dock_preference "screen edge" "$side"
+    expect_overlay_within shown 1 7.1 position "the cat moves to the $side Dock's perch"
+    expect_logged_perch_matches 7.1 position "the logged perch is the $side Dock's perch"
     read_dock
     check "5.1 5.2" position "Accessibility reads a $side Dock" test "$dock_orientation" = "$side"
     mark_log
@@ -757,7 +813,8 @@ scenario_position() {
     if [[ $side != bottom ]]; then
       local facing=right
       [[ $side == right ]] && facing=left
-      check 8.9 position "on a $side Dock the cat faces $facing" test "$dock_facing" = "$facing"
+      check 8.9 position "on a $side Dock the app's logged perch faces $facing" \
+        logged_facing_is "$facing"
       simulate Charging
       pause 4
       mark_log
@@ -768,29 +825,45 @@ scenario_position() {
       simulate 80%
     fi
   done
+
+  step "position, with the pointer on the Dock during the change (QA 7.1)"
+  read_dock
+  pointer_to "$(mid_x "$dock_first_icon")" "$(mid_y "$dock_first_icon")"
+  pause 1
+  mark_change
+  dock_preference "screen edge" left
+  expect_overlay_within shown 1 7.1 position "with the pointer on the Dock, the cat shows at the new perch"
+  expect_logged_perch_matches 7.1 position "it isn't left faded at the old perch"
+  pointer_away
+  dock_preference "screen edge" bottom
+  pause 3
+}
+
+logged_facing_is() {
+  local line
+  line="$(app_log_lines | grep -E "Overlay: (shown|fadedOut)" | tail -n 1)"
+  [[ $(qa_helper logged-facing "$line") == "$1" ]]
 }
 
 scenario_size() {
   step "size (QA 7.2)"
   pointer_away
   local size
-  for size in 36 64; do
-    mark_log
-    dock_set tilesize -int "$size"
-    expect_overlay shown 8 7.2 size "the cat follows a Dock at tile size $size"
-    read_dock_and_logged_perch
-    check 7.2 size "the logged perch is the perch Accessibility gives at tile size $size" \
-      same_frame "$dock_logged_perch" "$dock_perch"
+  for size in 0.2 0.5; do
+    mark_change
+    dock_preference "dock size" "$size"
+    expect_overlay_within shown 1 7.2 size "the cat follows the Dock at size $size"
+    expect_logged_perch_matches 7.2 size "the logged perch is the Dock's perch at size $size"
   done
 }
 
 scenario_autohide() {
   step "autohide (QA 5.4, 7.4, 11.6)"
   simulate 80%
-  mark_log
-  dock_set autohide -bool true
   pointer_away
-  expect_overlay hidden 5 7.4 autohide "the cat hides with the Dock"
+  mark_change
+  dock_preference autohide true
+  expect_overlay_within hidden 1 7.4 autohide "the cat hides with the Dock"
   mark_log
   menu Debug "Log Dock geometry"
   check 5.4 autohide "Log Dock geometry logs hidden: true" wait_log "hidden: true" 3
@@ -801,9 +874,9 @@ scenario_autohide() {
   simulate 5%
   check 11.6 autohide "falling asleep with the Dock hidden logs that the overlay isn't showing" \
     wait_log "would nod off, but the overlay isn't showing" 3
-  mark_log
-  dock_set autohide -bool false
-  expect_overlay shown 8 7.4 autohide "the cat returns when auto-hide is off"
+  mark_change
+  dock_preference autohide false
+  expect_overlay_within shown 1 7.4 autohide "the cat returns when auto-hide is off"
   mark_log
   simulate 15%
   simulate 5%
@@ -814,13 +887,31 @@ scenario_autohide() {
 
 scenario_hover() {
   step "hover (QA 7.5b, 8.11, 9.8)"
-  dock_set magnification -bool false
+  dock_preference magnification false
   simulate 80%
   pointer_away
-  read_dock
-  mark_log
+  pause 2
+  if ! read_dock_and_logged_perch; then
+    result FAIL 8.11 hover "couldn't read the logged perch or the Dock"
+    return
+  fi
+
+  # What the perch looks like with the label showing and no cat, to compare the faded cat with.
+  simulate "No battery"
   pointer_to "$(mid_x "$dock_last_icon")" "$(mid_y "$dock_last_icon")"
-  expect_overlay fadedOut 2 8.11 hover "resting on the last icon fades the cat"
+  pause 1
+  capture_frame hover-bare "$dock_logged_perch"
+  pointer_away
+  simulate 80%
+  pause 2
+
+  mark_change
+  pointer_to "$(mid_x "$dock_last_icon")" "$(mid_y "$dock_last_icon")"
+  expect_overlay_within fadedOut 0.2 8.11 hover "resting on the last icon fades the cat"
+  pause 0.5
+  capture_frame hover-faded "$dock_logged_perch"
+  check 8.11 hover "the faded cat leaves the perch as it looks with no cat (the label readable)" \
+    screenshots_match hover-bare hover-faded && forget_captures hover-bare.png hover-faded.png
   mark_log
   pointer_to "$(mid_x "$dock_first_icon")" "$(mid_y "$dock_first_icon")"
   expect_overlay shown 3 8.11 hover "another icon brings it back"
@@ -847,24 +938,24 @@ scenario_hover() {
 
 scenario_magnification() {
   step "magnification (QA 7.5, 7.5a, 8.12)"
-  dock_set magnification -bool true
-  dock_set largesize -int 128
+  dock_preference magnification true
+  dock_preference "magnification size" 1.0
   simulate 5%
   pause 5
   read_dock
-  mark_log
+  mark_change
   pointer_to "$(mid_x "$dock_first_icon")" "$(mid_y "$dock_first_icon")"
-  expect_overlay fadedOut 2 "7.5 8.12" magnification "magnifying the Dock fades the cat and the veil"
-  mark_log
+  expect_overlay_within fadedOut 1 "7.5 8.12" magnification "magnifying the Dock fades the cat and the veil"
+  mark_change
   pointer_away
-  expect_overlay shown 3 "7.5 8.12" magnification "they return within 1 s of the Dock settling"
+  expect_overlay_within shown 1 "7.5 8.12" magnification "they return once the Dock settles"
   pointer_to "$(mid_x "$dock_first_icon")" "$(mid_y "$dock_first_icon")"
   pause 2
-  mark_log
+  mark_change
   pointer_to "$(mid_x "$dock_first_icon")" "$(awk -F, '{print $2 + $4 + 60}' <<<"$dock_first_icon")"
-  expect_overlay shown 3 7.5a magnification "just above the icons the cat returns from the frame check"
+  expect_overlay_within shown 1 7.5a magnification "just above the icons the cat returns from the frame check"
   pointer_away
-  dock_set magnification -bool false
+  dock_preference magnification false
   simulate 80%
 }
 
@@ -878,15 +969,21 @@ scenario_relaunch() {
   check 7.8a relaunch "the observer is installed on the new Dock" \
     wait_log "Observing the Dock list for:" 10
   pause 2
+  expect_logged_perch_matches 7.8a relaunch "after the relaunch the cat is at the new Dock's perch"
   if ! $dry_run && pgrep -x Calculator >/dev/null; then
     result SKIP 7.8b relaunch "Calculator is already open; the run doesn't quit an app you're using"
     return
   fi
-  mark_log
+  mark_change
   run_or_print open -g -a Calculator
-  pause 4
+  expect_overlay_within shown 1 "7.8a 7.8b" relaunch "the cat follows the last icon when an app's icon appears"
+  pause 2
+  expect_logged_perch_matches "7.8a 7.8b" relaunch "with Calculator's icon in the Dock, the perch is right"
+  mark_change
   run_or_print osascript -e 'tell application "Calculator" to quit'
-  pause 3
+  expect_overlay_within shown 1 "7.8a 7.8b" relaunch "the cat follows the last icon when it goes"
+  pause 2
+  expect_logged_perch_matches "7.8a 7.8b" relaunch "after Calculator quits, the perch is right"
   check 7.8b relaunch "an app's icon coming and going isn't taken for the list's destruction" \
     no_log_since_mark "The Dock list was destroyed|Observing the Dock list for:"
 }
@@ -942,10 +1039,64 @@ forget_captures() {
 }
 
 scenario_align() {
-  step "align (QA 8.5, 8.15)"
+  step "align (QA 5.5, 6.1, 8.5, 8.15)"
   read_dock
+  if [[ $dock_orientation == bottom ]]; then
+    expect_perch_on_last_icon
+  fi
   align_checks "8.5 8.15" "$dock_orientation Dock"
   simulate 80%
+}
+
+# QA 5.5: on a bottom Dock the perch is a 64 x 80 frame whose bottom edge is the background's top
+# edge and whose right edge is the last icon's right edge. The size is the row's own number, so a
+# wrong sprite size handed to the tracker fails here.
+expect_perch_on_last_icon() {
+  if $dry_run; then
+    printf '    would check: the logged perch is 64 x 80, on the background, at the last icon (QA 5.5)\n'
+    return
+  fi
+  if ! read_dock_and_logged_perch; then
+    result FAIL 5.5 align "couldn't read the logged perch or the Dock"
+    return
+  fi
+  check 5.5 align "the perch is 64 x 80 points" \
+    test "$(field "$dock_logged_perch" 3),$(field "$dock_logged_perch" 4)" = "64.0,80.0"
+  check 5.5 align "the perch's right edge is the last icon's" \
+    near "$(frame_edge "$dock_logged_perch" maxX)" "$(frame_edge "$dock_last_icon" maxX)"
+  check 5.5 align "the perch's bottom edge is the background's top edge" \
+    near "$(frame_edge "$dock_logged_perch" minY)" "$(frame_edge "$dock_background" maxY)"
+}
+
+frame_edge() {
+  awk -F, -v edge="$2" '{
+    if (edge == "maxX") print $1 + $3; else if (edge == "minY") print $2; else print $2 + $4
+  }' <<<"$1"
+}
+
+# near A B: within half a point.
+near() {
+  awk -v a="$1" -v b="$2" 'BEGIN { exit !(a - b <= 0.5 && b - a <= 0.5) }'
+}
+
+# capture_frame NAME FRAME: a screenshot of FRAME, in AppKit points, into build/qa/NAME.png.
+capture_frame() {
+  if $dry_run; then
+    printf '    would run: screencapture -x -R <%s> %s/%s.png\n' "$2" "$qa_dir" "$1"
+    return 0
+  fi
+  local region
+  region="$(qa_helper region "$2")" || return 1
+  screencapture -x -R "$region" "$qa_dir/$1.png" && [[ -s $qa_dir/$1.png ]]
+}
+
+# Whether two screenshots of the same area look the same: at most 1% of pixels differ by more
+# than 24 levels of brightness, which allows for antialiasing and the label's shadow.
+screenshots_match() {
+  local counts differing total
+  counts="$(qa_helper differing-pixels "$qa_dir/$1.png" "$qa_dir/$2.png")" || return 1
+  read -r differing total <<<"$counts"
+  ((total > 0 && differing * 100 <= total))
 }
 
 # The app's mean CPU over SECONDS of one-second samples, as CONSTRAINTS.md measures it. Fails with

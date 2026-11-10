@@ -24,4 +24,14 @@ final class OverlayLogTests: XCTestCase {
     XCTAssertNil(OverlayLog.perchFrame(in: "Overlay: hidden"))
     XCTAssertNil(OverlayLog.perchFrame(in: "DockPerch(frame: (1, 2, 3), facing"))
   }
+
+  func testTheFacingIsReadFromTheSameLine() {
+    for facing in [DockPerch.Facing.left, .right] {
+      let perch = DockPerch(frame: CGRect(x: 10, y: 84, width: 64, height: 80), facing: facing)
+      let line = "Overlay: \(OverlayPresentation.shown(perch, on: dock))"
+
+      XCTAssertEqual(OverlayLog.perchFacing(in: line), facing == .left ? "left" : "right")
+    }
+    XCTAssertNil(OverlayLog.perchFacing(in: "Overlay: hidden"))
+  }
 }

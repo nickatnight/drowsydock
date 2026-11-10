@@ -18,7 +18,8 @@ final class SideDockAlignmentTests: XCTestCase {
         )
         var value = 20.0
         if background.contains(point) {
-          value = point.x > background.maxX - 0.5 ? 120 : 60
+          let onRim = point.x > background.maxX - 0.5 || point.y < background.minY + 0.5
+          value = onRim ? 120 : 60
         }
         if let veil, veil.contains(point) {
           value *= 0.72
@@ -43,7 +44,7 @@ final class SideDockAlignmentTests: XCTestCase {
   func testAVeilAndCatPlacedOnALeftDockPassEveryCheck() {
     let checks = checks(veil: background)
 
-    XCTAssertEqual(checks.count, 3)
+    XCTAssertEqual(checks.count, 7)
     for check in checks {
       XCTAssertTrue(check.passes, check.report)
     }

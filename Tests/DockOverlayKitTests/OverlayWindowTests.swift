@@ -58,6 +58,91 @@ final class OverlayWindowTests: XCTestCase {
     XCTAssertFalse(window.hasShadow)
   }
 
+  // MARK: - Fades
+
+  // Records each fade the window starts and ends it at once, so the tests see the alpha and the
+  // length of every fade without waiting for AppKit, which animates only while a display is awake.
+  private final class FadeRecorder {
+    var fades: [(alpha: CGFloat, duration: TimeInterval)] = []
+  }
+
+  private func recordingFades(of overlay: OverlayWindow) -> FadeRecorder {
+    let recorder = FadeRecorder()
+    overlay.fader = { window, alpha, duration, completion in
+      recorder.fades.append((alpha, duration))
+      window.alphaValue = alpha
+      completion()
+    }
+    return recorder
+  }
+
+  // QA 8.11's "fades out within about 0.2 s", and every fade in and out.
+  private let fadeDuration: TimeInterval = 0.2
+
+  func testShowingFadesTheWindowInOverTheFade() {
+    let overlay = overlay()
+    let recorder = recordingFades(of: overlay)
+
+    overlay.show(at: offscreenFrame)
+
+    XCTAssertEqual(recorder.fades.map(\.alpha), [1])
+    XCTAssertEqual(recorder.fades.map(\.duration), [fadeDuration])
+    XCTAssertEqual(overlay.window.alphaValue, 1)
+  }
+
+  func testFadingOutFadesTheWindowToTransparentAndKeepsItOnScreen() {
+    let overlay = overlay()
+    let recorder = recordingFades(of: overlay)
+    overlay.show(at: offscreenFrame)
+
+    overlay.fadeOut(at: offscreenFrame)
+
+    XCTAssertEqual(recorder.fades.map(\.alpha), [1, 0])
+    XCTAssertEqual(recorder.fades.last?.duration, fadeDuration)
+    XCTAssertTrue(overlay.window.isVisible)
+  }
+
+  func testHidingWithAFadeFadesFirstThenTakesTheWindowOffScreen() {
+    let overlay = overlay()
+    let recorder = recordingFades(of: overlay)
+    overlay.show(at: offscreenFrame)
+
+    overlay.hide(fading: true)
+
+    XCTAssertEqual(recorder.fades.map(\.alpha), [1, 0])
+    XCTAssertEqual(recorder.fades.last?.duration, fadeDuration)
+    XCTAssertFalse(overlay.window.isVisible)
+  }
+
+  func testHidingWithoutAFadeStartsNone() {
+    let overlay = overlay()
+    let recorder = recordingFades(of: overlay)
+    overlay.show(at: offscreenFrame)
+
+    overlay.hide()
+
+    XCTAssertEqual(recorder.fades.map(\.alpha), [1])
+    XCTAssertFalse(overlay.window.isVisible)
+  }
+
+  // The real fader, through AppKit. Window animations run only while a display is awake, so the
+  // test can only run then.
+  func testTheRealFadeReachesFullOpacityWithinTwiceItsLength() throws {
+    try XCTSkipIf(
+      CGDisplayIsAsleep(CGMainDisplayID()) != 0,
+      "AppKit animates windows only while a display is awake"
+    )
+    let overlay = overlay()
+
+    overlay.show(at: offscreenFrame)
+
+    let deadline = Date().addingTimeInterval(2 * fadeDuration)
+    while overlay.window.alphaValue < 0.99, Date() < deadline {
+      RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+    }
+    XCTAssertEqual(overlay.window.alphaValue, 1, accuracy: 0.01)
+  }
+
   // MARK: - Showing and hiding
 
   func testShowingPutsTheWindowOnScreenAtTheFrame() {
