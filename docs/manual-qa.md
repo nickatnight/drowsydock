@@ -213,3 +213,7 @@ Checkpoint B (Milestone 2) passed with the debug outline when 7.1 to 7.13 (inclu
 | 11.6 | Turn on Dock auto-hide and let the Dock hide. Choose Charging, wait for `Awake`, then 5%. Show the Dock. | No wave, and the log shows `… but the overlay isn't showing`. The cat appears asleep. Choosing 15% and 5% with the Dock shown plays nothing until the next charge. |
 | 11.7 | Charging, then 5%, then hover the Trash in the middle of the wave | The wave stops at once and doesn't resume when the pointer leaves. |
 | 11.8 | Launch the app with the battery simulated or really below 10% | No wave at launch. |
+
+## Live QA helper (`QAHelper`)
+
+`QAHelper` (`scripts/qa/Sources/qa-helper`) reads the Dock over Accessibility, moves the pointer and checks screenshots for the live QA script. Its checks live in `LiveQAKit`, which `LiveQAKitTests` covers.

@@ -19,8 +19,10 @@ esac
 
 coverage_minimum=80
 # The coverage gate covers the files in these targets that import no adapter framework. Every
-# other file under Sources is exempt and needs a manual-QA entry instead.
-gated_targets=(Sources/DrowsyDockCore Sources/DockOverlayKit)
+# other file under the source roots is exempt and needs a manual-QA entry instead.
+gated_targets=(Sources/DrowsyDockCore Sources/DockOverlayKit scripts/qa/Sources/LiveQAKit)
+# Swift sources: the app's targets and the live QA helper's (scripts/qa-live.sh).
+source_roots=(Sources scripts/qa/Sources)
 # An import may carry attributes (`@preconcurrency`, `@_exported`, `@_spi(Name)`), an access level
 # (`internal import`) and a kind (`import class AppKit.NSColor`). HIServices holds the AX API, and
 # Carbon and Quartz re-export AX and AppKit.
@@ -74,7 +76,7 @@ gated_files() {
   local file
   while IFS= read -r -d '' file; do
     if is_gated "$file"; then printf '%s\0' "$file"; fi
-  done < <(swift_files_under Sources)
+  done < <(swift_files_under "${source_roots[@]}")
 }
 
 coverage_exempt_files_are_in_manual_qa() {
@@ -86,13 +88,13 @@ coverage_exempt_files_are_in_manual_qa() {
       echo "Manual QA: $file is exempt from coverage but docs/manual-qa.md never names \`$name\`" >&2
       failed=1
     fi
-  done < <(swift_files_under Sources)
+  done < <(swift_files_under "${source_roots[@]}")
   return "$failed"
 }
 
 scan_swift_files() {
   local file files=()
-  while IFS= read -r -d '' file; do files+=("$file"); done < <(swift_files_under Sources Tests)
+  while IFS= read -r -d '' file; do files+=("$file"); done < <(swift_files_under "${source_roots[@]}" Tests)
   if ((${#files[@]} == 0)); then return 1; fi
   found awk "$1" "${files[@]}"
 }
@@ -140,11 +142,11 @@ empty_catches='
 
 floor_rules() {
   local failed=0
-  if found grep -rnF 'try!' Sources; then
+  if found grep -rnF 'try!' "${source_roots[@]}"; then
     echo "Floor: try! outside tests" >&2
     failed=1
   fi
-  if found grep -rnE 'fatalError\("(TODO|not implemented)' Sources Tests; then
+  if found grep -rnE 'fatalError\("(TODO|not implemented)' "${source_roots[@]}" Tests; then
     echo "Floor: unimplemented stub" >&2
     failed=1
   fi
@@ -248,7 +250,7 @@ step "Compile (Swift 6, warnings are errors)"
 swift build --build-tests -Xswiftc -warnings-as-errors
 
 step "Format"
-swift format lint --strict --recursive Sources Tests
+swift format lint --strict --recursive "${source_roots[@]}" Tests
 
 step "Floor rules"
 floor_rules
