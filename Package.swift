@@ -18,5 +18,10 @@ let package = Package(
     ),
     .testTarget(name: "DockOverlayKitTests", dependencies: ["DockOverlayKit"]),
     .testTarget(name: "DrowsyDockCoreTests", dependencies: ["DrowsyDockCore"]),
+    .testTarget(
+      name: "DrowsyDockTests",
+      dependencies: ["DockOverlayKit", "DrowsyDock", "DrowsyDockCore"],
+      exclude: ["Snapshots"]
+    ),
   ]
 )
