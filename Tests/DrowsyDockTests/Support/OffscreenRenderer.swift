@@ -39,17 +39,27 @@ final class OffscreenRenderer {
 
   /// Moves scene time on by `seconds`.
   func advance(by seconds: TimeInterval) {
-    let end = time + seconds
-    while time < end - 1e-9 {
-      time = min(time + Self.step, end)
-      renderer.update(atTime: time)
+    Self.advance([self], by: seconds)
+  }
+
+  /// Moves several renderers' scene time on together, step by step, so that work one scene sends
+  /// to the main queue lands between the same frames for all of them.
+  static func advance(_ renderers: [OffscreenRenderer], by seconds: TimeInterval) {
+    guard let first = renderers.first else { return }
+    let end = first.time + seconds
+    while first.time < end - 1e-9 {
+      let time = min(first.time + step, end)
+      for renderer in renderers {
+        renderer.time = time
+        renderer.renderer.update(atTime: time)
+      }
       drainMainQueue()
     }
   }
 
   /// Runs the work already waiting on the main queue, such as SpriteKit completion blocks and
   /// main-actor tasks that a test clock has just woken.
-  func drainMainQueue() {
+  static func drainMainQueue() {
     RunLoop.main.run(until: Date())
   }
 
