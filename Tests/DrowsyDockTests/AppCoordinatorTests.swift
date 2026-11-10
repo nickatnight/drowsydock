@@ -163,6 +163,46 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertEqual(rig.line, "24% · Discharging · Yawning · Low Power")
   }
 
+  // QA 3.3: unplugging reaches the line as a discharging state.
+  func testUnpluggingShowsTheDischargingState() {
+    let rig = rig()
+    rig.power.change(to: BatteryReading(clampingPercentage: 46, powerState: .charging))
+
+    rig.power.change(to: reading(46))
+
+    XCTAssertEqual(rig.line, "46% · Discharging · Drowsy")
+  }
+
+  // QA 3.4 and 3.2a: a full or held battery on AC power wakes the cat, then reads Plugged in.
+  func testAFullBatteryOnACPowerSettlesOnPluggedInAwake() {
+    let rig = rig()
+
+    rig.power.change(to: BatteryReading(clampingPercentage: 100, powerState: .pluggedIn))
+    XCTAssertEqual(rig.line, "100% · Plugged in · Waking")
+    endWaking(rig)
+
+    XCTAssertEqual(rig.line, "100% · Plugged in · Awake")
+  }
+
+  // QA 3.2b: plug in, unplug and plug in again within 3 s: waking ends 3 s after the last plug-in.
+  func testWakingEndsThreeSecondsAfterTheLastPlugIn() {
+    let rig = rig()
+    let charging = BatteryReading(clampingPercentage: 46, powerState: .charging)
+    rig.power.change(to: charging)
+    waitUntil("the end of waking is scheduled") { rig.clock.sleeperCount == 1 }
+    rig.clock.advance(by: .seconds(2))
+
+    rig.power.change(to: reading(46))
+    rig.power.change(to: charging)
+    waitUntil("the new end of waking is scheduled") { rig.clock.sleeperCount == 1 }
+    rig.clock.advance(by: .milliseconds(2900))
+    OffscreenRenderer.drainMainQueue()
+    XCTAssertEqual(rig.line, "46% · Charging · Waking")
+    rig.clock.advance(by: .milliseconds(100))
+
+    waitUntil("waking ends") { rig.line == "46% · Charging · Awake" }
+  }
+
   // MARK: - When the overlay shows
 
   // QA 6.6: without the grant the tracker is told so, and no cat shows anywhere.
