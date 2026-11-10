@@ -15,6 +15,10 @@ public struct DrowsinessTracker: Sendable, Equatable {
     case onExternalPower
   }
 
+  /// How long the app stays in `waking` before it calls `finishWaking()`. The wake-up animation
+  /// fits inside it, and the phase ends on time even when no animation plays.
+  public static let wakingDuration = Duration.seconds(3)
+
   /// What the mascot is doing now.
   public private(set) var phase: Phase
 

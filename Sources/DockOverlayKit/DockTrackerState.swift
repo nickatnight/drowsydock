@@ -5,11 +5,12 @@ public enum OverlayPresentation: Equatable, Sendable {
   /// Nothing is drawn.
   case hidden
 
-  /// The overlay is drawn at the perch.
-  case shown(DockPerch)
+  /// The overlay is drawn at the perch on the Dock at this resting geometry.
+  case shown(DockPerch, on: DockGeometry)
 
-  /// The overlay stays at the perch but is faded out, because the pointer is magnifying the Dock.
-  case fadedOut(DockPerch)
+  /// The overlay stays at the perch but is faded out, because the pointer is magnifying the Dock
+  /// or is over the perch, where the Dock shows an icon's label.
+  case fadedOut(DockPerch, on: DockGeometry)
 }
 
 /// The Dock tracker's decisions, kept free of AppKit and Accessibility calls so they can be
@@ -29,9 +30,9 @@ public struct DockTrackerState: Equatable, Sendable {
     /// The Dock is on screen at this geometry, and the pointer is away from it.
     case resting(DockGeometry)
 
-    /// The pointer is near the Dock resting at this geometry. Frame checks run, because the Dock
-    /// posts no notification when it magnifies.
-    case hovering(DockGeometry, isMagnified: Bool)
+    /// The pointer is near the Dock resting at this geometry, at `pointer` in AppKit global
+    /// coordinates. Frame checks run, because the Dock posts no notification when it magnifies.
+    case hovering(DockGeometry, isMagnified: Bool, pointer: CGPoint)
 
     /// The pointer has just left the Dock resting at this geometry. The next read, taken once
     /// the Dock has had time to shrink back, gives the new resting geometry.
@@ -55,10 +56,15 @@ public struct DockTrackerState: Equatable, Sendable {
     case .untrusted, .unavailable, .offScreen:
       return .hidden
     case .resting(let geometry):
-      return .shown(geometry.perch(for: spriteSize))
-    case .hovering(let geometry, let isMagnified), .settling(let geometry, let isMagnified):
+      return .shown(geometry.perch(for: spriteSize), on: geometry)
+    case .hovering(let geometry, let isMagnified, let pointer):
       let perch = geometry.perch(for: spriteSize)
-      return isMagnified ? .fadedOut(perch) : .shown(perch)
+      let uncoversLabel = geometry.perchRegion(for: spriteSize).contains(pointer)
+      return isMagnified || uncoversLabel
+        ? .fadedOut(perch, on: geometry) : .shown(perch, on: geometry)
+    case .settling(let geometry, let isMagnified):
+      let perch = geometry.perch(for: spriteSize)
+      return isMagnified ? .fadedOut(perch, on: geometry) : .shown(perch, on: geometry)
     }
   }
 
@@ -73,6 +79,21 @@ public struct DockTrackerState: Equatable, Sendable {
   public var awaitsSettledRead: Bool {
     if case .settling = phase { return true }
     return false
+  }
+
+  /// Whether the caller should read the Dock as soon as an event says it may have changed.
+  ///
+  /// While the pointer is near the Dock or has just left it, the Dock may be magnified or
+  /// shrinking back, so an immediate read could store the wrong geometry, and reading on every
+  /// notification could become a read per animation frame. The frame checks and the settled read
+  /// cover those phases. Without the grant, nothing is read.
+  public var readsAtOnceOnDockChange: Bool {
+    switch phase {
+    case .unavailable, .offScreen, .resting:
+      return true
+    case .untrusted, .hovering, .settling:
+      return false
+    }
   }
 
   /// Records a check of the Accessibility grant. After a new grant the tracker needs a fresh read.
@@ -107,11 +128,14 @@ public struct DockTrackerState: Equatable, Sendable {
   public mutating func pointerMoved(to point: CGPoint) {
     switch phase {
     case .resting(let geometry) where geometry.hoverRegion.contains(point):
-      phase = .hovering(geometry, isMagnified: false)
-    case .hovering(let geometry, let isMagnified) where !geometry.hoverRegion.contains(point):
-      phase = .settling(geometry, isMagnified: isMagnified)
+      phase = .hovering(geometry, isMagnified: false, pointer: point)
+    case .hovering(let geometry, let isMagnified, _):
+      phase =
+        geometry.hoverRegion.contains(point)
+        ? .hovering(geometry, isMagnified: isMagnified, pointer: point)
+        : .settling(geometry, isMagnified: isMagnified)
     case .settling(let geometry, let isMagnified) where geometry.hoverRegion.contains(point):
-      phase = .hovering(geometry, isMagnified: isMagnified)
+      phase = .hovering(geometry, isMagnified: isMagnified, pointer: point)
     default:
       return
     }
@@ -123,13 +147,13 @@ public struct DockTrackerState: Equatable, Sendable {
   /// A magnified Dock keeps the resting geometry, so the perch doesn't move. Any other change,
   /// such as a smaller Dock, becomes the new resting geometry.
   public mutating func frameChecked(_ current: DockGeometry?) {
-    guard case .hovering(let resting, _) = phase, let current else { return }
+    guard case .hovering(let resting, _, let pointer) = phase, let current else { return }
     if current.isHidden {
       phase = .offScreen
     } else if DockGeometry.isMagnified(current: current, resting: resting) {
-      phase = .hovering(resting, isMagnified: true)
+      phase = .hovering(resting, isMagnified: true, pointer: pointer)
     } else {
-      phase = .hovering(current, isMagnified: false)
+      phase = .hovering(current, isMagnified: false, pointer: pointer)
     }
   }
 }

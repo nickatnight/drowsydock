@@ -51,6 +51,22 @@ If an earlier ad-hoc build left a stale entry in the list, clear it and grant ag
 tccutil reset Accessibility com.drowsydock.DrowsyDock
 ```
 
+## The grant looks on, but the app is untrusted
+
+After a rebuild with ad-hoc signing, System Settings ▸ Privacy & Security ▸ Accessibility can still show DrowsyDock switched on, while the menu keeps saying `Grant Accessibility…` and no overlay appears.
+
+Why: TCC stores a grant against the app's code requirement, which it takes from the signature. An ad-hoc signature has no certificate, so its requirement pins the exact hash of the code (the `cdhash`), and every rebuild has a new hash. The list shows one row per bundle identifier and path, so the old row, with the old hash, stays on. The new build doesn't match it, so `AXIsProcessTrusted()` returns false. Turning the switch off and on again doesn't help, because it re-enables the old requirement.
+
+Fix it by replacing the entry:
+
+1. Quit DrowsyDock.
+2. In the Accessibility list, select DrowsyDock and click −.
+3. Launch the new build and choose `Grant Accessibility…`, then turn the new DrowsyDock entry on. Or click + and add `build/DrowsyDock.app`.
+
+`tccutil reset Accessibility com.drowsydock.DrowsyDock` does the same as step 2.
+
+A stable dev certificate avoids all this. With `SIGN_IDENTITY="DrowsyDock Dev"`, the code requirement names the certificate and the bundle identifier instead of a hash, so every rebuild still matches the grant.
+
 ## Never commit signing material
 
 `.gitignore` excludes `*.p12`, `*.cer`, `*.p8` and provisioning profiles, and `scripts/check.sh` fails if one is tracked. Don't export the certificate into the repository.

@@ -223,6 +223,218 @@ final class DockGeometryTests: XCTestCase {
     XCTAssertTrue(dock.isHidden)
   }
 
+  // MARK: - Background
+
+  func testABottomDocksBackgroundSlidesDownToHoldItemsThatSitBelowTheList() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(378, 821, 63, 79), ax(999, 821, 63, 79)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, CGRect(x: 370, y: 0, width: 700, height: 79))
+  }
+
+  func testALeftDocksBackgroundSlidesLeftToHoldItemsThatSitPastTheList() {
+    let dock = DockGeometry(
+      listFrame: ax(5, 200, 79, 500),
+      iconFrames: [ax(0, 208, 79, 63), ax(0, 271, 79, 63)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, CGRect(x: 0, y: 200, width: 79, height: 500))
+  }
+
+  func testARightDocksBackgroundSlidesRightToHoldItemsThatSitPastTheList() {
+    let dock = DockGeometry(
+      listFrame: ax(1356, 200, 79, 500),
+      iconFrames: [ax(1361, 208, 79, 63), ax(1361, 271, 79, 63)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, CGRect(x: 1361, y: 200, width: 79, height: 500))
+  }
+
+  // A slide past the Dock's thickness describes no drawn background; ADR 0013 measured 5 points.
+  func testAnItemFarBelowABottomDockSlidesTheBackgroundNoFurtherThanItsThickness() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(378, 821, 63, 79), ax(999, 1e9, 63, 79)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, dock.frame.offsetBy(dx: 0, dy: -79))
+  }
+
+  func testAnItemFarPastALeftDockSlidesTheBackgroundNoFurtherThanItsThickness() {
+    let dock = DockGeometry(
+      listFrame: ax(5, 200, 79, 500),
+      iconFrames: [ax(-1e9, 208, 79, 63)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, dock.frame.offsetBy(dx: -79, dy: 0))
+  }
+
+  func testAnItemFarPastARightDockSlidesTheBackgroundNoFurtherThanItsThickness() {
+    let dock = DockGeometry(
+      listFrame: ax(1356, 200, 79, 500),
+      iconFrames: [ax(1e9, 208, 79, 63)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, dock.frame.offsetBy(dx: 79, dy: 0))
+  }
+
+  func testAnItemAtInfinityIsLeftOutOfTheSlide() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(378, 821, 63, 79), ax(999, .infinity, 63, 79)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, CGRect(x: 370, y: 0, width: 700, height: 79))
+  }
+
+  func testAnItemWithANonFiniteFrameIsLeftOut() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(378, 821, 63, 79), ax(.nan, 821, 63, 79), ax(999, 821, 63, .infinity)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.iconFrames, [CGRect(x: 378, y: 0, width: 63, height: 79)])
+    XCTAssertEqual(dock.backgroundFrame, CGRect(x: 370, y: 0, width: 700, height: 79))
+  }
+
+  func testALoneItemWithANonFiniteFrameLeavesTheBackgroundAndPerchFinite() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(.nan, .nan, 63, 79)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, dock.frame)
+    XCTAssertTrue(dock.perch(for: mascot).frame.isUsableWindowFrame)
+  }
+
+  func testWhereTheListHoldsItsIconsTheBackgroundIsTheListFrame() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 830, 700, 70),
+      iconFrames: [ax(380, 834, 60, 60), ax(1000, 834, 60, 60)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, dock.frame)
+  }
+
+  // Before macOS 26: a list 70 points thick, with items 60 thick inset 5 points from both sides.
+  func testWhereALeftDocksListHoldsItsIconsTheBackgroundIsTheListFrame() {
+    let dock = DockGeometry(
+      listFrame: ax(0, 200, 70, 500),
+      iconFrames: [ax(5, 205, 60, 60), ax(5, 265, 60, 60)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, dock.frame)
+  }
+
+  func testWhereARightDocksListHoldsItsIconsTheBackgroundIsTheListFrame() {
+    let dock = DockGeometry(
+      listFrame: ax(1370, 200, 70, 500),
+      iconFrames: [ax(1375, 205, 60, 60), ax(1375, 265, 60, 60)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, dock.frame)
+  }
+
+  // A launching app's icon bounces away from the edge, so the first item may sit inside the list.
+  func testTheSlideFollowsTheItemNearestTheScreenEdgeNotTheFirst() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(378, 790, 63, 79), ax(441, 821, 63, 79)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, CGRect(x: 370, y: 0, width: 700, height: 79))
+  }
+
+  func testAnItemPastTheListsEndDoesNotStretchOrMoveTheBackgroundAlongTheDock() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(360, 821, 63, 79), ax(999, 821, 63, 79)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame.minX, dock.frame.minX)
+    XCTAssertEqual(dock.backgroundFrame.width, dock.frame.width)
+  }
+
+  func testWithNoIconsTheBackgroundIsTheListFrame() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 830, 700, 70),
+      iconFrames: [],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.backgroundFrame, dock.frame)
+  }
+
+  func testTheBackgroundsCornersMatchTheMeasuredDock() {
+    let bottom = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(378, 821, 63, 79)],
+      layout: DisplayLayout(primary: laptop)
+    )
+    let left = DockGeometry(
+      listFrame: ax(0, 200, 79, 500),
+      iconFrames: [ax(0, 208, 79, 63)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(bottom.backgroundCornerRadius, 22, accuracy: 0.5)
+    XCTAssertEqual(left.backgroundCornerRadius, 22, accuracy: 0.5)
+  }
+
+  func testAnIconsArtworkIsTheMeasuredSquareCentredInATallItem() {
+    let artwork = DockGeometry.artworkFrame(ofItem: CGRect(x: 381, y: 5, width: 63, height: 79))
+
+    XCTAssertEqual(artwork.width, 48, accuracy: 0.5)
+    XCTAssertEqual(artwork.height, artwork.width)
+    XCTAssertEqual(artwork.midX, 412.5, accuracy: 0.001)
+    XCTAssertEqual(artwork.midY, 44.5, accuracy: 0.001)
+  }
+
+  func testAnIconsArtworkCornersScaleWithItsSide() {
+    let small = DockGeometry.artworkCornerRadius(of: CGRect(x: 0, y: 0, width: 48, height: 48))
+    let large = DockGeometry.artworkCornerRadius(of: CGRect(x: 0, y: 0, width: 96, height: 96))
+
+    XCTAssertEqual(small, 10.6, accuracy: 0.5)
+    XCTAssertEqual(large, 2 * small, accuracy: 0.001)
+  }
+
+  // On a side Dock from macOS 26 an item is as thick as the Dock across and a tile long, so it is
+  // wider than tall.
+  func testInAWideSideDockItemTheArtworkFollowsItsHeight() {
+    let item = CGRect(x: 0, y: 381, width: 79, height: 63)
+    let artwork = DockGeometry.artworkFrame(ofItem: item)
+
+    XCTAssertEqual(artwork.height, 48, accuracy: 0.5)
+    XCTAssertEqual(artwork.width, artwork.height)
+    XCTAssertEqual(artwork.midX, item.midX, accuracy: 0.001)
+    XCTAssertEqual(artwork.midY, item.midY, accuracy: 0.001)
+  }
+
+  func testInASquareItemTheArtworkKeepsTheSameMarginOnEverySide() {
+    let item = CGRect(x: 0, y: 0, width: 60, height: 60)
+    let artwork = DockGeometry.artworkFrame(ofItem: item)
+
+    XCTAssertEqual(artwork.minX - item.minX, item.maxX - artwork.maxX, accuracy: 0.001)
+    XCTAssertEqual(artwork.minY - item.minY, artwork.minX - item.minX, accuracy: 0.001)
+    XCTAssertEqual(artwork.width, 45.6, accuracy: 0.5)
+  }
+
   // MARK: - Perch
 
   func testOnABottomDockThePerchSitsOnTheTopEdgeInsideTheLastIcon() {
@@ -235,6 +447,19 @@ final class DockGeometryTests: XCTestCase {
     XCTAssertEqual(
       dock.perch(for: mascot),
       DockPerch(frame: CGRect(x: 996, y: 70, width: 64, height: 64), facing: .left)
+    )
+  }
+
+  func testOnABottomDockThePerchSitsOnTheDrawnTopEdgeWhenTheListSitsHigher() {
+    let dock = DockGeometry(
+      listFrame: ax(370, 816, 700, 79),
+      iconFrames: [ax(378, 821, 63, 79), ax(999, 821, 63, 79)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(
+      dock.perch(for: mascot),
+      DockPerch(frame: CGRect(x: 998, y: 79, width: 64, height: 64), facing: .left)
     )
   }
 
@@ -283,6 +508,91 @@ final class DockGeometryTests: XCTestCase {
     )
 
     XCTAssertEqual(dock.perch(for: mascot).frame, CGRect(x: 0, y: 836, width: 64, height: 64))
+  }
+
+  func testOnATallSideDockThePerchStaysBelowTheMenuBar() {
+    let belowTheMenuBar = DisplayLayout.Display(
+      frame: laptop,
+      visibleFrame: CGRect(x: 50, y: 0, width: 1390, height: 875)
+    )
+    let dock = DockGeometry(
+      listFrame: ax(0, 10, 50, 840),
+      iconFrames: [ax(5, 15, 40, 40)],
+      layout: DisplayLayout(primary: belowTheMenuBar)
+    )
+
+    XCTAssertEqual(dock.perch(for: mascot).frame, CGRect(x: 0, y: 811, width: 64, height: 64))
+  }
+
+  func testThePerchOfALeftDockStaysOverTheDockOutsideTheVisibleFrame() {
+    let besideTheDock = DisplayLayout.Display(
+      frame: laptop,
+      visibleFrame: CGRect(x: 70, y: 0, width: 1370, height: 875)
+    )
+    let dock = DockGeometry(
+      listFrame: ax(0, 200, 70, 500),
+      iconFrames: [ax(5, 205, 60, 60)],
+      layout: DisplayLayout(primary: besideTheDock)
+    )
+
+    XCTAssertEqual(dock.perch(for: mascot).frame, CGRect(x: 3, y: 700, width: 64, height: 64))
+  }
+
+  func testThePerchOfABottomDockStaysOnTheDockEdgeBelowTheVisibleFrame() {
+    let aboveTheDock = DisplayLayout.Display(
+      frame: laptop,
+      visibleFrame: CGRect(x: 0, y: 75, width: 1440, height: 800)
+    )
+    let dock = DockGeometry(
+      listFrame: ax(370, 830, 700, 70),
+      iconFrames: [ax(1000, 834, 60, 60)],
+      layout: DisplayLayout(primary: aboveTheDock)
+    )
+
+    XCTAssertEqual(dock.perch(for: mascot).frame, CGRect(x: 996, y: 70, width: 64, height: 64))
+  }
+
+  // MARK: - Icons along the Dock
+
+  func testOnABottomDockTheIconsRunLeftToRight() {
+    let layout = DisplayLayout(primary: laptop)
+    let left = ax(380, 834, 60, 60)
+    let middle = ax(700, 834, 60, 60)
+    let right = ax(1000, 834, 60, 60)
+    let dock = DockGeometry(
+      listFrame: ax(370, 830, 700, 70),
+      iconFrames: [right, left, middle],
+      layout: layout
+    )
+
+    XCTAssertEqual(dock.iconFramesAlongDock, [left, middle, right].map(layout.appKitRect))
+  }
+
+  func testOnALeftDockTheIconsRunTopToBottom() {
+    let layout = DisplayLayout(primary: laptop)
+    let top = ax(5, 205, 60, 60)
+    let middle = ax(5, 400, 60, 60)
+    let bottom = ax(5, 600, 60, 60)
+    let dock = DockGeometry(
+      listFrame: ax(0, 200, 70, 500),
+      iconFrames: [middle, top, bottom],
+      layout: layout
+    )
+
+    XCTAssertEqual(dock.iconFramesAlongDock, [top, middle, bottom].map(layout.appKitRect))
+  }
+
+  func testOnARightDockTheIconsRunTopToBottom() {
+    let layout = DisplayLayout(primary: laptop)
+    let top = ax(1375, 205, 60, 60)
+    let bottom = ax(1375, 600, 60, 60)
+    let dock = DockGeometry(
+      listFrame: ax(1370, 200, 70, 500),
+      iconFrames: [bottom, top],
+      layout: layout
+    )
+
+    XCTAssertEqual(dock.iconFramesAlongDock, [top, bottom].map(layout.appKitRect))
   }
 
   func testThePerchStaysOnTheDisplayWhenANarrowRightDockWouldPushItPastTheEdge() {

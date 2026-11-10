@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (Gate 1 rules, 2026-11-06; the model was built in job 001 and reviewed in rounds 1 and 2)
+Accepted (Gate 1 rules, 2026-11-06; the model was built in job 001 and reviewed in rounds 1 and 2). ADR 0010 supersedes the plan for ending `waking` from the animation: it stays on a 3 s clock.
 
 ## Context
 
