@@ -78,9 +78,12 @@ public final class OverlayWindow {
   }
 
   // AppKit aborts the app when given a null or non-finite frame, so such a frame means there is
-  // nothing to show. Logged once per window.
+  // nothing to show. Logged once per run of unusable frames: a usable frame re-arms the log.
   private func accepts(_ frame: CGRect) -> Bool {
-    guard !frame.isUsableWindowFrame else { return true }
+    guard !frame.isUsableWindowFrame else {
+      hasReportedUnusableFrame = false
+      return true
+    }
     if !hasReportedUnusableFrame {
       hasReportedUnusableFrame = true
       logger.error("Overlay hidden: unusable frame \(String(describing: frame), privacy: .public)")
