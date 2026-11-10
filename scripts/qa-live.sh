@@ -96,7 +96,7 @@ done
 say() { printf '%s\n' "$*"; }
 step() { printf '\n==> %s\n' "$*"; }
 
-act() {
+run_or_print() {
   if $dry_run; then
     printf '    would run: %s\n' "$*"
     return 0
@@ -157,8 +157,8 @@ save_dock_backup() {
     say "Restore it first: scripts/qa-live.sh --restore" >&2
     exit 1
   fi
-  act mkdir -p "$qa_dir"
-  act defaults export com.apple.dock "$backup"
+  run_or_print mkdir -p "$qa_dir"
+  run_or_print defaults export com.apple.dock "$backup"
   owns_backup=true
   say "If this run is killed, restore the Dock with:"
   say "  $restore_command"
@@ -187,8 +187,8 @@ restore_dock() {
 }
 
 dock_set() {
-  act defaults write com.apple.dock "$@"
-  act killall Dock
+  run_or_print defaults write com.apple.dock "$@"
+  run_or_print killall Dock
   pause 3
 }
 
@@ -283,6 +283,13 @@ simulate() {
   menu Debug "Simulate battery" "$1"
 }
 
+# The app logs a Changed: line only when the menu line changes, and picking the choice already
+# shown changes nothing. Every level differs from No battery, so a run of checks that waits for
+# Changed: lines starts there.
+start_from_no_battery() {
+  simulate "No battery"
+}
+
 menu_first_line() {
   osascript <<'APPLESCRIPT'
 tell application "System Events"
@@ -306,7 +313,7 @@ menu_bar_item_exists() {
 
 launch_app() {
   mark_log
-  act open "$app"
+  run_or_print open "$app"
   wait_log "Accessibility granted: (true|false)" 10
 }
 
@@ -371,11 +378,11 @@ mid_y() { awk -F, '{print $2 + $4 / 2}' <<<"$1"; }
 
 pointer_away() {
   read_dock || return 1
-  act "$helper" move-pointer "$(mid_x "$dock_screen")" "$(awk -F, '{print $2 + $4 * 0.6}' <<<"$dock_screen")"
+  run_or_print "$helper" move-pointer "$(mid_x "$dock_screen")" "$(awk -F, '{print $2 + $4 * 0.6}' <<<"$dock_screen")"
 }
 
 pointer_to() {
-  act "$helper" move-pointer "$1" "$2"
+  run_or_print "$helper" move-pointer "$1" "$2"
 }
 
 capture() {
@@ -421,7 +428,7 @@ preflight() {
   fi
 
   say "Building the helper (it is never part of the app bundle)."
-  act swift build -c release --product qa-helper
+  run_or_print swift build -c release --product qa-helper
 
   say "Your terminal needs Accessibility (pointer moves, the menu) and Screen Recording (screenshots)."
   if ! $dry_run; then
@@ -438,7 +445,7 @@ preflight() {
   fi
 
   say "Reading the app's log."
-  act mkdir -p "$qa_dir"
+  run_or_print mkdir -p "$qa_dir"
   if ! $dry_run; then
     : >"$app_log"
     log stream --style compact --level debug --predicate "subsystem == \"$subsystem\"" >>"$app_log" 2>&1 &
@@ -483,7 +490,7 @@ scenario_launch() {
   pause 2
   check 1.2 launch "Quit DrowsyDock ends the app" bash -c '! pgrep -x DrowsyDock >/dev/null'
   launch_app
-  act osascript -e 'tell application "System Events" to tell process "DrowsyDock" to click menu bar item 1 of last menu bar' \
+  run_or_print osascript -e 'tell application "System Events" to tell process "DrowsyDock" to click menu bar item 1 of last menu bar' \
     -e 'delay 0.3' -e 'tell application "System Events" to keystroke "q" using command down'
   pause 2
   check 1.3 launch "Cmd-Q with the menu open ends the app" bash -c '! pgrep -x DrowsyDock >/dev/null'
@@ -523,7 +530,7 @@ scenario_levels() {
   simulate Real
   local order
   for order in "80 40 25 15 5" "5 15 25 40 80"; do
-    simulate "No battery"
+    start_from_no_battery
     local percent state
     for percent in $order; do
       case $percent in
@@ -647,12 +654,12 @@ scenario_hover() {
   pause 5
   pointer_to "$(mid_x "$dock_last_icon")" "$(mid_y "$dock_last_icon")"
   pause 1
-  act sample DrowsyDock 3 -file "$qa_dir/hover-faded.txt"
+  run_or_print sample DrowsyDock 3 -file "$qa_dir/hover-faded.txt"
   check 9.8 hover "while faded at 5% the sample shows no drawing" \
     bash -c "! grep -Eq 'drawFrame|SKCRenderer' '$qa_dir/hover-faded.txt'"
   pointer_away
   pause 2
-  act sample DrowsyDock 3 -file "$qa_dir/hover-shown.txt"
+  run_or_print sample DrowsyDock 3 -file "$qa_dir/hover-shown.txt"
   check 9.8 hover "after the pointer leaves the snore draws again" \
     grep -Eq 'drawFrame' "$qa_dir/hover-shown.txt"
   simulate 80%
@@ -685,16 +692,16 @@ scenario_relaunch() {
   step "relaunch (QA 7.8, 7.8a, 7.8b)"
   pointer_away
   mark_log
-  act killall Dock
+  run_or_print killall Dock
   check 7.8 relaunch "the log shows 'The Dock relaunched'" wait_log "The Dock relaunched" 10
   expect_overlay shown 10 7.8 relaunch "the cat returns once the Dock's icons are back"
   check 7.8a relaunch "the observer is installed on the new Dock" \
     wait_log "Observing the Dock list for:" 10
   pause 2
   mark_log
-  act open -g -a Calculator
+  run_or_print open -g -a Calculator
   pause 4
-  act osascript -e 'tell application "Calculator" to quit'
+  run_or_print osascript -e 'tell application "Calculator" to quit'
   pause 3
   check 7.8b relaunch "an app's icon coming and going isn't taken for the list's destruction" \
     no_log_since_mark "The Dock list was destroyed|Observing the Dock list for:"
@@ -768,7 +775,7 @@ sample_idle() {
   local name="$1" rows="$2" detail="$3"
   pointer_away
   pause 10
-  act sample DrowsyDock 5 -file "$qa_dir/$name.txt"
+  run_or_print sample DrowsyDock 5 -file "$qa_dir/$name.txt"
   check "$rows" idle-sample "$detail: no timer fires" \
     bash -c "! grep -q '__CFRUNLOOP_IS_CALLING_OUT_TO_A_TIMER_CALLBACK_FUNCTION__' '$qa_dir/$name.txt'"
   check "$rows" idle-sample "$detail: nothing draws" \
