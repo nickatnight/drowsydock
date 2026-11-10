@@ -1,4 +1,4 @@
-struct SeededGenerator: RandomNumberGenerator {
+struct SplitMix64: RandomNumberGenerator {
   private var state: UInt64
 
   init(seed: UInt64) {

@@ -9,7 +9,7 @@ final class OverlayWindowTests: XCTestCase {
   // crashes a later test that runs the run loop. The app never frees its overlay windows.
   private static var keptAlive: [OverlayWindow] = []
 
-  private let frame = CGRect(x: 50_000, y: 50_000, width: 64, height: 80)
+  private let offscreenFrame = CGRect(x: 50_000, y: 50_000, width: 64, height: 80)
 
   private func overlay() -> OverlayWindow {
     let overlay = OverlayWindow(contentView: NSView())
@@ -63,27 +63,27 @@ final class OverlayWindowTests: XCTestCase {
   func testShowingPutsTheWindowOnScreenAtTheFrame() {
     let overlay = overlay()
 
-    overlay.show(at: frame)
+    overlay.show(at: offscreenFrame)
 
     XCTAssertTrue(overlay.window.isVisible)
-    XCTAssertEqual(overlay.frame, frame)
+    XCTAssertEqual(overlay.frame, offscreenFrame)
     XCTAssertEqual(overlay.visibility, .shown)
   }
 
   func testFadingOutKeepsTheWindowOnScreenAtTheFrame() {
     let overlay = overlay()
-    overlay.show(at: frame)
+    overlay.show(at: offscreenFrame)
 
-    overlay.fadeOut(at: frame.offsetBy(dx: 10, dy: 0))
+    overlay.fadeOut(at: offscreenFrame.offsetBy(dx: 10, dy: 0))
 
     XCTAssertTrue(overlay.window.isVisible)
-    XCTAssertEqual(overlay.frame, frame.offsetBy(dx: 10, dy: 0))
+    XCTAssertEqual(overlay.frame, offscreenFrame.offsetBy(dx: 10, dy: 0))
     XCTAssertEqual(overlay.visibility, .fadedOut)
   }
 
   func testHidingTakesTheWindowOffScreen() {
     let overlay = overlay()
-    overlay.show(at: frame)
+    overlay.show(at: offscreenFrame)
 
     overlay.hide()
 
@@ -94,12 +94,12 @@ final class OverlayWindowTests: XCTestCase {
   // NSWindow.setFrame aborts the app on such a frame (ADR 0013).
   func testAnUnusableFrameHidesTheWindowInsteadOfPlacingIt() {
     let overlay = overlay()
-    overlay.show(at: frame)
+    overlay.show(at: offscreenFrame)
 
     overlay.show(at: CGRect(x: CGFloat.infinity, y: 0, width: 64, height: 80))
 
     XCTAssertFalse(overlay.window.isVisible)
     XCTAssertEqual(overlay.visibility, .hidden)
-    XCTAssertEqual(overlay.frame, frame)
+    XCTAssertEqual(overlay.frame, offscreenFrame)
   }
 }

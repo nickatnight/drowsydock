@@ -2,9 +2,9 @@ import CoreGraphics
 import DockOverlayKit
 
 enum DockFixture {
-  static let offset: CGFloat = 50_000
+  static let offscreenOffset: CGFloat = 50_000
 
-  static let display = CGRect(x: offset, y: offset, width: 1512, height: 982)
+  static let display = CGRect(x: offscreenOffset, y: offscreenOffset, width: 1512, height: 982)
 
   static var bottom: DockGeometry {
     let items = (0..<12).map { index in
@@ -45,6 +45,6 @@ enum DockFixture {
     _ width: CGFloat,
     _ height: CGFloat
   ) -> AXRect {
-    AXRect(CGRect(x: offset + x, y: y, width: width, height: height))
+    AXRect(CGRect(x: offscreenOffset + x, y: y, width: width, height: height))
   }
 }

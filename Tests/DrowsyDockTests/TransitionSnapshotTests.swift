@@ -259,7 +259,7 @@ final class TransitionSnapshotTests: XCTestCase {
 
   private func overlay(clock: TestClock) -> MascotOverlay {
     let overlay = MascotOverlay(
-      catScene: MascotScene(clock: clock, generator: SeededGenerator(seed: 2026))
+      catScene: MascotScene(clock: clock, generator: SplitMix64(seed: 2026))
     )
     addTeardownBlock { overlay.show(nil) }
     KeepAlive.keep(overlay)

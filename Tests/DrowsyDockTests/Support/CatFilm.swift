@@ -13,7 +13,7 @@ final class CatFilm {
   private let renderer: OffscreenRenderer
 
   init(resting state: DrowsinessState, facing: DockPerch.Facing = .left, seed: UInt64 = 2026) {
-    scene = MascotScene(clock: clock, generator: SeededGenerator(seed: seed))
+    scene = MascotScene(clock: clock, generator: SplitMix64(seed: seed))
     scene.show(.drowsiness(state), facing: facing)
     scene.setActive(true)
     renderer = OffscreenRenderer(scene: scene)
