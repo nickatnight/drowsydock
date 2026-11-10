@@ -8,17 +8,19 @@ scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 
 failed=0
+
+# copy NAME: a fresh copy of the doc and the row list in their own folder.
+copy() {
+  mkdir -p "$scratch/$1"
+  cp docs/manual-qa.md docs/qa-rows.txt "$scratch/$1/"
+}
+
 check_copy() {
-  scripts/qa/check-qa-mapping.sh "$scratch/manual-qa.md" "$scratch/qa-rows.txt" >/dev/null 2>&1
+  scripts/qa/check-qa-mapping.sh "$scratch/$1/manual-qa.md" "$scratch/$1/qa-rows.txt" >/dev/null 2>&1
 }
 
-fresh() {
-  cp docs/manual-qa.md "$scratch/manual-qa.md"
-  cp docs/qa-rows.txt "$scratch/qa-rows.txt"
-}
-
-fresh
-if ! check_copy; then
+copy unchanged
+if ! check_copy unchanged; then
   echo "check-qa-mapping-selftest: the unchanged doc fails the check" >&2
   failed=1
 fi
@@ -37,21 +39,32 @@ plants=(
   'a renumbered row|s/^\| 11\.8 \|/| 11.9 |/'
   'rows:a row missing from the list|s/^11\.8\n//'
 )
+# The checks run side by side, each on its own copy; the results are read once all have ended.
+index=0
 for plant in "${plants[@]}"; do
+  index=$((index + 1))
   name="${plant%%|*}"
   edit="${plant#*|}"
-  fresh
-  target="$scratch/manual-qa.md"
+  copy "$index"
+  target="$scratch/$index/manual-qa.md"
   if [[ $name == rows:* ]]; then
-    target="$scratch/qa-rows.txt"
-    name="${name#rows:}"
+    target="$scratch/$index/qa-rows.txt"
   fi
   perl -pi -e "$edit" "$target"
   if cmp -s "$target" "docs/$(basename "$target")"; then
-    echo "check-qa-mapping-selftest: the plant '$name' changed nothing" >&2
+    echo "check-qa-mapping-selftest: the plant '${name#rows:}' changed nothing" >&2
     failed=1
-  elif check_copy; then
-    echo "check-qa-mapping-selftest: the check missed $name" >&2
+    continue
+  fi
+  (check_copy "$index" && touch "$scratch/$index/passed") &
+done
+wait
+index=0
+for plant in "${plants[@]}"; do
+  index=$((index + 1))
+  if [[ -e $scratch/$index/passed ]]; then
+    name="${plant%%|*}"
+    echo "check-qa-mapping-selftest: the check missed ${name#rows:}" >&2
     failed=1
   fi
 done

@@ -49,6 +49,8 @@ manual_qa_names_real_tests() {
   fi
 
   # Every live scenario named exists, and lists the rows that cite it.
+  local listing
+  listing="$(scripts/qa-live.sh --list)"
   while IFS='|' read -r row cell; do
     while IFS= read -r scenario; do
       [[ -n $scenario ]] || continue
@@ -57,7 +59,7 @@ manual_qa_names_real_tests() {
         failed=1
         continue
       fi
-      rows_of_scenario="$(scripts/qa-live.sh --list | awk -v name="$scenario" '$1 == name')"
+      rows_of_scenario="$(awk -v name="$scenario" '$1 == name' <<<"$listing")"
       if [[ -z $rows_of_scenario ]]; then
         echo "Manual QA: row $row names live scenario $scenario, which qa-live.sh lacks" >&2
         failed=1
