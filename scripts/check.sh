@@ -89,6 +89,36 @@ coverage_exempt_files_are_in_manual_qa() {
   return "$failed"
 }
 
+# docs/manual-qa.md is the link from each QA row to the test or live scenario that covers it, so
+# every test it names must exist, every live scenario it names must be in qa-live.sh, and every
+# row in its automated table must name at least one of them.
+manual_qa_names_real_tests() {
+  local name class method row failed=0
+  while IFS= read -r name; do
+    class="${name%%.*}"
+    method="${name#*.}"
+    if ! cat Tests/*/"$class.swift" 2>/dev/null | found grep -q "func $method("; then
+      echo "Manual QA: docs/manual-qa.md names $name, which no test file defines" >&2
+      failed=1
+    fi
+  done < <(grep -oE '`[A-Za-z0-9]+Tests\.test[A-Za-z0-9]+`' docs/manual-qa.md | tr -d '`' | sort -u)
+  local scenarios
+  scenarios="$(scripts/qa-live.sh --list | cut -d' ' -f1)"
+  while IFS= read -r name; do
+    if ! found grep -qx -- "$name" <<<"$scenarios"; then
+      echo "Manual QA: docs/manual-qa.md names live scenario $name, which qa-live.sh lacks" >&2
+      failed=1
+    fi
+  done < <(sed -n '/^## Automated and live rows/,/^## /p' docs/manual-qa.md |
+    awk -F'|' 'NF > 5 {print $5}' | grep -oE '`[a-z-]+`' | tr -d '`' | sort -u)
+  while IFS= read -r row; do
+    echo "Manual QA: row $row names no test and no live scenario" >&2
+    failed=1
+  done < <(sed -n '/^## Automated and live rows/,/^## Coverage/p' docs/manual-qa.md |
+    awk -F'|' 'NF > 5 && $2 ~ /[0-9]/ && $4 !~ /`/ && $5 !~ /`/ {gsub(/ /, "", $2); print $2}')
+  return "$failed"
+}
+
 scan_swift_files() {
   local file files=()
   while IFS= read -r -d '' file; do files+=("$file"); done < <(swift_files_under "${source_roots[@]}" Tests)
@@ -256,6 +286,7 @@ scripts/qa/check-dry-run.sh
 step "Floor rules"
 floor_rules
 coverage_exempt_files_are_in_manual_qa
+manual_qa_names_real_tests
 
 step "Secrets"
 # gitleaks matches text, so binary signing material needs its own check.

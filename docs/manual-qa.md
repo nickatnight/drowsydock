@@ -6,7 +6,7 @@
 2. **Live**: `scripts/qa-live.sh` runs them on the owner's Mac against the real Dock and the real app, and prints PASS, FAIL or SKIP per row. `scripts/qa-live.sh --list` names its scenarios; `--dry-run` prints every step and changes nothing. Agents never run it for real.
 3. **Manual**: the checklist below, for what needs hardware, a macOS permission dialog or a human eye.
 
-Every row keeps its number. The tables after the checklist map each automated or live row to the test or scenario that replaced it.
+Every row keeps its number. The tables after the checklist map each automated or live row to the test or scenario that replaced it; this mapping is how each test names its QA row. `scripts/check.sh fast` fails when a test or scenario named here doesn't exist, or when an automated row names none.
 
 Every Swift file that the coverage gate exempts must be named here in backticks; `scripts/check.sh fast` fails otherwise. The last section lists them.
 
