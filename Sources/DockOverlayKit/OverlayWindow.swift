@@ -58,20 +58,28 @@ public final class OverlayWindow {
 
   /// Shows the window at `frame`, in AppKit global coordinates, fading it in if it was hidden or
   /// faded out. A frame that isn't `isUsableWindowFrame` hides the window instead.
-  public func show(at frame: CGRect) {
-    guard accepts(frame) else { return }
+  ///
+  /// - Returns: Whether the window took the frame.
+  @discardableResult
+  public func show(at frame: CGRect) -> Bool {
+    guard accepts(frame) else { return false }
     place(at: frame)
     fade(to: 1)
     visibility = .shown
+    return true
   }
 
   /// Keeps the window at `frame` but fades it out. A frame that isn't `isUsableWindowFrame` hides
   /// the window instead.
-  public func fadeOut(at frame: CGRect) {
-    guard accepts(frame) else { return }
+  ///
+  /// - Returns: Whether the window took the frame.
+  @discardableResult
+  public func fadeOut(at frame: CGRect) -> Bool {
+    guard accepts(frame) else { return false }
     place(at: frame)
     fade(to: 0)
     visibility = .fadedOut
+    return true
   }
 
   /// Takes the window off screen, at once or after fading it out.

@@ -81,9 +81,10 @@ final class MascotOverlay {
       (perch, dock, isFaded) = (fadedPerch, fadedDock, true)
     }
 
-    catScene.setActive(!isFaded)
+    // A window that refuses its frame is hidden, so its scene must not keep drawing.
+    let isPlaced = place(catWindow, at: perch.frame, isFaded: isFaded)
+    catScene.setActive(isPlaced && !isFaded)
     catScene.show(mood, facing: perch.facing)
-    place(catWindow, at: perch.frame, isFaded: isFaded)
 
     if isFaded {
       stopCrowdEffect()
@@ -114,12 +115,10 @@ final class MascotOverlay {
     canvasScene.stopCrowdEffect()
   }
 
-  private func place(_ window: OverlayWindow, at frame: CGRect, isFaded: Bool) {
-    if isFaded {
-      window.fadeOut(at: frame)
-    } else {
-      window.show(at: frame)
-    }
+  // Returns whether the window took the frame.
+  @discardableResult
+  private func place(_ window: OverlayWindow, at frame: CGRect, isFaded: Bool) -> Bool {
+    isFaded ? window.fadeOut(at: frame) : window.show(at: frame)
   }
 
   private func hide() {

@@ -234,6 +234,22 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .hidden)
   }
 
+  // H14 I-9: a perch frame the window refuses hides the cat and stops its scene, so nothing draws
+  // for a window that isn't there.
+  func testARefusedPerchFrameHidesTheCatAndStopsItsScene() {
+    let rig = rig()
+    rig.percent(5)
+    let unusable = DockPerch(
+      frame: CGRect(x: CGFloat.infinity, y: 0, width: 64, height: 80),
+      facing: .left
+    )
+
+    rig.tracker.present(.shown(unusable, on: dock))
+
+    XCTAssertEqual(rig.overlay.catWindow.visibility, .hidden)
+    XCTAssertFalse(rig.overlay.catScene.needsAnotherFrame)
+  }
+
   // MARK: - The pointer over the Dock
 
   // QA 8.11: the cat fades out while the pointer is on its icon and comes back after.
