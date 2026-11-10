@@ -104,6 +104,7 @@ final class MascotScene: SKScene, HostedScene {
 
   private func startAmbient() {
     nextGesture?.cancel()
+    nextGesture = nil
     guard isActive, !director.isAnimating, case .drowsiness(let state) = director.shown else {
       return
     }
