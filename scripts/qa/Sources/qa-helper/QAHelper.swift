@@ -136,6 +136,14 @@ enum QAHelper {
       let sprite = arguments.dropFirst().first { $0.hasPrefix("sprite=") }
         .map { size(String($0.dropFirst("sprite=".count))) }
       printDock(sprite: sprite)
+    case "preferences-change":
+      guard arguments.count == 3,
+        let live = PreferencesChange.dictionary(at: URL(fileURLWithPath: arguments[1])),
+        let backup = PreferencesChange.dictionary(at: URL(fileURLWithPath: arguments[2]))
+      else { fail("usage: qa-helper preferences-change LIVE.plist BACKUP.plist") }
+      for line in PreferencesChange.summary(live: live, backup: backup) {
+        print(line)
+      }
     case "now":
       print(String(format: "%.3f", Date().timeIntervalSince1970))
     case "log-time":

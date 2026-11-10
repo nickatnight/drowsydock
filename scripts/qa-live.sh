@@ -7,6 +7,7 @@
 #   scripts/qa-live.sh --dry-run       print every step, change nothing
 #   scripts/qa-live.sh --list          list the scenarios and the QA rows each checks
 #   scripts/qa-live.sh --restore       restore the Dock preferences that a killed run left changed
+#   scripts/qa-live.sh --restore --yes the same, without asking first
 #   scripts/qa-live.sh --keep-captures keep the screenshots and samples even when their checks pass
 #
 # It changes the Dock's preferences (position, size, auto-hide, magnification). Before any change
@@ -40,6 +41,10 @@ subsystem="com.drowsydock.DrowsyDock"
 # shellcheck source=scripts/qa/dock-preferences.sh
 source "$root/scripts/qa/dock-preferences.sh"
 dock_backup="$qa_dir/dock-backup.plist"
+# This run's pid while it owns the backup, and log stream's pid while it runs, so another terminal
+# and the next run can tell a live run from a killed one.
+run_pid_file="$qa_dir/run.pid"
+log_pid_file="$qa_dir/log.pid"
 
 scenarios=(
   "restore-selftest|-|saves the Dock preferences, changes one harmless key, restores them"
@@ -69,7 +74,7 @@ needs_app=false
 log_pid=""
 
 usage() {
-  sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 list() {
@@ -194,36 +199,6 @@ write_report() {
 
 owns_backup=false
 
-take_dock_backup() {
-  step "Saving the Dock's preferences"
-  if [[ -f $dock_backup ]] && ! $dry_run; then
-    say "A backup from a run that never restored it is still at $dock_backup." >&2
-    say "Restore it first: scripts/qa-live.sh --restore" >&2
-    exit 1
-  fi
-  if $dry_run; then
-    printf '    would run: defaults export com.apple.dock %s, then check it parses and matches\n' \
-      "$dock_backup"
-  elif ! save_dock_backup; then
-    say "Couldn't save and verify the Dock's preferences at $dock_backup; changing nothing." >&2
-    exit 1
-  fi
-  owns_backup=true
-  say "If this run is killed, restore the Dock with:"
-  say "  $(dock_restore_command)"
-}
-
-# Restores the Dock's preferences if this run saved them. Returns 1 when the restore can't be
-# verified; the backup is then kept and the command to retry printed.
-put_dock_back() {
-  $owns_backup || return 0
-  if $dry_run; then
-    printf '    would restore the Dock from %s and delete the backup once it matches\n' "$dock_backup"
-    return 0
-  fi
-  restore_dock
-}
-
 # Changes one Dock preference the way System Settings does, through System Events, so the Dock
 # keeps running and the app sees the change through com.apple.dock.prefchanged and Accessibility.
 # PROPERTY and VALUE come from this script's own fixed set, such as "screen edge" left.
@@ -242,20 +217,79 @@ dock_preference() {
   fi
 }
 
-# Signals are ignored from here on, so a second Ctrl-C can't cut the restore short.
+take_dock_backup() {
+  step "Saving the Dock's preferences"
+  if $dry_run; then
+    printf '    would run: defaults export com.apple.dock %s, then check it parses and matches\n' \
+      "$dock_backup"
+  elif ! save_dock_backup; then
+    say "Couldn't save and verify the Dock's preferences at $dock_backup; changing nothing." >&2
+    exit 1
+  fi
+  owns_backup=true
+  say "If this run is killed, restore the Dock with:"
+  say "  cd $(printf '%q' "$root") && scripts/qa-live.sh --restore --yes"
+  say "or, without this script:"
+  say "  $(dock_restore_command)"
+}
+
+# Restores the Dock's preferences if this run saved them. Returns 1 when the restore can't be
+# verified, or when the backup this run saved has gone; the backup is then kept, if it exists, and
+# the command to retry printed.
+put_dock_back() {
+  $owns_backup || return 0
+  if $dry_run; then
+    printf '    would restore the Dock from %s and delete the backup once it matches\n' "$dock_backup"
+    return 0
+  fi
+  if [[ ! -f $dock_backup ]]; then
+    say "The backup this run saved at $dock_backup disappeared; the Dock wasn't restored." >&2
+    return 1
+  fi
+  restore_dock
+}
+
+# The pid of another qa-live.sh run that owns build/qa, or nothing.
+other_run_pid() {
+  [[ -f $run_pid_file ]] || return 1
+  local pid
+  pid="$(cat "$run_pid_file")"
+  [[ $pid =~ ^[0-9]+$ && $pid != "$$" ]] || return 1
+  ps -o command= -p "$pid" 2>/dev/null | grep -q 'qa-live\.sh' || return 1
+  printf '%s\n' "$pid"
+}
+
+# A log stream left by a killed run keeps appending to app.log until logout; stop it.
+stop_stale_log_stream() {
+  [[ -f $log_pid_file ]] || return 0
+  local pid
+  pid="$(cat "$log_pid_file")"
+  if [[ $pid =~ ^[0-9]+$ ]] && ps -o command= -p "$pid" 2>/dev/null | grep -q '^log stream'; then
+    kill "$pid" 2>/dev/null
+  fi
+  rm -f "$log_pid_file"
+}
+
+# Restores the Dock first, since that is what matters; the menu step after it is cosmetic and
+# bounded by AppleScript timeouts. Signals are ignored from here on, so a second Ctrl-C can't cut
+# the restore short.
 cleanup() {
   local status=$?
   trap '' INT TERM HUP
   trap - EXIT
+  if [[ -n $log_pid ]]; then kill "$log_pid" 2>/dev/null; fi
+  $dry_run || rm -f "$log_pid_file"
+  if ! put_dock_back; then
+    result FAIL - dock "the Dock's preferences couldn't be restored; see the message above"
+    status=1
+  fi
   if $needs_app && ! $dry_run && app_running; then
     simulate Real 2>/dev/null
   fi
-  if [[ -n $log_pid ]]; then kill "$log_pid" 2>/dev/null; fi
-  if ! put_dock_back; then
-    result FAIL - dock "the Dock's preferences couldn't be restored; the backup is kept at $dock_backup"
-    status=1
-  fi
   write_report
+  if ! $dry_run && [[ $(cat "$run_pid_file" 2>/dev/null) == "$$" ]]; then
+    rm -f "$run_pid_file"
+  fi
   exit "$status"
 }
 
@@ -265,10 +299,31 @@ restore_from_backup() {
     say "No backup at $dock_backup; nothing to restore."
     return 0
   fi
+  local pid
+  if pid="$(other_run_pid)"; then
+    say "qa-live.sh is still running (pid $pid) and owns this backup; it restores the Dock when it ends." >&2
+    return 1
+  fi
+  stop_stale_log_stream
   say "Backup saved $(stat -f '%Sm' "$dock_backup")."
-  say "Restoring it changes these lines of the Dock's preferences (- now, + backup):"
-  diff <(dock_domain_xml) <(plutil -convert xml1 -o - "$dock_backup") | grep -E '^[<>]' |
-    sed 's/^</  -/; s/^>/  +/' | head -n 40
+  local scratch
+  scratch="$(mktemp -d)"
+  defaults export com.apple.dock "$scratch/live.plist"
+  if [[ -x $helper ]]; then
+    say "Restoring it changes these keys of the Dock's preferences:"
+    "$helper" preferences-change "$scratch/live.plist" "$dock_backup" | sed 's/^/  /'
+  fi
+  local lines
+  lines="$(diff <(plutil -convert xml1 -o - "$scratch/live.plist") \
+    <(plutil -convert xml1 -o - "$dock_backup") | grep -E '^[<>]' | sed 's/^</  -/; s/^>/  +/')"
+  rm -rf "$scratch"
+  say "The lines that change (- now, + backup):"
+  printf '%s\n' "$lines" | head -n 40
+  local total
+  total="$(printf '%s\n' "$lines" | grep -c .)"
+  if ((total > 40)); then
+    say "  … and $((total - 40)) more lines."
+  fi
   if ! $assume_yes; then
     local answer
     read -r -p "Restore the Dock's preferences from this backup? [y/N] " answer
@@ -279,6 +334,11 @@ restore_from_backup() {
   fi
   restore_dock
 }
+
+if $mode_restore && $dry_run; then
+  echo "--restore applies the backup; it has no dry run. Run it without --dry-run." >&2
+  exit 2
+fi
 
 if $mode_restore; then
   restore_from_backup
@@ -310,6 +370,7 @@ start_app_log() {
   log stream --style compact --level debug \
     --predicate "subsystem == \"$subsystem\" AND process == \"DrowsyDock\"" >>"$app_log" 2>&1 &
   log_pid=$!
+  printf '%s\n' "$log_pid" >"$log_pid_file"
   sleep 2
   app_log_alive
 }
@@ -366,21 +427,23 @@ menu() {
   fi
   osascript - "$@" >/dev/null <<'APPLESCRIPT'
 on run itemPath
-  tell application "System Events"
-    tell process "DrowsyDock"
-      set barItem to menu bar item 1 of last menu bar
-      click barItem
-      delay 0.3
-      set currentMenu to menu 1 of barItem
-      repeat with i from 1 to (count of itemPath) - 1
-        set parentItem to menu item (item i of itemPath) of currentMenu
-        click parentItem
+  with timeout of 10 seconds
+    tell application "System Events"
+      tell process "DrowsyDock"
+        set barItem to menu bar item 1 of last menu bar
+        click barItem
         delay 0.3
-        set currentMenu to menu 1 of parentItem
-      end repeat
-      click menu item (item -1 of itemPath) of currentMenu
+        set currentMenu to menu 1 of barItem
+        repeat with i from 1 to (count of itemPath) - 1
+          set parentItem to menu item (item i of itemPath) of currentMenu
+          click parentItem
+          delay 0.3
+          set currentMenu to menu 1 of parentItem
+        end repeat
+        click menu item (item -1 of itemPath) of currentMenu
+      end tell
     end tell
-  end tell
+  end timeout
 end run
 APPLESCRIPT
 }
@@ -398,21 +461,32 @@ start_from_no_battery() {
 
 menu_first_line() {
   osascript <<'APPLESCRIPT'
-tell application "System Events"
-  tell process "DrowsyDock"
-    set barItem to menu bar item 1 of last menu bar
-    click barItem
-    delay 0.3
-    set firstLine to name of menu item 1 of menu 1 of barItem
-    key code 53
-    return firstLine
+with timeout of 10 seconds
+  tell application "System Events"
+    tell process "DrowsyDock"
+      set barItem to menu bar item 1 of last menu bar
+      click barItem
+      delay 0.3
+      set firstLine to name of menu item 1 of menu 1 of barItem
+      key code 53
+      return firstLine
+    end tell
   end tell
-end tell
+end timeout
 APPLESCRIPT
 }
 
 # This build's process only, never another installed copy.
-app_pid() { pgrep -f "^$app_binary" | head -n 1; }
+app_pid() {
+  local pid
+  for pid in $(pgrep -x DrowsyDock); do
+    if [[ $(ps -o comm= -p "$pid") == "$app_binary" ]]; then
+      printf '%s\n' "$pid"
+      return 0
+    fi
+  done
+  return 1
+}
 
 app_running() { [[ -n $(app_pid) ]]; }
 
@@ -422,21 +496,25 @@ app_stopped() { ! app_running; }
 # terminal or whatever app is in front. Prints "sent" when it pressed it.
 cmd_q_with_menu_open() {
   osascript <<'APPLESCRIPT'
-tell application "System Events"
-  tell process "DrowsyDock"
-    set barItem to menu bar item 1 of last menu bar
-    click barItem
-    delay 0.3
-    if not (exists menu 1 of barItem) then return "no menu"
-    keystroke "q" using command down
-    return "sent"
+with timeout of 10 seconds
+  tell application "System Events"
+    tell process "DrowsyDock"
+      set barItem to menu bar item 1 of last menu bar
+      click barItem
+      delay 0.3
+      if not (exists menu 1 of barItem) then return "no menu"
+      keystroke "q" using command down
+      return "sent"
+    end tell
   end tell
-end tell
+end timeout
 APPLESCRIPT
 }
 
 menu_bar_item_exists() {
-  [[ $(osascript -e 'tell application "System Events" to exists menu bar item 1 of last menu bar of process "DrowsyDock"') == true ]]
+  [[ $(osascript -e 'with timeout of 10 seconds' \
+    -e 'tell application "System Events" to exists menu bar item 1 of last menu bar of process "DrowsyDock"' \
+    -e 'end timeout') == true ]]
 }
 
 launch_app() {
@@ -653,10 +731,6 @@ preflight() {
 
 selftest_key="qa-live-selftest"
 
-selftest_key_is_gone() {
-  ! defaults read com.apple.dock "$selftest_key" >/dev/null 2>&1
-}
-
 # Runs the real restore once: one harmless key the Dock ignores, then the restore that must remove
 # it, then a fresh backup for the scenarios that follow.
 scenario_restore_selftest() {
@@ -664,17 +738,49 @@ scenario_restore_selftest() {
   run_or_print defaults write com.apple.dock "$selftest_key" -bool true
   if $dry_run; then
     put_dock_back
-  else
-    local original
-    original="$(plutil -convert xml1 -o - "$dock_backup")"
-    check - restore-selftest "the restore succeeds" put_dock_back
-    check - restore-selftest "the harmless key is gone" selftest_key_is_gone
-    check - restore-selftest "the Dock's preferences equal the backup" \
-      test "$(dock_domain_xml)" = "$original"
-    check - restore-selftest "the backup is deleted after a verified restore" test ! -e "$dock_backup"
+    owns_backup=false
+    take_dock_backup
+    return
   fi
+  if ! check - restore-selftest "the harmless key was written" selftest_key_present; then
+    return
+  fi
+  local saved="$qa_dir/selftest-backup.plist"
+  cp "$dock_backup" "$saved"
+  if ! check - restore-selftest "the restore succeeds and verifies" put_dock_back; then
+    # The backup this run saved is kept and still owned, so cleanup restores from it at the end.
+    rm -f "$saved"
+    return
+  fi
+  check - restore-selftest "the harmless key is gone" selftest_key_absent
+  check - restore-selftest "the backup is deleted after a verified restore" test ! -e "$dock_backup"
+  # The restore compared before it relaunched the Dock. This compares again once the Dock is back,
+  # and names any key it wrote on launch: a Gate 2 watch item, kept strict until it's known.
+  wait_for_dock_relaunch
+  local changes
+  changes="$(qa_helper preferences-change <(defaults export com.apple.dock -) "$saved")"
+  check - restore-selftest "after the Dock relaunched, its preferences still equal the backup${changes:+ (differ: ${changes//$'\n'/, })}" \
+    test -z "$changes"
+  rm -f "$saved"
   owns_backup=false
   take_dock_backup
+}
+
+selftest_key_present() {
+  defaults read com.apple.dock "$selftest_key" >/dev/null 2>&1
+}
+
+selftest_key_absent() {
+  ! selftest_key_present
+}
+
+wait_for_dock_relaunch() {
+  local waited=0
+  while ! pgrep -x Dock >/dev/null && ((waited < 50)); do
+    sleep 0.1
+    waited=$((waited + 1))
+  done
+  sleep 1
 }
 
 scenario_launch() {
@@ -1270,6 +1376,21 @@ for entry in "${scenarios[@]}"; do
   name="${entry%%|*}"
   if selected "$name" && [[ $name != restore-selftest ]]; then needs_app=true; fi
 done
+
+if ! $dry_run; then
+  if pid="$(other_run_pid)"; then
+    say "Another qa-live.sh run (pid $pid) is using build/qa and the Dock; let it finish." >&2
+    exit 1
+  fi
+  if [[ -f $dock_backup ]]; then
+    say "A backup that was never restored is still at $dock_backup." >&2
+    say "Restore it first: scripts/qa-live.sh --restore" >&2
+    exit 1
+  fi
+  stop_stale_log_stream
+  mkdir -p "$qa_dir"
+  printf '%s\n' "$$" >"$run_pid_file"
+fi
 
 trap cleanup EXIT
 trap 'exit 130' INT

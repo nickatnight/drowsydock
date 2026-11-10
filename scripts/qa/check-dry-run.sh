@@ -16,13 +16,25 @@ for tool in defaults killall osascript open screencapture log sample top pmset p
   printf '#!/bin/sh\necho "%s $*" >>"%s"\nexit 1\n' "$tool" "$calls" >"$stubs/$tool"
   chmod +x "$stubs/$tool"
 done
+# The folder exists and starts empty, as build/qa does on the owner's Mac after a first run, so
+# a redirect into it would succeed; nothing may appear in it.
 qa_dir="$stubs/qa"
+mkdir "$qa_dir"
 
 dry_run() {
   PATH="$stubs:$PATH" QA_HELPER="$stubs/qa-helper" QA_DIR="$qa_dir" scripts/qa-live.sh "$@" 2>&1
 }
 
 failed=0
+
+# A command named by its full path, such as /usr/bin/defaults, would skip both the PATH stubs and
+# the UNGUARDED functions. Only the read-only PlistBuddy may be named that way.
+if grep -nE '(^|[[:space:];|&(`])/(usr/)?(s)?bin/' scripts/qa-live.sh scripts/qa/dock-preferences.sh |
+  grep -v '^[^:]*:1:#!'; then
+  echo "qa-live.sh names a command by its full path; call it by name so the dry run can stub it" >&2
+  failed=1
+fi
+
 report_calls() {
   if [[ -s $calls ]]; then
     echo "qa-live.sh $1 ran commands it must only print:" >&2
@@ -35,8 +47,9 @@ report_calls() {
     grep UNGUARDED <<<"$2" >&2
     failed=1
   fi
-  if [[ -e $qa_dir ]]; then
-    echo "qa-live.sh $1 created $qa_dir" >&2
+  if [[ -n $(ls -A "$qa_dir") ]]; then
+    echo "qa-live.sh $1 wrote into $qa_dir:" >&2
+    ls -A "$qa_dir" >&2
     failed=1
   fi
 }

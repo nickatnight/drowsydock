@@ -43,14 +43,15 @@ dock_matches_backup() {
 }
 
 # Saves the domain to dock_backup through a temporary file in the same folder, so a run killed
-# mid-export never leaves a partial backup. The backup must parse and match the live domain;
+# mid-export never leaves a partial backup. The backup is readable by its owner only, like the
+# Dock's own plist: it holds the pinned apps and the recent-apps list. The backup must parse and match the live domain;
 # otherwise nothing is kept and it returns 1. `defaults export` exits 0 even when it can't write,
 # so only these checks catch a failed save.
 save_dock_backup() {
   local temporary="$dock_backup.tmp"
   rm -f "$temporary"
   if ! mkdir -p "$(dirname "$dock_backup")" ||
-    ! defaults export "$dock_domain" "$temporary" ||
+    ! (umask 077 && defaults export "$dock_domain" "$temporary") ||
     ! plutil -lint -s "$temporary" ||
     ! mv "$temporary" "$dock_backup" ||
     ! dock_backup_is_importable ||

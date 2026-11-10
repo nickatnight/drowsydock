@@ -47,6 +47,7 @@ fresh_domain
 dock_domain_xml >"$original"
 expect "the save succeeds" save_dock_backup
 expect "the backup exists and matches the live domain" dock_matches_backup
+expect "the backup is readable by its owner only" test "$(stat -f '%Lp' "$dock_backup")" = 600
 defaults write "$dock_domain" qa-live-selftest -bool true
 defaults write "$dock_domain" orientation -string left
 expect "the restore succeeds" restore_dock
