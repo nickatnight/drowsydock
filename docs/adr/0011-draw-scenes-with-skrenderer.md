@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (job 003, final verification). Supersedes the `SKView` and 30 fps loop parts of ADR 0009. The rest of ADR 0009 stands: paused rendering between actions, one-shots scheduled by `AmbientSchedule`, and rasterized static parts. ADR 0015 moves the pause into the host: it pauses itself after a frame its scene doesn't need.
+Accepted (job 003, final verification). Supersedes the `SKView` and 30 fps loop parts of ADR 0009. The rest of ADR 0009 stands: paused rendering between actions, one-shots scheduled by `AmbientSchedule`, and rasterized static parts. ADR 0015 moves the pause into the host: it pauses itself after a frame its scene doesn't need. ADR 0017 lowers the loop rate to 12 fps.
 
 ## Context
 

@@ -6,7 +6,7 @@ import SpriteKit
 @MainActor
 final class MascotScene: SKScene, HostedScene {
   static let oneShotFramesPerSecond = 30
-  static let loopFramesPerSecond = 15
+  static let loopFramesPerSecond = 12
 
   weak var host: SceneHostView?
 

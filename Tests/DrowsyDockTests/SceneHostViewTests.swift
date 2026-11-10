@@ -96,6 +96,29 @@ final class SceneHostViewTests: XCTestCase {
     XCTAssertTrue(views.allSatisfy(\.isPaused))
   }
 
+  // H16 and QA 9.7: the loops draw at 12 frames a second, which keeps the asleep loop under the
+  // 3.0% CPU budget (about 0.15% per frame per second; 15 fps measured 3.16% and 3.23% on the
+  // user's Mac). The display link only delivers rates that divide the display's refresh rate: on a
+  // 120 Hz display a request for 13 fps drew 15. So the rate must divide 60 and 120 (ADR 0017).
+  func testTheLoopsDrawTwelveFramesASecond() throws {
+    for state in [DrowsinessState.noddingOff, .asleep] {
+      let overlay = try overlay(showing: state)
+      let cat = try catHost(overlay)
+
+      XCTAssertEqual(runDisplayLinks([cat], for: 2), [24], "\(state)")
+      XCTAssertFalse(cat.isPaused, "\(state)")
+      XCTAssertEqual(cat.framesPerSecond, 12, "\(state)")
+      XCTAssertEqual(cat.displayLink?.preferredFrameRateRange.preferred, 12, "\(state)")
+    }
+  }
+
+  func testEveryFrameRateDividesSixtyAndOneHundredTwentyHertz() {
+    for rate in [MascotScene.loopFramesPerSecond, MascotScene.oneShotFramesPerSecond] {
+      XCTAssertEqual(60 % rate, 0, "\(rate) fps")
+      XCTAssertEqual(120 % rate, 0, "\(rate) fps")
+    }
+  }
+
   // ADR 0011: a transition draws at 30 frames a second, then stops.
   func testATransitionDrawsThirtyFramesASecondUntilItEnds() throws {
     let overlay = try overlay(showing: .awake)
