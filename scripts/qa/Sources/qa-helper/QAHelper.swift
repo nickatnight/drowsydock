@@ -63,6 +63,7 @@ enum QAHelper {
       )
       print("perch=\(describe(perch))")
       print("capture=\(describe(area.frame))")
+      print("capture-region=\(area.screencaptureRegion(primaryHeight: primaryHeight()))")
     }
     print("screen=\(describe(geometry.screenFrame))")
     print("scale=\(scale)")

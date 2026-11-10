@@ -1,4 +1,5 @@
 import Foundation
+import Metal
 import XCTest
 
 enum Snapshot {
@@ -10,6 +11,20 @@ enum Snapshot {
   static let failureDirectory = supportDirectory.deletingLastPathComponent()
     .deletingLastPathComponent().deletingLastPathComponent()
     .appendingPathComponent(".build/snapshot-failures")
+
+  // The colour every snapshot is drawn over, so the cat's outline shows.
+  static let backdrop: (red: UInt8, green: UInt8, blue: UInt8) = (214, 220, 230)
+
+  // The Mac the references were drawn on, written beside them when recording. Another GPU or a
+  // SpriteKit change in a macOS update can move antialiased edges and fail every snapshot; the
+  // failure message names both environments so that reads as a change of machine, not of code.
+  static let environmentFile = referenceDirectory.appendingPathComponent("RECORDED_ON")
+
+  static var environment: String {
+    let os = ProcessInfo.processInfo.operatingSystemVersionString
+    let gpu = MTLCreateSystemDefaultDevice()?.name ?? "no Metal device"
+    return "macOS \(os), \(gpu)"
+  }
 
   static var isRecording: Bool {
     ProcessInfo.processInfo.environment["RECORD_SNAPSHOTS"] == "1"
@@ -32,6 +47,7 @@ enum Snapshot {
     if isRecording {
       do {
         try image.writePNG(to: reference)
+        try "\(environment)\n".write(to: environmentFile, atomically: true, encoding: .utf8)
         XCTFail(
           "Recorded \(reference.path). Run again without RECORD_SNAPSHOTS.", file: file, line: line)
       } catch {
@@ -65,9 +81,13 @@ enum Snapshot {
       ? "Size \(image.width)×\(image.height) differs from \(expected.width)×\(expected.height)"
       : "\(comparison.differingPixels) pixels differ by more than \(tolerance.channel) "
         + "(at most \(tolerance.differingPixels) may)"
+    let recordedOn =
+      (try? String(contentsOf: environmentFile, encoding: .utf8))?
+      .trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
     XCTFail(
       "\(name): \(what). Actual: \(actualURL?.path ?? "not written"). "
-        + "Diff: \(diffURL?.path ?? "not written").",
+        + "Diff: \(diffURL?.path ?? "not written"). References recorded on \(recordedOn); "
+        + "this run on \(environment). Look at the diff before re-recording.",
       file: file,
       line: line
     )

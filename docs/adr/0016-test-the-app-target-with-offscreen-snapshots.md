@@ -17,9 +17,9 @@ A probe on macOS 27 with Swift 6.0.3 showed that:
 ## Decision
 
 - `Tests/DrowsyDockTests` imports the executable with `@testable import DrowsyDock`. No library target is split out.
-- Snapshot tests draw the real scenes with `SKRenderer` into a Metal texture at 2 pixels per point, on the system's default Metal device, at a scene time the test sets in 1/60 s steps (`OffscreenRenderer`). They compare the result with PNGs under `Tests/DrowsyDockTests/Snapshots/`, with a per-channel tolerance and a maximum count of differing pixels that each test file states.
+- Snapshot tests draw the real scenes with `SKRenderer` into a Metal texture at 2 pixels per point, on the system's default Metal device, at a scene time the test sets in 1/60 s steps (`OffscreenRenderer`). They compare the result with PNGs under `Tests/DrowsyDockTests/Snapshots/`, with one shared tolerance, `SnapshotTolerance.sameRenderer` (2 per channel, at most 4 differing pixels), and one wider, named exception for the frame after a drawn wake-up (`afterDrawnWakeUp`, explained beside it).
 - The comparer is in-house (Core Graphics and ImageIO). `RECORD_SNAPSHOTS=1 swift test` rewrites the references and fails, so a recording never passes as a check. A mismatch writes the actual and diff images under `.build/snapshot-failures/`.
-- The references were recorded on Apple silicon. On another architecture the snapshot tests skip with that message.
+- The references were recorded on Apple silicon, and `Snapshots/RECORDED_ON` names the macOS build and GPU. On another architecture the snapshot tests skip with that message. On another Apple GPU or after a macOS update that changes SpriteKit's antialiasing, every snapshot may fail at once; the failure message names both environments. Triage: look at the diff images under `.build/snapshot-failures/`, and re-record with `RECORD_SNAPSHOTS=1` only after a person has seen that only edges moved.
 - Executable files stay exempt from the coverage gate, as ADR 0002 decided. They are still named in `docs/manual-qa.md`, which now maps each row to the test or live scenario that covers it.
 
 ## Alternatives considered
@@ -31,5 +31,5 @@ A probe on macOS 27 with Swift 6.0.3 showed that:
 ## Consequences
 
 - A change to a pose, a transition's timing, the veil's shape or the perch fails a snapshot. Recording new references is a deliberate step whose diff a reviewer sees as images.
-- The snapshots pin pixels, so a deliberate visual change re-records them. Each test names the QA row it replaces.
+- The snapshots pin pixels, so a deliberate visual change re-records them. `docs/manual-qa.md` maps each QA row to the tests that replaced it, and `scripts/check.sh fast` checks that every test it names exists.
 - Timing in the snapshots comes from the scene time the test sets and from an injected clock for the pauses between gestures, never from sleeping.

@@ -5,14 +5,19 @@ import ImageIO
 /// A screenshot's brightness: the mean of each pixel's red, green and blue, from 0 to 255, with
 /// rows from top to bottom as the screen shows them.
 public struct LumaImage: Equatable, Sendable {
+  /// Why a screenshot couldn't be read.
   public enum LumaImageError: Error {
     case unreadable(URL)
   }
 
+  /// The width, in pixels.
   public let width: Int
+  /// The height, in pixels.
   public let height: Int
+  /// Each pixel's brightness, row by row from the top.
   public let values: [Double]
 
+  /// Creates an image from brightness values, row by row from the top.
   public init(width: Int, height: Int, values: [Double]) {
     precondition(values.count == width * height, "one value per pixel")
     self.width = width

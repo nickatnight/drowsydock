@@ -6,8 +6,6 @@ import SpriteKit
 
 @MainActor
 final class OverlayFilm {
-  static let backdrop: (red: UInt8, green: UInt8, blue: UInt8) = (214, 220, 230)
-
   let overlay: MascotOverlay
   private let area: CGRect
   private let icons = SKScene()
@@ -58,7 +56,7 @@ final class OverlayFilm {
   }
 
   func render() -> Bitmap {
-    var image = iconLayer.render(over: Self.backdrop)
+    var image = iconLayer.render(over: Snapshot.backdrop)
     let scale = CGFloat(OffscreenRenderer.scale)
     for (window, renderer) in [(overlay.canvasWindow, canvas), (overlay.catWindow, cat)]
     where window.visibility == .shown {

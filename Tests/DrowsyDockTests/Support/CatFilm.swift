@@ -6,8 +6,6 @@ import XCTest
 
 @MainActor
 final class CatFilm {
-  static let backdrop: (red: UInt8, green: UInt8, blue: UInt8) = (214, 220, 230)
-
   let clock = TestClock()
   let scene: MascotScene
   private let renderer: OffscreenRenderer
@@ -25,7 +23,7 @@ final class CatFilm {
   }
 
   func frame() -> Bitmap {
-    renderer.render(over: Self.backdrop)
+    renderer.render(over: Snapshot.backdrop)
   }
 
   func strip(at times: [TimeInterval]) -> Bitmap {

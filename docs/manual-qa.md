@@ -15,7 +15,7 @@ Every Swift file that the coverage gate exempts must be named here in backticks;
 ## Before a merge
 
 ```
-scripts/bundle.sh && open build/DrowsyDock.app     # on main, with the grant
+scripts/bundle.sh && open build/DrowsyDock.app     # the branch to merge, clean, with the grant
 scripts/qa-live.sh                                  # then the manual checklist
 ```
 

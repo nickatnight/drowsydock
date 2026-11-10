@@ -48,7 +48,7 @@ public final class OverlayWindow {
   /// What the window shows once a fade it is running ends.
   public private(set) var visibility = Visibility.hidden
 
-  private var hasReportedUnusableFrame = false
+  private(set) var hasReportedUnusableFrame = false
 
   private let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "DockOverlayKit",

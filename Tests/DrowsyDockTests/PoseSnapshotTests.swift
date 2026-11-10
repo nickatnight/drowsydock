@@ -8,20 +8,20 @@ import XCTest
 // and the whole overlay (cat, veil and perch) over fixture Docks.
 @MainActor
 final class PoseSnapshotTests: XCTestCase {
-  private let backdrop: (red: UInt8, green: UInt8, blue: UInt8) = (214, 220, 230)
-
   override func setUpWithError() throws {
     try Snapshot.skipUnlessReferenceArchitecture()
   }
 
   private func pose(_ state: DrowsinessState, facing: DockPerch.Facing) -> Bitmap {
-    let scene = MascotScene()
+    let scene = MascotScene(clock: TestClock(), generator: SplitMix64(seed: 2026))
     scene.show(.drowsiness(state), facing: facing)
-    return OffscreenRenderer(scene: scene).render(over: backdrop)
+    return OffscreenRenderer(scene: scene).render(over: Snapshot.backdrop)
   }
 
   private func overlay(_ state: DrowsinessState, on dock: DockGeometry) -> Bitmap {
-    let overlay = MascotOverlay()
+    let overlay = MascotOverlay(
+      catScene: MascotScene(clock: TestClock(), generator: SplitMix64(seed: 2026))
+    )
     addTeardownBlock { overlay.show(nil) }
     KeepAlive.keep(overlay)
     overlay.show(.drowsiness(state))

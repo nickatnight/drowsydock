@@ -24,11 +24,16 @@ public struct DockAlignment {
 
   private static let veilFloor = 8.0
 
+  /// The screen area the three screenshots cover.
   public let area: CaptureArea
+  /// The screen edge the Dock sits on.
   public let edge: Edge
+  /// The Dock's drawn background as the Accessibility frames put it, in AppKit points.
   public let background: CGRect
+  /// Where the app placed the cat's window, in AppKit points.
   public let perch: CGRect
 
+  /// Creates the checks for one Dock.
   public init(area: CaptureArea, edge: Edge, background: CGRect, perch: CGRect) {
     self.area = area
     self.edge = edge

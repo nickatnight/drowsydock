@@ -84,7 +84,11 @@ while (($#)); do
   case "$1" in
     --dry-run) dry_run=true ;;
     --only)
-      only="${2:-}"
+      if [[ -z ${2:-} || ${2:-} == --* ]]; then
+        echo "--only needs scenario names, such as --only cpu,align (--list names them)" >&2
+        exit 2
+      fi
+      only="$2"
       shift
       ;;
     --list)
@@ -162,6 +166,7 @@ check() {
     result PASS "$rows" "$scenario" "$detail"
   else
     result FAIL "$rows" "$scenario" "$detail"
+    return 1
   fi
 }
 
@@ -171,7 +176,7 @@ write_report() {
   {
     echo "# Live QA report"
     echo
-    echo "$(date '+%Y-%m-%d %H:%M'), $(git rev-parse --short HEAD), macOS $(sw_vers -productVersion)"
+    echo "$(date '+%Y-%m-%d %H:%M'), branch $(git rev-parse --abbrev-ref HEAD) at $(git rev-parse --short HEAD), macOS $(sw_vers -productVersion)"
     echo
     echo "| Result | QA rows | Scenario | Detail |"
     echo "|---|---|---|---|"
@@ -278,7 +283,38 @@ pause() {
   sleep "$1"
 }
 
+# Every read of the app's log goes through these functions, so the source can change (today a
+# `log stream` writing to build/qa/app.log) without touching the scenarios.
+
 log_mark=0
+
+start_app_log() {
+  if $dry_run; then
+    printf '    would run: log stream --style compact --level debug --predicate %q >%q &\n' \
+      "subsystem == \"$subsystem\" AND process == \"DrowsyDock\"" "$app_log"
+    return 0
+  fi
+  : >"$app_log"
+  log stream --style compact --level debug \
+    --predicate "subsystem == \"$subsystem\" AND process == \"DrowsyDock\"" >>"$app_log" 2>&1 &
+  log_pid=$!
+  sleep 2
+  app_log_alive
+}
+
+app_log_alive() {
+  [[ -n $log_pid ]] && kill -0 "$log_pid" 2>/dev/null
+}
+
+# The whole log so far, or only what came after the last mark_log.
+app_log_lines() {
+  if [[ ${1:-} == since-mark ]]; then
+    tail -n "+$((log_mark + 1))" "$app_log"
+  else
+    cat "$app_log"
+  fi
+}
+
 mark_log() {
   $dry_run && return
   log_mark="$(wc -l <"$app_log" | tr -d ' ')"
@@ -291,7 +327,8 @@ wait_log() {
     return 0
   fi
   while ((waited < seconds * 10)); do
-    if tail -n "+$((log_mark + 1))" "$app_log" | grep -Eq -- "$pattern"; then return 0; fi
+    if app_log_lines since-mark | grep -Eq -- "$pattern"; then return 0; fi
+    app_log_alive || return 1
     sleep 0.1
     waited=$((waited + 1))
   done
@@ -299,11 +336,13 @@ wait_log() {
 }
 
 last_log() {
-  tail -n "+$((log_mark + 1))" "$app_log" | grep -E -- "$1" | tail -n 1
+  app_log_lines since-mark | grep -E -- "$1" | tail -n 1
 }
 
+# A negative check can only pass while the log is still being read.
 no_log_since_mark() {
-  ! tail -n "+$((log_mark + 1))" "$app_log" | grep -Eq -- "$1"
+  app_log_alive || return 1
+  ! app_log_lines since-mark | grep -Eq -- "$1"
 }
 
 # MARK: - Driving the app
@@ -367,6 +406,23 @@ app_running() { [[ -n $(app_pid) ]]; }
 
 app_stopped() { ! app_running; }
 
+# Opens the menu and presses Cmd-Q only once the menu is open, so the key never reaches the
+# terminal or whatever app is in front. Prints "sent" when it pressed it.
+cmd_q_with_menu_open() {
+  osascript <<'APPLESCRIPT'
+tell application "System Events"
+  tell process "DrowsyDock"
+    set barItem to menu bar item 1 of last menu bar
+    click barItem
+    delay 0.3
+    if not (exists menu 1 of barItem) then return "no menu"
+    keystroke "q" using command down
+    return "sent"
+  end tell
+end tell
+APPLESCRIPT
+}
+
 menu_bar_item_exists() {
   [[ $(osascript -e 'tell application "System Events" to exists menu bar item 1 of last menu bar of process "DrowsyDock"') == true ]]
 }
@@ -399,7 +455,7 @@ read_dock() {
     printf '    would run: %s dock %s\n' "$helper" "$*"
     dock_orientation=bottom dock_hidden=false dock_background=0,0,0,0 dock_perch=0,0,64,80
     dock_capture=0,0,0,0 dock_scale=2 dock_primary_height=0 dock_last_icon=0,0,0,0
-    dock_first_icon=0,0,0,0 dock_screen=0,0,0,0 dock_facing=left
+    dock_first_icon=0,0,0,0 dock_screen=0,0,0,0 dock_facing=left dock_capture_region=0,0,0,0
     return 0
   fi
   local output key value
@@ -407,7 +463,7 @@ read_dock() {
   while IFS='=' read -r key value; do
     case $key in
       orientation | hidden | icons | list | background | facing | perch | capture | screen | \
-        scale | primary-height | first-icon | last-icon)
+        scale | primary-height | first-icon | last-icon | capture-region)
         printf -v "dock_${key//-/_}" '%s' "$value"
         ;;
     esac
@@ -424,7 +480,7 @@ read_dock_and_logged_perch() {
     return 0
   fi
   local line
-  line="$(grep -E "Overlay: (shown|fadedOut)" "$app_log" | tail -n 1)"
+  line="$(app_log_lines | grep -E "Overlay: (shown|fadedOut)" | tail -n 1)"
   dock_logged_perch="$(qa_helper logged-perch "$line")" || return 1
   read_dock sprite="$(field "$dock_logged_perch" 3),$(field "$dock_logged_perch" 4)"
 }
@@ -442,7 +498,10 @@ mid_x() { awk -F, '{print $1 + $3 / 2}' <<<"$1"; }
 mid_y() { awk -F, '{print $2 + $4 / 2}' <<<"$1"; }
 
 pointer_away() {
-  read_dock || return 1
+  if ! read_dock; then
+    result FAIL - pointer "couldn't read the Dock to move the pointer away from it"
+    return 1
+  fi
   run_or_print "$helper" move-pointer "$(mid_x "$dock_screen")" \
     "$(awk -F, '{print $2 + $4 * 0.6}' <<<"$dock_screen")"
 }
@@ -452,13 +511,37 @@ pointer_to() {
 }
 
 capture() {
-  local region
   if $dry_run; then
     printf '    would run: screencapture -x -R <the Dock and the perch> %s/%s.png\n' "$qa_dir" "$1"
     return 0
   fi
-  region="$(awk -F, -v h="$dock_primary_height" '{printf "%d,%d,%d,%d", $1, h - $2 - $4, $3, $4}' <<<"$dock_capture")"
-  screencapture -x -R "$region" "$qa_dir/$1.png"
+  screencapture -x -R "$dock_capture_region" "$qa_dir/$1.png" && [[ -s $qa_dir/$1.png ]]
+}
+
+# The symbols a sample shows while the cat draws, and while a run-loop timer fires. Positive and
+# negative checks share them, so a renamed or inlined symbol fails the positive check.
+draw_symbols='drawFrame|displayLinkFired|SKCRenderer'
+timer_symbols='__CFRUNLOOP_IS_CALLING_OUT_TO_A_TIMER_CALLBACK_FUNCTION__'
+
+# sample_app NAME SECONDS: samples this build's process into build/qa/NAME.txt.
+sample_app() {
+  local pid
+  if $dry_run; then
+    printf '    would run: sample <the pid of %s> %s -file %s\n' "$app_binary" "$2" "$qa_dir/$1.txt"
+    return 0
+  fi
+  rm -f "$qa_dir/$1.txt"
+  pid="$(app_pid)"
+  [[ -n $pid ]] && sample "$pid" "$2" -file "$qa_dir/$1.txt" >/dev/null 2>&1
+}
+
+# A sample check fails when the sample is missing or empty, whatever it looks for.
+sample_has() {
+  [[ -s $qa_dir/$2.txt ]] && grep -Eq -- "$1" "$qa_dir/$2.txt"
+}
+
+sample_lacks() {
+  [[ -s $qa_dir/$2.txt ]] && ! grep -Eq -- "$1" "$qa_dir/$2.txt"
 }
 
 # MARK: - Preflight
@@ -476,12 +559,8 @@ preflight() {
 
   $needs_app || return 0
 
-  say "The app must be a fresh bundle from main."
+  say "The app must be a fresh bundle of this checkout: clean sources, built after the last commit."
   if ! $dry_run; then
-    if [[ $(git rev-parse --abbrev-ref HEAD) != main ]]; then
-      say "Check out main and run scripts/bundle.sh first (on $(git rev-parse --abbrev-ref HEAD))." >&2
-      exit 1
-    fi
     if [[ -n $(git status --porcelain -- Sources Resources Package.swift scripts/bundle.sh) ]]; then
       say "Sources have uncommitted changes; commit or stash them, then run scripts/bundle.sh." >&2
       exit 1
@@ -494,7 +573,14 @@ preflight() {
   fi
 
   say "Building the helper (it is never part of the app bundle)."
-  run_or_print swift build -c release --product qa-helper
+  if ! run_or_print swift build -c release --product qa-helper; then
+    say "qa-helper failed to build; see the swift build output above." >&2
+    exit 1
+  fi
+  if ! $dry_run && [[ ! -x $helper ]]; then
+    say "qa-helper isn't at $helper after the build." >&2
+    exit 1
+  fi
 
   say "Your terminal needs Accessibility (pointer moves, the menu) and Screen Recording (screenshots)."
   if ! $dry_run; then
@@ -512,14 +598,10 @@ preflight() {
 
   say "Reading the app's log."
   run_or_print mkdir -p "$qa_dir"
-  if ! $dry_run; then
-    : >"$app_log"
-    log stream --style compact --level debug \
-      --predicate "subsystem == \"$subsystem\" AND process == \"DrowsyDock\"" >>"$app_log" 2>&1 &
-    log_pid=$!
-    sleep 2
-  else
-    printf '    would run: log stream --level debug --predicate %s >%s &\n' "'subsystem == \"$subsystem\"'" "$app_log"
+  if ! start_app_log; then
+    say "Can't read the app's log: log stream stopped with: $(head -n 1 "$app_log")" >&2
+    say "macOS lets only administrators run log stream. Run qa-live.sh from an admin account." >&2
+    exit 1
   fi
 
   if ! $dry_run; then
@@ -583,8 +665,11 @@ scenario_launch() {
   pause 2
   check 1.2 launch "Quit DrowsyDock ends the app" app_stopped
   launch_app
-  run_or_print osascript -e 'tell application "System Events" to tell process "DrowsyDock" to click menu bar item 1 of last menu bar' \
-    -e 'delay 0.3' -e 'tell application "System Events" to keystroke "q" using command down'
+  if $dry_run; then
+    printf '    would open the menu and, only if it opened, press Cmd-Q\n'
+  elif [[ $(cmd_q_with_menu_open) != sent ]]; then
+    result FAIL 1.3 launch "the menu didn't open, so Cmd-Q wasn't sent (it would reach another app)"
+  fi
   pause 2
   check 1.3 launch "Cmd-Q with the menu open ends the app" app_stopped
   launch_app
@@ -747,14 +832,16 @@ scenario_hover() {
   pause 5
   pointer_to "$(mid_x "$dock_last_icon")" "$(mid_y "$dock_last_icon")"
   pause 1
-  run_or_print sample DrowsyDock 3 -file "$qa_dir/hover-faded.txt"
+  sample_app hover-faded 3
+  local passed=true
   check 9.8 hover "while faded at 5% the sample shows no drawing" \
-    bash -c "! grep -Eq 'drawFrame|SKCRenderer' '$qa_dir/hover-faded.txt'"
+    sample_lacks "$draw_symbols" hover-faded || passed=false
   pointer_away
   pause 2
-  run_or_print sample DrowsyDock 3 -file "$qa_dir/hover-shown.txt"
+  sample_app hover-shown 3
   check 9.8 hover "after the pointer leaves the snore draws again" \
-    grep -Eq 'drawFrame' "$qa_dir/hover-shown.txt"
+    sample_has "$draw_symbols" hover-shown || passed=false
+  $passed && forget_captures hover-faded.txt hover-shown.txt
   simulate 80%
 }
 
@@ -807,28 +894,40 @@ scenario_relaunch() {
 align_checks() {
   local rows="$1" label="$2"
   pointer_away
-  read_dock_and_logged_perch
-  simulate "No battery"
-  pause 2
-  capture bare
-  simulate 80%
-  pause 3
-  capture awake
-  simulate 5%
-  pause 6
-  capture asleep
+  if ! read_dock_and_logged_perch; then
+    result FAIL "$rows" "align, $label" "couldn't read the perch the app logged or the Dock's frames"
+    return
+  fi
+  local shot choice name wait
+  for shot in "No battery|bare|2" "80%|awake|3" "5%|asleep|6"; do
+    IFS='|' read -r choice name wait <<<"$shot"
+    simulate "$choice"
+    pause "$wait"
+    if ! capture "$name"; then
+      result FAIL "$rows" "align, $label" "the $name screenshot couldn't be taken"
+      return
+    fi
+  done
   if $dry_run; then
     printf '    would run: %s align …\n' "$helper"
     printf '    would check: the Dock rim, the veil and the paws within 1 pt of the AX frames (QA %s)\n' "$rows"
     return
   fi
-  local line
+  local output status line align_failed=false
+  output="$(qa_helper align orientation="$dock_orientation" scale="$dock_scale" \
+    capture="$dock_capture" background="$dock_background" perch="$dock_logged_perch" \
+    bare="$qa_dir/bare.png" awake="$qa_dir/awake.png" asleep="$qa_dir/asleep.png" \
+    2>"$qa_dir/align.err")"
+  status=$?
+  if ((status > 1)) || [[ -z $output ]]; then
+    result FAIL "$rows" "align, $label" "qa-helper align failed (exit $status): $(head -n 1 "$qa_dir/align.err")"
+    return
+  fi
   while IFS= read -r line; do
     result "${line%% *}" "$rows" "align, $label" "${line#* }"
-  done < <(qa_helper align orientation="$dock_orientation" scale="$dock_scale" \
-    capture="$dock_capture" background="$dock_background" perch="$dock_logged_perch" \
-    bare="$qa_dir/bare.png" awake="$qa_dir/awake.png" asleep="$qa_dir/asleep.png")
-  forget_captures bare.png awake.png asleep.png
+    [[ $line == FAIL* ]] && align_failed=true
+  done <<<"$output"
+  $align_failed || forget_captures bare.png awake.png asleep.png align.err
 }
 
 # Deletes screenshots and samples once their checks passed, unless --keep-captures. A failed
@@ -836,7 +935,6 @@ align_checks() {
 forget_captures() {
   $dry_run && return
   $keep_captures && return
-  $failed && return
   local file
   for file in "$@"; do
     rm -f "$qa_dir/$file"
@@ -845,13 +943,19 @@ forget_captures() {
 
 scenario_align() {
   step "align (QA 8.5, 8.15)"
-  align_checks "8.5 8.15" "bottom Dock"
+  read_dock
+  align_checks "8.5 8.15" "$dock_orientation Dock"
   simulate 80%
 }
 
+# The app's mean CPU over SECONDS of one-second samples, as CONSTRAINTS.md measures it. Fails with
+# no output when the app isn't running or top gave no samples.
 cpu_average() {
-  top -l "$(($1 + 1))" -s 1 -stats cpu -pid "$(pgrep -x DrowsyDock)" |
-    awk 'NR>1 && /^[0-9.]+[[:space:]]*$/ {s+=$1; n++} END {printf "%.2f", s/n}'
+  local pid
+  pid="$(app_pid)"
+  [[ -n $pid ]] || return 1
+  top -l "$(($1 + 1))" -s 1 -stats cpu -pid "$pid" |
+    awk 'NR>1 && /^[0-9.]+[[:space:]]*$/ {s+=$1; n++} END {if (n == 0) exit 1; printf "%.2f", s/n}'
 }
 
 cpu_check() {
@@ -861,11 +965,14 @@ cpu_check() {
   say "Hands off the pointer and the menu for 70 s ($choice)."
   pause 10
   if $dry_run; then
-    printf '    would run: top -l 61 -s 1 -stats cpu -pid $(pgrep -x DrowsyDock) and average it\n'
+    printf '    would run: top -l 61 -s 1 -stats cpu -pid <the pid of %s> and average it\n' "$app_binary"
     printf '    would check: the average is at most %s%% (QA %s)\n' "$budget" "$rows"
     return
   fi
-  average="$(cpu_average 60)"
+  if ! average="$(cpu_average 60)" || [[ -z $average ]]; then
+    result FAIL "$rows" cpu "$choice: no CPU samples (is DrowsyDock still running?)"
+    return
+  fi
   if awk -v a="$average" -v b="$budget" 'BEGIN { exit !(a <= b) }'; then
     result PASS "$rows" cpu "$choice: $average% (budget $budget%)"
   else
@@ -885,13 +992,15 @@ sample_idle() {
   local name="$1" rows="$2" detail="$3"
   pointer_away
   pause 10
-  run_or_print sample DrowsyDock 5 -file "$qa_dir/$name.txt"
-  check "$rows" idle-sample "$detail: no timer fires" \
-    bash -c "! grep -q '__CFRUNLOOP_IS_CALLING_OUT_TO_A_TIMER_CALLBACK_FUNCTION__' '$qa_dir/$name.txt'"
-  check "$rows" idle-sample "$detail: nothing draws" \
-    bash -c "! grep -Eq 'drawFrame|SKCRenderer' '$qa_dir/$name.txt'"
+  sample_app "$name" 5
+  local passed=true
+  check "$rows" idle-sample "$detail: no timer fires" sample_lacks "$timer_symbols" "$name" ||
+    passed=false
+  check "$rows" idle-sample "$detail: nothing draws" sample_lacks "$draw_symbols" "$name" ||
+    passed=false
   check "$rows" idle-sample "$detail: the main thread waits in mach_msg" \
-    grep -q mach_msg "$qa_dir/$name.txt"
+    sample_has mach_msg "$name" || passed=false
+  $passed && forget_captures "$name.txt"
 }
 
 scenario_idle_sample() {

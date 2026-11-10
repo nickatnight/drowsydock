@@ -13,6 +13,7 @@ public struct EdgeCheck: Equatable, Sendable {
   /// The largest distance, in points, that still passes. QA 8.5 and 8.15 allow 1.
   public let tolerance: Double
 
+  /// Creates a check of one edge.
   public init(name: String, expected: Double, found: Double?, tolerance: Double = 1) {
     self.name = name
     self.expected = expected
@@ -25,6 +26,7 @@ public struct EdgeCheck: Equatable, Sendable {
     found.map { $0 - expected }
   }
 
+  /// Whether the edge was found within `tolerance` of where it was expected.
   public var passes: Bool {
     offset.map { abs($0) <= tolerance } ?? false
   }

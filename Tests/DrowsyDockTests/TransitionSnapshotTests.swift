@@ -292,7 +292,7 @@ final class TransitionSnapshotTests: XCTestCase {
     cat.advance(by: 1.0 / 60)
 
     XCTAssertEqual(overlay.catWindow.visibility, .shown)
-    assertFrame(cat.render(over: CatFilm.backdrop), matches: "pose-asleep-left")
+    assertFrame(cat.render(over: Snapshot.backdrop), matches: "pose-asleep-left")
   }
 
   func testAChangeWhileTheDockIsHiddenShowsTheNewPoseAtOnce() {
@@ -308,7 +308,7 @@ final class TransitionSnapshotTests: XCTestCase {
     cat.advance(by: 1.0 / 60)
 
     XCTAssertFalse(overlay.catScene.needsAnotherFrame)
-    assertFrame(cat.render(over: CatFilm.backdrop), matches: "pose-yawning-left")
+    assertFrame(cat.render(over: Snapshot.backdrop), matches: "pose-yawning-left")
   }
 
   func testHoveringAsEachTransitionStartsBringsTheCatBackInTheNewPose() {
@@ -333,7 +333,7 @@ final class TransitionSnapshotTests: XCTestCase {
       overlay.present(shown)
       cat.advance(by: 1.0 / 60)
 
-      assertFrame(cat.render(over: CatFilm.backdrop), matches: pose, "\(from) to \(to):")
+      assertFrame(cat.render(over: Snapshot.backdrop), matches: pose, "\(from) to \(to):")
       if to == .waking {
         overlay.show(.drowsiness(.awake))
       }

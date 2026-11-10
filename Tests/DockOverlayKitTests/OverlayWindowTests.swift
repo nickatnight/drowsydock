@@ -102,4 +102,18 @@ final class OverlayWindowTests: XCTestCase {
     XCTAssertEqual(overlay.visibility, .hidden)
     XCTAssertEqual(overlay.frame, offscreenFrame)
   }
+
+  // Job 003 H11: each run of unusable frames logs once, and a usable frame re-arms the log.
+  func testAUsableFrameReArmsTheUnusableFrameLog() {
+    let overlay = overlay()
+    let unusable = CGRect(x: CGFloat.infinity, y: 0, width: 64, height: 80)
+
+    overlay.show(at: unusable)
+    XCTAssertTrue(overlay.hasReportedUnusableFrame)
+    overlay.show(at: offscreenFrame)
+    XCTAssertFalse(overlay.hasReportedUnusableFrame)
+    overlay.fadeOut(at: unusable)
+
+    XCTAssertTrue(overlay.hasReportedUnusableFrame)
+  }
 }

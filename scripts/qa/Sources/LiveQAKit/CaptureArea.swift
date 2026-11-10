@@ -8,6 +8,7 @@ public struct CaptureArea: Equatable, Sendable {
   /// Pixels per point.
   public let scale: Double
 
+  /// Creates the area a screenshot of `frame` covers, at `scale` pixels per point.
   public init(frame: CGRect, scale: Double) {
     self.frame = frame
     self.scale = scale
