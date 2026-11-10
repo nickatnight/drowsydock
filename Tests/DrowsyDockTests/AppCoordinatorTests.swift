@@ -54,15 +54,14 @@ final class AppCoordinatorTests: XCTestCase {
     let power = FakePowerSource(battery ?? reading(46))
     let clock = TestClock()
     let grant = Grant(granted)
-    var tracker: FakeDockTracker?
+    let tracker = FakeDockTracker()
     let coordinator = AppCoordinator(
       battery: BatteryMonitor(source: power, clock: clock),
       overlay: MascotOverlay(catScene: MascotScene(clock: TestClock())),
       readsAccessibilityGrant: { grant.isGranted },
       makeDockTracker: { onPresentationChange in
-        let fake = FakeDockTracker(onPresentationChange: onPresentationChange)
-        tracker = fake
-        return fake
+        tracker.onPresentationChange = onPresentationChange
+        return tracker
       }
     )
     addTeardownBlock { coordinator.overlay.show(nil) }
@@ -71,7 +70,7 @@ final class AppCoordinatorTests: XCTestCase {
     return Rig(
       coordinator: coordinator,
       power: power,
-      tracker: tracker!,
+      tracker: tracker,
       clock: clock,
       grant: grant
     )
