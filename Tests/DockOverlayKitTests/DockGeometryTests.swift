@@ -299,7 +299,10 @@ final class DockGeometryTests: XCTestCase {
   func testAnItemWithANonFiniteFrameIsLeftOut() {
     let dock = DockGeometry(
       listFrame: ax(370, 816, 700, 79),
-      iconFrames: [ax(378, 821, 63, 79), ax(.nan, 821, 63, 79), ax(999, 821, 63, .infinity)],
+      iconFrames: [
+        ax(378, 821, 63, 79), ax(.nan, 821, 63, 79), ax(999, 821, 63, .infinity),
+        ax(999, 821, .infinity, 79),
+      ],
       layout: DisplayLayout(primary: laptop)
     )
 
@@ -353,7 +356,7 @@ final class DockGeometryTests: XCTestCase {
   func testTheSlideFollowsTheItemNearestTheScreenEdgeNotTheFirst() {
     let dock = DockGeometry(
       listFrame: ax(370, 816, 700, 79),
-      iconFrames: [ax(378, 790, 63, 79), ax(441, 821, 63, 79)],
+      iconFrames: [ax(378, 790, 63, 79), ax(441, 821, 63, 79), ax(504, 790, 63, 79)],
       layout: DisplayLayout(primary: laptop)
     )
 
