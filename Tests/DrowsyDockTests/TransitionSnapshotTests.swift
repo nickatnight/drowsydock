@@ -6,9 +6,15 @@ import XCTest
 
 @MainActor
 final class TransitionSnapshotTests: XCTestCase {
-  private let restingPoseTolerance = SnapshotTolerance(channel: 40, differingPixels: 4)
+  // The awake pose after a wake-up whose first 0.12 s were drawn: edge pixels of the face and ears
+  // differ from a fresh awake pose by up to 32 of 255, and nothing else does. No node property
+  // differs; turning each cached group's rasterizing off, re-adding the groups, re-setting every
+  // shape's path and a new SKRenderer all left it. A wrong pose moves edges by whole pixels, which
+  // differ by over 100.
+  private let afterDrawnWakeUp = SnapshotTolerance(channel: 40, differingPixels: 4)
 
-  private let first = 1.0 / 30
+  // The first frame drawn after a change: transitions draw at the one-shot rate.
+  private let firstFrame = 1.0 / Double(MascotScene.oneShotFramesPerSecond)
 
   override func setUpWithError() throws {
     try Snapshot.skipUnlessReferenceArchitecture()
@@ -18,6 +24,7 @@ final class TransitionSnapshotTests: XCTestCase {
     _ frame: Bitmap,
     matches pose: String,
     _ message: String = "",
+    within tolerance: SnapshotTolerance = .sameRenderer,
     file: StaticString = #filePath,
     line: UInt = #line
   ) {
@@ -29,10 +36,10 @@ final class TransitionSnapshotTests: XCTestCase {
     let comparison = SnapshotComparison(
       expected: reference,
       actual: frame,
-      channelTolerance: restingPoseTolerance.channel
+      channelTolerance: tolerance.channel
     )
     XCTAssertTrue(
-      comparison.matches(within: restingPoseTolerance),
+      comparison.matches(within: tolerance),
       "\(message) \(comparison.differingPixels) pixels differ from \(pose)",
       file: file,
       line: line
@@ -46,7 +53,7 @@ final class TransitionSnapshotTests: XCTestCase {
     film.scene.show(.drowsiness(.drowsy), facing: nil)
 
     Snapshot.assert(
-      film.strip(at: [first, 0.15, 0.3, 0.45, 0.6, 0.7]),
+      film.strip(at: [firstFrame, 0.15, 0.3, 0.45, 0.6, 0.7]),
       named: "transition-awake-to-drowsy",
       within: .sameRenderer
     )
@@ -57,7 +64,7 @@ final class TransitionSnapshotTests: XCTestCase {
     film.scene.show(.drowsiness(.yawning), facing: nil)
 
     Snapshot.assert(
-      film.strip(at: [first, 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8, 3.1, 3.4]),
+      film.strip(at: [firstFrame, 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8, 3.1, 3.4]),
       named: "transition-drowsy-to-yawning",
       within: .sameRenderer
     )
@@ -68,7 +75,7 @@ final class TransitionSnapshotTests: XCTestCase {
     film.scene.show(.drowsiness(.noddingOff), facing: nil)
 
     Snapshot.assert(
-      film.strip(at: [first, 0.4, 0.8, 1.3, 1.45, 1.7, 1.95, 2.2]),
+      film.strip(at: [firstFrame, 0.4, 0.8, 1.3, 1.45, 1.7, 1.95, 2.2]),
       named: "transition-yawning-to-noddingOff",
       within: .sameRenderer
     )
@@ -80,7 +87,7 @@ final class TransitionSnapshotTests: XCTestCase {
     film.scene.show(.drowsiness(.asleep), facing: nil)
 
     Snapshot.assert(
-      film.strip(at: [first, 0.1, 0.2, 0.3, 0.45, 0.6]),
+      film.strip(at: [firstFrame, 0.1, 0.2, 0.3, 0.45, 0.6]),
       named: "transition-noddingOff-to-asleep",
       within: .sameRenderer
     )
@@ -92,13 +99,13 @@ final class TransitionSnapshotTests: XCTestCase {
     film.scene.show(.waking, facing: nil)
 
     Snapshot.assert(
-      film.strip(at: [first, 0.1, 0.3, 0.5, 0.65, 0.8, 1.0, 1.3, 1.7, 2.6, 2.8]),
+      film.strip(at: [firstFrame, 0.1, 0.3, 0.5, 0.65, 0.8, 1.0, 1.3, 1.7, 2.6, 2.8]),
       named: "transition-asleep-to-waking",
       within: .sameRenderer
     )
     film.advance(by: 0.5)
     XCTAssertFalse(film.scene.needsAnotherFrame)
-    assertFrame(film.frame(), matches: "pose-awake-left")
+    assertFrame(film.frame(), matches: "pose-awake-left", within: afterDrawnWakeUp)
   }
 
   func testChangesDuringAYawnWaitAndCollapseToTheLastOne() {
@@ -123,7 +130,7 @@ final class TransitionSnapshotTests: XCTestCase {
     film.scene.show(.waking, facing: nil)
 
     Snapshot.assert(
-      film.strip(at: [first, 0.1, 0.3, 0.6, 1.0, 1.5, 2.8]),
+      film.strip(at: [firstFrame, 0.1, 0.3, 0.6, 1.0, 1.5, 2.8]),
       named: "transition-yawn-interrupted-by-waking",
       within: .sameRenderer
     )
@@ -136,7 +143,7 @@ final class TransitionSnapshotTests: XCTestCase {
     film.scene.show(.waking, facing: nil)
 
     Snapshot.assert(
-      film.strip(at: [first, 0.1, 0.3, 0.6, 1.0, 1.5, 2.8]),
+      film.strip(at: [firstFrame, 0.1, 0.3, 0.6, 1.0, 1.5, 2.8]),
       named: "transition-nodOff-interrupted-by-waking",
       within: .sameRenderer
     )
@@ -144,9 +151,14 @@ final class TransitionSnapshotTests: XCTestCase {
 
   // MARK: - Charging during a transition (job 003 H3)
 
+  // The "z"s and the snore bubble are the only parts bluer than red by more than this; the
+  // backdrop is bluer by 16, the cat's fur and eyes are redder.
+  private let blueOverRedOfZsAndBubble = 25
+
   private func zAndBubblePixels(in frame: Bitmap) -> Int {
-    stride(from: 0, to: frame.pixels.count, by: 4).filter { start in
-      Int(frame.pixels[start + 2]) - Int(frame.pixels[start]) > 25
+    let (red, blue) = (0, 2)
+    return stride(from: 0, to: frame.pixels.count, by: 4).filter { start in
+      Int(frame.pixels[start + blue]) - Int(frame.pixels[start + red]) > blueOverRedOfZsAndBubble
     }.count
   }
 
@@ -162,7 +174,7 @@ final class TransitionSnapshotTests: XCTestCase {
       let before = zAndBubblePixels(in: film.frame())
 
       film.scene.show(.waking, facing: nil)
-      film.advance(by: first)
+      film.advance(by: firstFrame)
 
       XCTAssertLessThanOrEqual(zAndBubblePixels(in: film.frame()), before, "\(from) to \(to)")
     }
@@ -176,7 +188,7 @@ final class TransitionSnapshotTests: XCTestCase {
     film.scene.show(.drowsiness(.awake), facing: nil)
 
     Snapshot.assert(
-      film.strip(at: [first, 0.1, 0.2, 0.3, 0.45, 0.6]),
+      film.strip(at: [firstFrame, 0.1, 0.2, 0.3, 0.45, 0.6]),
       named: "transition-snore-to-awake",
       within: .sameRenderer
     )
@@ -188,7 +200,7 @@ final class TransitionSnapshotTests: XCTestCase {
     film.scene.show(.drowsiness(.awake), facing: nil)
 
     Snapshot.assert(
-      film.strip(at: [first, 0.1, 0.2, 0.3, 0.45, 0.6]),
+      film.strip(at: [firstFrame, 0.1, 0.2, 0.3, 0.45, 0.6]),
       named: "transition-floating-zs-to-awake",
       within: .sameRenderer
     )
@@ -200,7 +212,7 @@ final class TransitionSnapshotTests: XCTestCase {
     film.scene.show(.drowsiness(.noddingOff), facing: nil)
 
     Snapshot.assert(
-      film.strip(at: [first, 0.1, 0.25, 0.6, 1.3, 1.6, 2.2]),
+      film.strip(at: [firstFrame, 0.1, 0.25, 0.6, 1.3, 1.6, 2.2]),
       named: "transition-snore-to-noddingOff",
       within: .sameRenderer
     )
@@ -212,7 +224,7 @@ final class TransitionSnapshotTests: XCTestCase {
     film.scene.show(.waking, facing: nil)
 
     Snapshot.assert(
-      film.strip(at: [first, 0.1, 0.2, 0.3, 0.45, 0.6]),
+      film.strip(at: [firstFrame, 0.1, 0.2, 0.3, 0.45, 0.6]),
       named: "transition-snore-to-waking",
       within: .sameRenderer
     )
@@ -224,7 +236,7 @@ final class TransitionSnapshotTests: XCTestCase {
     film.scene.show(.waking, facing: nil)
 
     Snapshot.assert(
-      film.strip(at: [first, 0.1, 0.2, 0.3, 0.45, 0.6]),
+      film.strip(at: [firstFrame, 0.1, 0.2, 0.3, 0.45, 0.6]),
       named: "transition-floating-zs-to-waking",
       within: .sameRenderer
     )
@@ -237,7 +249,7 @@ final class TransitionSnapshotTests: XCTestCase {
     film.scene.show(.drowsiness(.awake), facing: nil)
 
     Snapshot.assert(
-      film.strip(at: [first, 0.15, 0.3, 0.45, 0.6]),
+      film.strip(at: [firstFrame, 0.15, 0.3, 0.45, 0.6]),
       named: "transition-ambient-yawn-to-awake",
       within: .sameRenderer
     )
