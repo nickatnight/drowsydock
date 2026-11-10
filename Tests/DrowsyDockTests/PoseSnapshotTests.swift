@@ -8,8 +8,6 @@ import XCTest
 // and the whole overlay (cat, veil and perch) over fixture Docks.
 @MainActor
 final class PoseSnapshotTests: XCTestCase {
-  private let tolerance = SnapshotTolerance(channel: 2, differingPixels: 4)
-
   private let backdrop: (red: UInt8, green: UInt8, blue: UInt8) = (214, 220, 230)
 
   override func setUpWithError() throws {
@@ -34,27 +32,28 @@ final class PoseSnapshotTests: XCTestCase {
   // MARK: - Poses on a bottom Dock
 
   func testAwakeHasRoundOpenEyesUprightEarsAndAStraightHead() {
-    Snapshot.assert(pose(.awake, facing: .left), named: "pose-awake-left", within: tolerance)
+    Snapshot.assert(pose(.awake, facing: .left), named: "pose-awake-left", within: .sameRenderer)
   }
 
   func testDrowsyLidsCoverUnderHalfOfEachEyeTheHeadLeansAndTheEarsFoldSlightly() {
-    Snapshot.assert(pose(.drowsy, facing: .left), named: "pose-drowsy-left", within: tolerance)
+    Snapshot.assert(pose(.drowsy, facing: .left), named: "pose-drowsy-left", within: .sameRenderer)
   }
 
   func testYawningLidsSitLowerTheHeadLeansFurtherAndTheEarsFoldMore() {
-    Snapshot.assert(pose(.yawning, facing: .left), named: "pose-yawning-left", within: tolerance)
+    Snapshot.assert(
+      pose(.yawning, facing: .left), named: "pose-yawning-left", within: .sameRenderer)
   }
 
   func testNoddingOffShowsSlitEyesDroopingEarsAndOneZ() {
     Snapshot.assert(
       pose(.noddingOff, facing: .left),
       named: "pose-noddingOff-left",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
   func testAsleepShowsClosedEyesFullyDroopedEarsTwoZsAndASnoreBubble() {
-    Snapshot.assert(pose(.asleep, facing: .left), named: "pose-asleep-left", within: tolerance)
+    Snapshot.assert(pose(.asleep, facing: .left), named: "pose-asleep-left", within: .sameRenderer)
   }
 
   // MARK: - The overlay over a Dock
@@ -63,7 +62,7 @@ final class PoseSnapshotTests: XCTestCase {
     Snapshot.assert(
       overlay(.asleep, on: DockFixture.bottom),
       named: "overlay-asleep-bottom",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -71,7 +70,7 @@ final class PoseSnapshotTests: XCTestCase {
     Snapshot.assert(
       overlay(.awake, on: DockFixture.bottom),
       named: "overlay-awake-bottom",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -79,7 +78,7 @@ final class PoseSnapshotTests: XCTestCase {
     Snapshot.assert(
       overlay(.asleep, on: DockFixture.left),
       named: "overlay-asleep-left-dock",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -87,7 +86,7 @@ final class PoseSnapshotTests: XCTestCase {
     Snapshot.assert(
       overlay(.asleep, on: DockFixture.right),
       named: "overlay-asleep-right-dock",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 }

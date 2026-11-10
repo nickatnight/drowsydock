@@ -6,8 +6,6 @@ import XCTest
 
 @MainActor
 final class CrowdWaveSnapshotTests: XCTestCase {
-  private let tolerance = SnapshotTolerance(channel: 2, differingPixels: 4)
-
   override func setUpWithError() throws {
     try Snapshot.skipUnlessReferenceArchitecture()
   }
@@ -29,7 +27,7 @@ final class CrowdWaveSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [0.2, 0.7, 1.2, 1.7, 2.2, 2.7]),
       named: "crowd-wave-bottom",
-      within: tolerance
+      within: .sameRenderer
     )
     XCTAssertFalse(film.overlay.canvasScene.needsAnotherFrame)
   }
@@ -40,7 +38,7 @@ final class CrowdWaveSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [0.3, 0.9, 1.5]),
       named: "crowd-wave-left-dock",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -50,7 +48,7 @@ final class CrowdWaveSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [0.3, 0.9, 1.5]),
       named: "crowd-wave-right-dock",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 }

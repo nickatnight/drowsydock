@@ -1,6 +1,10 @@
 import Foundation
 
 struct SnapshotTolerance {
+  // The same code on the same GPU draws identical pixels, so this only absorbs driver rounding.
+  // A changed pose or timing moves hundreds of pixels.
+  static let sameRenderer = SnapshotTolerance(channel: 2, differingPixels: 4)
+
   let channel: UInt8
 
   let differingPixels: Int

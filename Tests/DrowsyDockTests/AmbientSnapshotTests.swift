@@ -5,8 +5,6 @@ import XCTest
 
 @MainActor
 final class AmbientSnapshotTests: XCTestCase {
-  private let tolerance = SnapshotTolerance(channel: 2, differingPixels: 4)
-
   override func setUpWithError() throws {
     try Snapshot.skipUnlessReferenceArchitecture()
   }
@@ -24,7 +22,7 @@ final class AmbientSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [0.04, 0.08, 0.12, 0.16, 0.2, 0.26]),
       named: "ambient-awake-blink",
-      within: tolerance
+      within: .sameRenderer
     )
     film.advance(by: 0.2)
     waitUntil("the next blink is scheduled") { film.clock.sleeperCount == 1 }
@@ -40,7 +38,7 @@ final class AmbientSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.1]),
       named: "ambient-drowsy-slow-blink",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -52,7 +50,7 @@ final class AmbientSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [0.25, 0.5, 1.0, 1.5, 1.8, 2.1, 2.4, 2.7]),
       named: "ambient-yawning-yawn-and-nod",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -63,7 +61,7 @@ final class AmbientSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8, 3.2]),
       named: "ambient-noddingOff-floating-zs",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -74,7 +72,7 @@ final class AmbientSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8, 3.2]),
       named: "ambient-asleep-snore",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 }

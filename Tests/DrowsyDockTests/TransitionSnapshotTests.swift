@@ -6,8 +6,6 @@ import XCTest
 
 @MainActor
 final class TransitionSnapshotTests: XCTestCase {
-  private let tolerance = SnapshotTolerance(channel: 2, differingPixels: 4)
-
   private let restingPoseTolerance = SnapshotTolerance(channel: 40, differingPixels: 4)
 
   private let first = 1.0 / 30
@@ -50,7 +48,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [first, 0.15, 0.3, 0.45, 0.6, 0.7]),
       named: "transition-awake-to-drowsy",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -61,7 +59,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [first, 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8, 3.1, 3.4]),
       named: "transition-drowsy-to-yawning",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -72,7 +70,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [first, 0.4, 0.8, 1.3, 1.45, 1.7, 1.95, 2.2]),
       named: "transition-yawning-to-noddingOff",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -84,7 +82,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [first, 0.1, 0.2, 0.3, 0.45, 0.6]),
       named: "transition-noddingOff-to-asleep",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -96,7 +94,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [first, 0.1, 0.3, 0.5, 0.65, 0.8, 1.0, 1.3, 1.7, 2.6, 2.8]),
       named: "transition-asleep-to-waking",
-      within: tolerance
+      within: .sameRenderer
     )
     film.advance(by: 0.5)
     XCTAssertFalse(film.scene.needsAnotherFrame)
@@ -114,7 +112,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [0.4, 1.4, 2.6, 2.85, 3.0, 3.15, 3.3, 3.45]),
       named: "transition-yawn-then-asleep",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -127,7 +125,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [first, 0.1, 0.3, 0.6, 1.0, 1.5, 2.8]),
       named: "transition-yawn-interrupted-by-waking",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -140,7 +138,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [first, 0.1, 0.3, 0.6, 1.0, 1.5, 2.8]),
       named: "transition-nodOff-interrupted-by-waking",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -180,7 +178,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [first, 0.1, 0.2, 0.3, 0.45, 0.6]),
       named: "transition-snore-to-awake",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -192,7 +190,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [first, 0.1, 0.2, 0.3, 0.45, 0.6]),
       named: "transition-floating-zs-to-awake",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -204,7 +202,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [first, 0.1, 0.25, 0.6, 1.3, 1.6, 2.2]),
       named: "transition-snore-to-noddingOff",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -216,7 +214,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [first, 0.1, 0.2, 0.3, 0.45, 0.6]),
       named: "transition-snore-to-waking",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -228,7 +226,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [first, 0.1, 0.2, 0.3, 0.45, 0.6]),
       named: "transition-floating-zs-to-waking",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
@@ -241,7 +239,7 @@ final class TransitionSnapshotTests: XCTestCase {
     Snapshot.assert(
       film.strip(at: [first, 0.15, 0.3, 0.45, 0.6]),
       named: "transition-ambient-yawn-to-awake",
-      within: tolerance
+      within: .sameRenderer
     )
   }
 
