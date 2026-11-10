@@ -248,9 +248,6 @@ final class AnimationDirectorTests: XCTestCase {
     while director.isAnimating, let next = director.finishAnimation() {
       steps.append(next)
     }
-    if director.isAnimating {
-      _ = director.finishAnimation()
-    }
     return (steps, director)
   }
 
