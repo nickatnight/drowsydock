@@ -540,6 +540,17 @@ preflight() {
     }
   done
 
+  # restore-selftest compares the Dock's preferences through the helper, so every run builds it.
+  say "Building the helper (it is never part of the app bundle)."
+  if ! run_or_print swift build -c release --product qa-helper; then
+    say "qa-helper failed to build; see the swift build output above." >&2
+    exit 1
+  fi
+  if ! $dry_run && [[ ! -x $helper ]]; then
+    say "qa-helper isn't at $helper after the build." >&2
+    exit 1
+  fi
+
   $needs_app || return 0
 
   say "The app must be a fresh bundle of this checkout: clean sources, built after the last commit."
@@ -553,16 +564,6 @@ preflight() {
       say "build/DrowsyDock.app is missing or older than the last commit; run scripts/bundle.sh." >&2
       exit 1
     fi
-  fi
-
-  say "Building the helper (it is never part of the app bundle)."
-  if ! run_or_print swift build -c release --product qa-helper; then
-    say "qa-helper failed to build; see the swift build output above." >&2
-    exit 1
-  fi
-  if ! $dry_run && [[ ! -x $helper ]]; then
-    say "qa-helper isn't at $helper after the build." >&2
-    exit 1
   fi
 
   say "Your terminal needs Accessibility (pointer moves, the menu) and Screen Recording (screenshots)."

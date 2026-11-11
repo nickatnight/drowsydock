@@ -84,4 +84,8 @@ if ! grep -q "^==> Preflight" <<<"$selftest" || grep -q "DrowsyDock.app" <<<"$se
   echo "qa-live.sh --only restore-selftest must run its preflight and leave the app alone" >&2
   failed=1
 fi
+if ! grep -qF "would run: swift build -c release --product qa-helper" <<<"$selftest"; then
+  echo "qa-live.sh --only restore-selftest must build qa-helper, which its compare runs" >&2
+  failed=1
+fi
 exit "$failed"
