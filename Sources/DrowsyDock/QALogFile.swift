@@ -32,7 +32,7 @@ final class QALogFile {
   static let folder = FileManager.default.homeDirectoryForCurrentUser
     .appending(path: "Library/Logs/DrowsyDock")
   static let fileName = "qa.log"
-  // A full live run logs well under a tenth of this.
+  // About 1,000 `Overlay:` lines for a Dock of 20 icons; each lists every icon's frame.
   static let sizeLimit = 1_048_576
 
   private static let logger = MirroredLogger(
