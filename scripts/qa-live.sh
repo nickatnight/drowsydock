@@ -199,6 +199,16 @@ owns_backup=false
 # Changes one Dock preference the way System Settings does, through System Events, so the Dock
 # keeps running and the app sees the change through com.apple.dock.prefchanged and Accessibility.
 dock_preference() {
+  # Both words go into AppleScript as written, so only these properties and values may.
+  case "$1" in
+    "screen edge") [[ $2 == left || $2 == right || $2 == bottom ]] ;;
+    autohide | magnification) [[ $2 == true || $2 == false ]] ;;
+    "dock size" | "magnification size") [[ $2 =~ ^(0?\.[0-9]+|1\.0)$ ]] ;;
+    *) false ;;
+  esac || {
+    result FAIL - dock "refused to set the Dock's $1 to $2: not a property and value this script sets"
+    return 1
+  }
   if $dry_run; then
     run_or_print osascript -e \
       "tell application \"System Events\" to tell dock preferences to set $1 to $2"
