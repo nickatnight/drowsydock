@@ -141,17 +141,6 @@ other_run_pid() {
   printf '%s\n' "$pid"
 }
 
-# A log stream left by a killed run keeps appending to app.log until logout; stop it.
-stop_stale_log_stream() {
-  [[ -f $log_pid_file ]] || return 0
-  local pid
-  pid="$(cat "$log_pid_file")"
-  if [[ $pid =~ ^[0-9]+$ ]] && ps -o command= -p "$pid" 2>/dev/null | grep -q '^log stream'; then
-    kill "$pid" 2>/dev/null
-  fi
-  rm -f "$log_pid_file"
-}
-
 # Restores the Dock first, since that is what matters; the menu step after it is cosmetic and
 # bounded by AppleScript timeouts. Signals are ignored from here on, so a second Ctrl-C can't cut
 # the restore short.
@@ -159,14 +148,13 @@ cleanup() {
   local status=$?
   trap '' INT TERM HUP
   trap - EXIT
-  if [[ -n $log_pid ]]; then kill "$log_pid" 2>/dev/null; fi
-  $dry_run || rm -f "$log_pid_file"
   if ! put_dock_back; then
     result FAIL - dock "the Dock's preferences couldn't be restored; see the message above"
     status=1
   fi
-  if $needs_app && ! $dry_run && app_running; then
-    simulate Real 2>/dev/null
+  if $needs_app && ! $dry_run; then
+    if app_running; then relaunch_without_qa_log; fi
+    save_run_log
   fi
   write_report
   if ! $dry_run && [[ $(cat "$run_pid_file" 2>/dev/null) == "$$" ]]; then
@@ -185,7 +173,6 @@ restore_from_backup() {
     say "qa-live.sh is still running (pid $pid) and owns this backup; it restores the Dock when it ends." >&2
     return 1
   fi
-  stop_stale_log_stream
   say "Backup saved $(stat -f '%Sm' "$dock_backup")."
   local scratch
   scratch="$(mktemp -d)"
@@ -226,38 +213,50 @@ pause() {
   sleep "$1"
 }
 
+# The app appends to $app_log only when launch_app starts it with --qa-log (ADR 0020). The file
+# outlives runs and may hold another DrowsyDock's lines, so a read starts at this run's first byte,
+# or at a later mark, and keeps only the lines of the app that launch_app started from this build.
+app_log_opened=false
+run_start=0
 log_mark=0
+app_log_pid=""
 
-start_app_log() {
-  if $dry_run; then
-    printf '    would run: log stream --style compact --level debug --predicate %q >%q &\n' \
-      "subsystem == \"$subsystem\" AND process == \"DrowsyDock\"" "$app_log"
-    return 0
-  fi
-  : >"$app_log"
-  log stream --style compact --level debug \
-    --predicate "subsystem == \"$subsystem\" AND process == \"DrowsyDock\"" >>"$app_log" 2>&1 &
-  log_pid=$!
-  printf '%s\n' "$log_pid" >"$log_pid_file"
-  sleep 2
-  app_log_alive
+app_log_size() {
+  if [[ -f $app_log ]]; then stat -f %z "$app_log"; else echo 0; fi
 }
 
-app_log_alive() {
-  [[ -n $log_pid ]] && kill -0 "$log_pid" 2>/dev/null
+open_app_log() {
+  if $dry_run; then
+    printf '    would read the lines DrowsyDock appends to %s from here on\n' "$app_log"
+    return
+  fi
+  run_start="$(app_log_size)"
+  log_mark="$run_start"
+  app_log_opened=true
 }
 
 app_log_lines() {
-  if [[ ${1:-} == since-mark ]]; then
-    tail -n "+$((log_mark + 1))" "$app_log"
-  else
-    cat "$app_log"
-  fi
+  local from="$run_start"
+  if [[ ${1:-} == since-mark ]]; then from="$log_mark"; fi
+  [[ -f $app_log ]] || return 0
+  # The app starts the file over at its size limit; everything in it is then newer than any mark.
+  if (($(app_log_size) < from)); then from=0; fi
+  tail -c "+$((from + 1))" "$app_log" | grep -F -- " DrowsyDock[$app_log_pid] "
 }
 
 mark_log() {
   $dry_run && return
-  log_mark="$(wc -l <"$app_log" | tr -d ' ')"
+  log_mark="$(app_log_size)"
+}
+
+# grep reads every line instead of stopping at the first match (-q), so the reads before it in the
+# pipe can't die of SIGPIPE and fail the pipeline under pipefail.
+logged_since_mark() {
+  [[ -n $(app_log_lines since-mark | grep -E -- "$1") ]]
+}
+
+app_alive() {
+  [[ -n $app_log_pid ]] && kill -0 "$app_log_pid" 2>/dev/null
 }
 
 wait_log() {
@@ -267,8 +266,8 @@ wait_log() {
     return 0
   fi
   while ((waited < seconds * 10)); do
-    if app_log_lines since-mark | grep -Eq -- "$pattern"; then return 0; fi
-    app_log_alive || return 1
+    if logged_since_mark "$pattern"; then return 0; fi
+    app_alive || return 1
     sleep 0.1
     waited=$((waited + 1))
   done
@@ -279,9 +278,19 @@ last_log() {
   app_log_lines since-mark | grep -E -- "$1" | tail -n 1
 }
 
+# A missing line counts only while the app is still there to have written it.
 no_log_since_mark() {
-  app_log_alive || return 1
-  ! app_log_lines since-mark | grep -Eq -- "$1"
+  app_alive || return 1
+  ! logged_since_mark "$1"
+}
+
+# Keeps this run's lines, of every process, in build/qa/app.log for the report.
+save_run_log() {
+  $app_log_opened && [[ -f $app_log ]] || return 0
+  mkdir -p "$qa_dir"
+  local from="$run_start"
+  if (($(app_log_size) < from)); then from=0; fi
+  tail -c "+$((from + 1))" "$app_log" >"$run_log"
 }
 
 # MARK: - Driving the app
@@ -381,8 +390,29 @@ menu_bar_item_exists() {
 
 launch_app() {
   mark_log
-  run_or_print open "$app"
-  wait_log "Accessibility granted: (true|false)" 10
+  run_or_print open "$app" --args --qa-log
+  find_launched_app && wait_log "Accessibility granted: (true|false)" 10
+}
+
+# Sets app_log_pid to the DrowsyDock that launch_app started from this build, whose lines the log
+# reads keep.
+find_launched_app() {
+  $dry_run && return 0
+  local waited=0
+  app_log_pid=""
+  while ((waited < 100)); do
+    if app_log_pid="$(app_pid)"; then return 0; fi
+    sleep 0.1
+    waited=$((waited + 1))
+  done
+  return 1
+}
+
+# The app keeps writing the QA log until it quits; relaunched without --qa-log it runs on as it
+# did before the run, and writes no file.
+relaunch_without_qa_log() {
+  quit_app
+  open "$app"
 }
 
 quit_app() {
@@ -503,7 +533,7 @@ preflight() {
   step "Preflight"
   say "Checking for the tools it uses."
   local tool
-  for tool in osascript screencapture defaults log sample top pmset plutil swift git; do
+  for tool in osascript screencapture defaults sample top pmset plutil swift git; do
     command -v "$tool" >/dev/null || {
       say "Missing $tool." >&2
       exit 1
@@ -561,13 +591,9 @@ preflight() {
     fi
   fi
 
-  say "Reading the app's log."
+  say "Reading the lines DrowsyDock writes to its QA log when launched with --qa-log."
   run_or_print mkdir -p "$qa_dir"
-  if ! start_app_log; then
-    say "Can't read the app's log: log stream stopped with: $(head -n 1 "$app_log")" >&2
-    say "macOS lets only administrators run log stream. Run qa-live.sh from an admin account." >&2
-    exit 1
-  fi
+  open_app_log
 
   if ! $dry_run; then
     local others
@@ -578,10 +604,11 @@ preflight() {
     fi
   fi
 
-  say "DrowsyDock needs its Accessibility grant: relaunching it to read the grant from its log."
+  say "DrowsyDock needs its Accessibility grant: relaunching it to read the grant from its QA log."
   quit_app
   if ! launch_app; then
-    say "DrowsyDock logged no 'Accessibility granted:' line within 10 s." >&2
+    say "DrowsyDock wrote no 'Accessibility granted:' line to $app_log within 10 s." >&2
+    say "It refuses a link there, or a file or folder you don't own; remove it and run again." >&2
     exit 1
   fi
   if ! $dry_run && ! last_log "Accessibility granted:" | grep -q true; then

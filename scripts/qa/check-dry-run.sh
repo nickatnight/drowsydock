@@ -20,9 +20,13 @@ done
 # a redirect into it would succeed; nothing may appear in it.
 qa_dir="$stubs/qa"
 mkdir "$qa_dir"
+# The QA log lives under HOME, so HOME is an empty folder that must stay empty.
+home="$stubs/home"
+mkdir "$home"
 
 dry_run() {
-  PATH="$stubs:$PATH" QA_HELPER="$stubs/qa-helper" QA_DIR="$qa_dir" scripts/qa-live.sh "$@" 2>&1
+  PATH="$stubs:$PATH" HOME="$home" QA_HELPER="$stubs/qa-helper" QA_DIR="$qa_dir" \
+    scripts/qa-live.sh "$@" 2>&1
 }
 
 failed=0
@@ -48,11 +52,14 @@ report_calls() {
     grep UNGUARDED <<<"$2" >&2
     failed=1
   fi
-  if [[ -n $(ls -A "$qa_dir") ]]; then
-    echo "qa-live.sh $1 wrote into $qa_dir:" >&2
-    ls -A "$qa_dir" >&2
-    failed=1
-  fi
+  local folder
+  for folder in "$qa_dir" "$home"; do
+    if [[ -n $(ls -A "$folder") ]]; then
+      echo "qa-live.sh $1 wrote into $folder:" >&2
+      ls -AR "$folder" >&2
+      failed=1
+    fi
+  done
 }
 
 output="$(dry_run --dry-run)"
@@ -63,7 +70,8 @@ while IFS= read -r name; do
     failed=1
   fi
 done < <(scripts/qa-live.sh --list | cut -d' ' -f1)
-for expected in "==> Preflight" "defaults import com.apple.dock" "would run: defaults export com.apple.dock"; do
+for expected in "==> Preflight" "defaults import com.apple.dock" \
+  "would run: defaults export com.apple.dock" "DrowsyDock.app --args --qa-log"; do
   if ! grep -qF -- "$expected" <<<"$output"; then
     echo "qa-live.sh --dry-run doesn't print: $expected" >&2
     failed=1

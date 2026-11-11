@@ -2,8 +2,8 @@
 # Runs the checks from CONSTRAINTS.md.
 #
 #   scripts/check.sh fast   compile, format, the live QA script's checks (dry run, Dock restore,
-#                           restore self-test), floor rules, the QA row mapping, secrets
-#                           (every edit)
+#                           restore self-test, log reads), floor rules, the QA row mapping,
+#                           secrets (every edit)
 #   scripts/check.sh task   fast + tests, coverage gate, bundle (run before every commit)
 #
 # The coverage gate compares against the merge base with $CHECK_BASE (default: main).
@@ -259,11 +259,12 @@ swift build --build-tests -Xswiftc -warnings-as-errors
 step "Format"
 swift format lint --strict --recursive "${source_roots[@]}" Tests
 
-step "Live QA script (syntax, a dry run that must touch nothing, the Dock restore and its self-test on a scratch domain)"
+step "Live QA script (syntax, a dry run that must touch nothing, the Dock restore and its self-test on a scratch domain, the log reads over a fixture QA log)"
 bash -n scripts/qa-live.sh
 scripts/qa/check-dry-run.sh
 scripts/qa/check-dock-restore.sh
 scripts/qa/check-restore-selftest.sh
+scripts/qa/check-app-log.sh
 
 step "Floor rules"
 floor_rules

@@ -66,14 +66,12 @@ needs_app=false
 owns_backup=false
 failed=false
 results=()
-log_pid=""
 helper="$HELPER"
 qa_dir="$SCRATCH/qa"
 report="$qa_dir/report.md"
 dock_domain="$domain"
 dock_backup="$qa_dir/dock-backup.plist"
 run_pid_file="$qa_dir/run.pid"
-log_pid_file="$qa_dir/log.pid"
 
 mkdir -p "$qa_dir"
 trap cleanup EXIT

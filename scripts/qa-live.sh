@@ -16,32 +16,34 @@
 # restore can't be verified. A kill -9 skips the trap: run the printed command, or --restore.
 #
 # It drives Debug ▸ Simulate battery through the app's real menu with System Events, moves the
-# pointer and takes screenshots through scripts/qa's helper, and reads the app's log. Your
-# terminal needs Accessibility and Screen Recording (System Settings ▸ Privacy & Security), and
-# DrowsyDock needs its own Accessibility grant. It prints PASS, FAIL or SKIP per QA row, writes
-# build/qa/report.md, and exits 1 if any row fails.
+# pointer and takes screenshots through scripts/qa's helper, and reads the app's log. It launches
+# the app with --qa-log, so the app also writes its log lines to ~/Library/Logs/DrowsyDock/qa.log,
+# which a standard account can read; the run reads only its own lines from there, and relaunches
+# the app without --qa-log when it ends. Your terminal needs Accessibility and Screen Recording
+# (System Settings ▸ Privacy & Security), and DrowsyDock needs its own Accessibility grant. It
+# prints PASS, FAIL or SKIP per QA row, writes build/qa/report.md, and exits 1 if any row fails.
 #
-# build/qa keeps report.md and app.log. Screenshots and samples are deleted once their checks pass,
-# and kept as evidence when they fail. Every process started from your terminal inherits its
-# Accessibility and Screen Recording grants: consider a terminal profile used only for this run,
-# and revoking the grants afterwards. The run quits and relaunches build/DrowsyDock.app only.
+# build/qa keeps report.md, and app.log with the run's lines of the QA log. Screenshots and
+# samples are deleted once their checks pass, and kept as evidence when they fail. Every process
+# started from your terminal inherits its Accessibility and Screen Recording grants: consider a
+# terminal profile used only for this run, and revoking the grants afterwards. The run quits and
+# relaunches build/DrowsyDock.app only.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 root="$PWD"
 
 qa_dir="${QA_DIR:-$root/build/qa}"
 report="$qa_dir/report.md"
-app_log="$qa_dir/app.log"
+run_log="$qa_dir/app.log"
+app_log="$HOME/Library/Logs/DrowsyDock/qa.log"
 app="$root/build/DrowsyDock.app"
 app_binary="$app/Contents/MacOS/DrowsyDock"
 helper="${QA_HELPER:-$root/.build/release/qa-helper}"
-subsystem="com.drowsydock.DrowsyDock"
 
 # shellcheck source=scripts/qa/dock-preferences.sh
 source "$root/scripts/qa/dock-preferences.sh"
 dock_backup="$qa_dir/dock-backup.plist"
 run_pid_file="$qa_dir/run.pid"
-log_pid_file="$qa_dir/log.pid"
 
 scenarios=(
   "restore-selftest|-|saves the Dock preferences, changes one harmless key, restores them"
@@ -68,7 +70,6 @@ results=()
 failed=false
 owns_backup=false
 needs_app=false
-log_pid=""
 
 usage() {
   sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
@@ -178,7 +179,6 @@ if ! $dry_run; then
     say "Restore it first: scripts/qa-live.sh --restore" >&2
     exit 1
   fi
-  stop_stale_log_stream
   mkdir -p "$qa_dir"
   printf '%s\n' "$$" >"$run_pid_file"
 fi
