@@ -547,8 +547,10 @@ preflight() {
     exit 1
   fi
 
-  $needs_app || return 0
+  if $needs_app; then preflight_app; fi
+}
 
+preflight_app() {
   say "The app must be a fresh bundle of this checkout: clean sources, built after the last commit."
   if ! $dry_run; then
     if [[ -n $(git status --porcelain -- Sources Resources Package.swift scripts/bundle.sh) ]]; then
