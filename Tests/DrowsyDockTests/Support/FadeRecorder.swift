@@ -3,21 +3,27 @@ import AppKit
 @testable import DockOverlayKit
 
 @MainActor
-final class FadeRecorder {
+final class FadeRecorder: OverlayWindow.Fader {
   private(set) var fades: [(alpha: CGFloat, duration: TimeInterval)] = []
   var completesAtOnce = true
   private(set) var pending: [@MainActor () -> Void] = []
 
   init(_ window: OverlayWindow) {
-    window.fader = { [weak self] nsWindow, alpha, duration, completion in
-      guard let self else { return }
-      fades.append((alpha, duration))
-      nsWindow.alphaValue = alpha
-      if completesAtOnce {
-        completion()
-      } else {
-        pending.append(completion)
-      }
+    window.fader = self
+  }
+
+  func fade(
+    _ window: NSWindow,
+    to alpha: CGFloat,
+    over duration: TimeInterval,
+    then completion: @escaping @MainActor () -> Void
+  ) {
+    fades.append((alpha, duration))
+    window.alphaValue = alpha
+    if completesAtOnce {
+      completion()
+    } else {
+      pending.append(completion)
     }
   }
 

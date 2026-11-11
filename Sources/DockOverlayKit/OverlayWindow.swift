@@ -52,8 +52,7 @@ public final class OverlayWindow {
 
   // Internal so the kit's and the app's tests can record each fade and end it at once: AppKit runs
   // window animations only while a display is awake.
-  var fader: @MainActor (NSWindow, CGFloat, TimeInterval, @escaping @MainActor () -> Void) -> Void =
-    OverlayWindow.animatedFade
+  var fader: any Fader = AnimatedFader()
 
   private let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "DockOverlayKit",
@@ -93,7 +92,7 @@ public final class OverlayWindow {
       window.orderOut(nil)
       return
     }
-    fader(window, 0, Self.fadeDuration) { [weak self] in
+    fader.fade(window, to: 0, over: Self.fadeDuration) { [weak self] in
       guard let self, self.visibility != .shown else { return }
       self.window.orderOut(nil)
     }
@@ -126,21 +125,37 @@ public final class OverlayWindow {
 
   private func fade(to alpha: CGFloat) {
     guard window.alphaValue != alpha else { return }
-    fader(window, alpha, Self.fadeDuration) {}
+    fader.fade(window, to: alpha, over: Self.fadeDuration) {}
   }
 
-  static func animatedFade(
-    _ window: NSWindow,
-    to alpha: CGFloat,
-    over duration: TimeInterval,
-    then completion: @escaping @MainActor () -> Void
-  ) {
-    NSAnimationContext.runAnimationGroup { context in
-      context.duration = duration
-      window.animator().alphaValue = alpha
-    } completionHandler: {
-      // AppKit calls this on the main thread.
-      MainActor.assumeIsolated(completion)
+  // MARK: - Fading
+
+  /// Changes a window's alpha over time.
+  @MainActor
+  protocol Fader {
+    /// Fades `window` to `alpha` over `duration` seconds, then calls `completion`.
+    func fade(
+      _ window: NSWindow,
+      to alpha: CGFloat,
+      over duration: TimeInterval,
+      then completion: @escaping @MainActor () -> Void
+    )
+  }
+
+  private struct AnimatedFader: Fader {
+    func fade(
+      _ window: NSWindow,
+      to alpha: CGFloat,
+      over duration: TimeInterval,
+      then completion: @escaping @MainActor () -> Void
+    ) {
+      NSAnimationContext.runAnimationGroup { context in
+        context.duration = duration
+        window.animator().alphaValue = alpha
+      } completionHandler: {
+        // AppKit calls this on the main thread.
+        MainActor.assumeIsolated(completion)
+      }
     }
   }
 }

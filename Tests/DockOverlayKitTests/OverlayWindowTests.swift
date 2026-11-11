@@ -60,23 +60,30 @@ final class OverlayWindowTests: XCTestCase {
 
   // MARK: - Fades
 
-  private final class FadeRecorder {
+  private final class FadeRecorder: OverlayWindow.Fader {
     var fades: [(alpha: CGFloat, duration: TimeInterval)] = []
     var completesAtOnce = true
     var pending: [@MainActor () -> Void] = []
+
+    func fade(
+      _ window: NSWindow,
+      to alpha: CGFloat,
+      over duration: TimeInterval,
+      then completion: @escaping @MainActor () -> Void
+    ) {
+      fades.append((alpha, duration))
+      window.alphaValue = alpha
+      if completesAtOnce {
+        completion()
+      } else {
+        pending.append(completion)
+      }
+    }
   }
 
   private func recordingFades(of overlay: OverlayWindow) -> FadeRecorder {
     let recorder = FadeRecorder()
-    overlay.fader = { window, alpha, duration, completion in
-      recorder.fades.append((alpha, duration))
-      window.alphaValue = alpha
-      if recorder.completesAtOnce {
-        completion()
-      } else {
-        recorder.pending.append(completion)
-      }
-    }
+    overlay.fader = recorder
     return recorder
   }
 
