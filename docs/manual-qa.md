@@ -206,7 +206,7 @@ The references were drawn on the Mac `Tests/DrowsyDockTests/Snapshots/RECORDED_O
 
 ## Coverage-exempt files
 
-These files import AppKit, SpriteKit, IOKit, SwiftUI or the Accessibility API, so the coverage gate skips them (ADR 0002). Each is still checked:
+These files import AppKit, SpriteKit, IOKit, SwiftUI or the Accessibility API, or sit in the app target, which the gate doesn't cover, so the coverage gate skips them (ADR 0002). Each is still checked:
 
 | File | Checked by |
 |---|---|
@@ -224,4 +224,5 @@ These files import AppKit, SpriteKit, IOKit, SwiftUI or the Accessibility API, s
 | `OverlayWindow` | `OverlayWindowTests`; manual 6.4, 6.5, 7.7 |
 | `DockTracker`, `DockReader` | `DockTrackerTests` and `DockGeometryTests` for their decisions; live `position`, `size`, `autohide`, `hover`, `magnification`, `relaunch`; manual 7.13, 7.14 |
 | `AccessibilityPermission` | manual 4.1 to 4.5 |
+| `QALogFile` | `QALogFileTests`: no file without `--qa-log`, the folder's and the file's permissions, refused links, the size limit, and every line reaching both the unified log and the file; every live scenario reads the file |
 | `QAHelper` | `LiveQAKitTests` for its checks (`LiveQAKit`); `scripts/qa/check-dry-run.sh` for the script's dry run |
