@@ -68,7 +68,6 @@ extension CatRenderer {
   /// head ease back over `MascotTimeline.loopEaseOut`, except a part that `next` moves at once.
   func stopAnimations(before next: MascotAnimation?) {
     let loopState = (torso: torso.yScale, bubble: snoreBubble.yScale, headY: head.position.y)
-    let shownAlphas = (zs: zs.map(\.alpha), bubble: snoreBubble.alpha)
     let easesLoopOut = next != nil && isLooping
     animationGeneration += 1
     var parts: [SKNode] = [node, torso, head, snoreBubble, openMouth]
@@ -91,26 +90,20 @@ extension CatRenderer {
         child.removeFromParent()
       }
     }
-    apply(pose)
+    // The wake-up fades the "z"s and the bubble out from what is on screen.
+    let keepsZsAndBubble = next == .wakeUp
+    apply(pose, keepingZsAndBubble: keepsZsAndBubble)
     if isLooping {
       isLooping = false
-      for z in zs {
-        z.alpha = 0
+      if !keepsZsAndBubble {
+        for z in zs {
+          z.alpha = 0
+        }
       }
-    }
-    if next == .wakeUp {
-      keepShownForWakeUpFade(zs: shownAlphas.zs, bubble: shownAlphas.bubble)
     }
     if easesLoopOut, let next {
       easeBack(from: loopState, before: next)
     }
-  }
-
-  private func keepShownForWakeUpFade(zs alphas: [CGFloat], bubble: CGFloat) {
-    for (z, alpha) in zip(zs, alphas) {
-      z.alpha = alpha
-    }
-    snoreBubble.alpha = bubble
   }
 
   // Puts the loop's parts back where the loop left them, then eases them into the pose. The
