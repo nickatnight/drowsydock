@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (job 004). The app side is Gate 1 decision 2 (2026-11-09). The Dock side replaced the spec's `defaults write` and `killall Dock` after the round-1 test review.
+Accepted (job 004). The app side is Gate 1 decision 2 (2026-11-09). The Dock side replaced the spec's `defaults write` and `killall Dock` after the round-1 test review. ADR 0020 supersedes reading the results with `log stream` and the administrator account that needs: the script reads a log file the app writes when launched with `--qa-log`.
 
 ## Context
 

@@ -10,7 +10,7 @@ Every row keeps its number. The tables after the checklist map each automated or
 
 Every Swift file that the coverage gate exempts must be named here in backticks; `scripts/check.sh fast` fails otherwise. The last section lists them.
 
-`scripts/qa-live.sh` changes the Dock's preferences and puts them back: it saves and checks a backup in `build/qa/dock-backup.plist` before any change, restores it on exit and deletes it only once the Dock's preferences match it again. If a restore can't be verified, it keeps the backup and prints the command to retry; `scripts/qa-live.sh --restore` shows the backup's date and the keys it would change, asks first (`--yes` skips the question), and refuses while a run is still in progress. The backup is readable by your account only. After a run, `build/qa` holds `report.md` and `app.log`; screenshots and samples are deleted when their checks pass and kept when they fail (`--keep-captures` keeps them all). The terminal you run it from needs Accessibility, Screen Recording and Automation of System Events (ADR 0018), and every process started from that terminal inherits them: consider a terminal profile used only for the run, and revoking the grants afterwards. It reads the app's log with `log stream`, which macOS allows only for administrators; on a standard account the preflight stops and says so. The run quits and relaunches `build/DrowsyDock.app` only, refuses to start while another DrowsyDock runs, and skips the Calculator step of 7.8b if Calculator is already open.
+`scripts/qa-live.sh` changes the Dock's preferences and puts them back: it saves and checks a backup in `build/qa/dock-backup.plist` before any change, restores it on exit and deletes it only once the Dock's preferences match it again. If a restore can't be verified, it keeps the backup and prints the command to retry; `scripts/qa-live.sh --restore` shows the backup's date and the keys it would change, asks first (`--yes` skips the question), and refuses while a run is still in progress. The backup is readable by your account only. After a run, `build/qa` holds `report.md` and `app.log`, the run's lines of the app's QA log; screenshots and samples are deleted when their checks pass and kept when they fail (`--keep-captures` keeps them all). The terminal you run it from needs Accessibility, Screen Recording and Automation of System Events (ADR 0018), and every process started from that terminal inherits them: consider a terminal profile used only for the run, and revoking the grants afterwards. It reads the app's log from `~/Library/Logs/DrowsyDock/qa.log`, which the app writes only when the run launches it with `--qa-log` (ADR 0020), so a standard account can run every scenario; when the run ends it relaunches the app without `--qa-log`. The run quits and relaunches `build/DrowsyDock.app` only, refuses to start while another DrowsyDock runs, and skips the Calculator step of 7.8b if Calculator is already open.
 
 ## Before a merge
 
@@ -23,13 +23,16 @@ scripts/qa-live.sh --restore --yes                  # only if a run was killed a
 
 An ad-hoc signed build is a new app to macOS, so after `scripts/bundle.sh` re-grant DrowsyDock's Accessibility as the precondition of section 4 says, or the preflight stops.
 
-Watch the log in a second terminal for the manual rows (it needs an admin account):
+Watch the log in a second terminal for the manual rows. Launch the app with `--qa-log`, which any account can read, and follow its QA log:
 
 ```
-log stream --level debug --predicate 'subsystem == "com.drowsydock.DrowsyDock"'
+pkill -x DrowsyDock; open build/DrowsyDock.app --args --qa-log
+tail -F ~/Library/Logs/DrowsyDock/qa.log
 ```
 
-`Overlay:` lines and `Frame checks started`/`stopped` are logged at debug level, so keep `--level debug`. Each `Changed:` line is a status change. `Power source notification` is logged at debug level for every IOKit callback, including ones that change nothing in the menu.
+Afterwards, quit it and open it without `--qa-log`, so it stops writing the file. On an administrator account, `log stream --level debug --predicate 'subsystem == "com.drowsydock.DrowsyDock"'` shows the same lines.
+
+The QA log has every level. `Overlay:` lines, `Frame checks started`/`stopped` and `Power source notification` are debug lines, so `log stream` needs `--level debug` for them. Each `Changed:` line is a status change. `Power source notification` comes with every IOKit callback, including ones that change nothing in the menu.
 
 ## Manual checklist
 
