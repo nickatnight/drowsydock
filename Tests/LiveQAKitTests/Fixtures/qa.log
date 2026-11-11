@@ -1,0 +1,9 @@
+2026-11-10T01:29:58.004+01:00 DrowsyDock[4242] notice accessibility: Accessibility granted: true
+2026-11-10T01:31:00.250+01:00 DrowsyDock[4242] notice battery: Started: 46% · Discharging · Drowsy (real)
+2026-11-10T01:31:00.262+01:00 DrowsyDock[4242] notice accessibility: Accessibility granted: true
+2026-11-10T01:31:00.301+01:00 DrowsyDock[999] notice battery: Changed: 5% · Discharging · Asleep (simulated 5%)
+2026-11-10T01:31:07.123+01:00 DrowsyDock[4242] debug dock: Overlay: shown(DockOverlayKit.DockPerch(frame: (1070.0, 84.0, 64.0, 80.0), facing: DockOverlayKit.DockPerch.Facing.left), on: DockOverlayKit.DockGeometry(frame: (373.0, 10.0, 766.0, 79.0), iconFrames: [(1071.0, 5.0, 63.0, 79.0)], backgroundFrame: (373.0, 5.0, 766.0, 79.0), screenFrame: (0.0, 0.0, 1512.0, 982.0), visibleScreenFrame: (0.0, 0.0, 1512.0, 982.0), orientation: DockOverlayKit.DockOrientation.bottom))
+2026-11-10T01:31:08.500+01:00 DrowsyDock[4242] notice battery: Changed: 80% · Discharging · Awake (simulated 80%)
+2026-11-10T01:31:09.000+01:00 DrowsyDock[4242] debug dock: Overlay: fadedOut(DockOverlayKit.DockPerch(frame: (1070.0, 84.0, 64.0, 80.0), facing: DockOverlayKit.DockPerch.Facing.left), on: DockOverlayKit.DockGeometry(frame: (373.0, 10.0, 766.0, 79.0), iconFrames: [(1071.0, 5.0, 63.0, 79.0)], backgroundFrame: (373.0, 5.0, 766.0, 79.0), screenFrame: (0.0, 0.0, 1512.0, 982.0), visibleScreenFrame: (0.0, 0.0, 1512.0, 982.0), orientation: DockOverlayKit.DockOrientation.bottom))
+2026-11-10T01:31:10.000+01:00 DrowsyDock[4242] notice qa-log: qa.log reached its limit of 1048576 bytes and started over
+2026-11-10T01:31:10.001+01:00 DrowsyDock[4242] debug dock: Overlay: hidden

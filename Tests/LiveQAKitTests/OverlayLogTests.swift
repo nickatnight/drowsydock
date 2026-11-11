@@ -14,7 +14,8 @@ final class OverlayLogTests: XCTestCase {
   func testThePerchIsReadFromTheLineDockTrackerLogs() throws {
     let perch = dock.perch(for: CGSize(width: 64, height: 80))
     for presentation in [OverlayPresentation.shown(perch, on: dock), .fadedOut(perch, on: dock)] {
-      let line = "2026-11-09 22:10:01.123 Db DrowsyDock[123:456] Overlay: \(presentation)"
+      let line =
+        "2026-11-09T22:10:01.123+01:00 DrowsyDock[123] debug dock: Overlay: \(presentation)"
 
       XCTAssertEqual(OverlayLog.perchFrame(in: line), perch.frame)
     }
@@ -35,14 +36,13 @@ final class OverlayLogTests: XCTestCase {
     XCTAssertNil(OverlayLog.perchFacing(in: "Overlay: hidden"))
   }
 
-  func testTheTimeIsReadFromTheLinesTimestamp() throws {
-    let utc = try XCTUnwrap(TimeZone(identifier: "UTC"))
-    let line =
-      "2026-11-10 00:31:07.123 Df DrowsyDock[123:456] [com.drowsydock.DrowsyDock:dock] Overlay: hidden"
+  func testTheTimeIsReadFromTheLinesTimestampWithItsOffsetFromUTC() throws {
+    let local = "2026-11-10T01:31:07.123+01:00 DrowsyDock[123] debug dock: Overlay: hidden"
+    let utc = "2026-11-10T00:31:07.123Z DrowsyDock[123] debug dock: Overlay: hidden"
 
-    let time = try XCTUnwrap(OverlayLog.time(of: line, in: utc))
-
-    XCTAssertEqual(time, 1_794_270_667.123, accuracy: 0.0005)
+    XCTAssertEqual(try XCTUnwrap(OverlayLog.time(of: local)), 1_794_270_667.123, accuracy: 0.0005)
+    XCTAssertEqual(try XCTUnwrap(OverlayLog.time(of: utc)), 1_794_270_667.123, accuracy: 0.0005)
     XCTAssertNil(OverlayLog.time(of: "Overlay: hidden"))
+    XCTAssertNil(OverlayLog.time(of: ""))
   }
 }
