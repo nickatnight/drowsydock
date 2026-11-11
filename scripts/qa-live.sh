@@ -194,8 +194,6 @@ write_report() {
 
 # MARK: - Dock preferences
 
-owns_backup=false
-
 # Changes one Dock preference the way System Settings does, through System Events, so the Dock
 # keeps running and the app sees the change through com.apple.dock.prefchanged and Accessibility.
 dock_preference() {

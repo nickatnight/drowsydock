@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Runs the checks from CONSTRAINTS.md.
 #
-#   scripts/check.sh fast   compile, format, live QA dry run, floor rules, secrets (every edit)
+#   scripts/check.sh fast   compile, format, the live QA script's checks (dry run, Dock restore,
+#                           restore self-test), floor rules, the QA row mapping, secrets
+#                           (every edit)
 #   scripts/check.sh task   fast + tests, coverage gate, bundle (run before every commit)
 #
 # The coverage gate compares against the merge base with $CHECK_BASE (default: main).
@@ -88,7 +90,6 @@ coverage_exempt_files_are_in_manual_qa() {
   done < <(swift_files_under "${source_roots[@]}")
   return "$failed"
 }
-
 
 scan_swift_files() {
   local file files=()
