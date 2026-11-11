@@ -28,8 +28,13 @@ final class QALogFile {
   }
 
   static let argument = "--qa-log"
-  static let folder = FileManager.default.homeDirectoryForCurrentUser
-    .appending(path: "Library/Logs/DrowsyDock")
+  // From the account record, so neither HOME nor CFFIXED_USER_HOME, which a launcher can set,
+  // moves it. scripts/qa/live-functions.sh's qa_log_path reads the same record.
+  static let folder: URL? = {
+    guard let account = getpwuid(getuid()), let home = account.pointee.pw_dir else { return nil }
+    return URL(filePath: String(cString: home), directoryHint: .isDirectory)
+      .appending(path: "Library/Logs/DrowsyDock")
+  }()
   static let fileName = "qa.log"
   static let sizeLimit = 1_048_576
 
@@ -45,10 +50,14 @@ final class QALogFile {
   @discardableResult
   static func startIfRequested(
     by arguments: [String],
-    in folder: URL = folder,
+    in folder: URL? = folder,
     sizeLimit: Int = sizeLimit
   ) -> QALogFile? {
     guard arguments.dropFirst().contains(argument) else { return nil }
+    guard let folder else {
+      logger.error("No QA log: no account record for uid \(getuid())")
+      return nil
+    }
     let file: QALogFile
     do {
       file = try QALogFile(folder: folder, sizeLimit: sizeLimit)

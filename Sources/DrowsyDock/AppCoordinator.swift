@@ -44,7 +44,7 @@ final class AppCoordinator {
 
   convenience init(
     arguments: [String] = CommandLine.arguments,
-    qaLogFolder: URL = QALogFile.folder
+    qaLogFolder: URL? = QALogFile.folder
   ) {
     // First, so the file gets BatteryMonitor's "Started:" and the grant line, which the live script
     // waits for.
@@ -80,7 +80,7 @@ final class AppCoordinator {
     battery.onPhaseChange = { [weak self] phase in
       self?.batteryPhaseDidChange(phase)
     }
-    Self.logger.notice("Accessibility granted: \(isAccessibilityGranted)")
+    Self.logger.notice(Self.accessibilityMessage(isGranted: isAccessibilityGranted))
 
     // NSMenu posts this for the MenuBarExtra's menu, too.
     menuObserver = NotificationCenter.default.addObserver(
@@ -109,15 +109,7 @@ final class AppCoordinator {
 
   func logDockGeometry() {
     do {
-      let geometry = try DockReader.read()
-      let perch = geometry.perch(for: MascotOverlay.spriteSize)
-      Self.dockLogger.notice(
-        """
-        Dock geometry: \(geometry) \
-        hidden: \(geometry.isHidden) \
-        perch: \(perch)
-        """
-      )
+      Self.dockLogger.notice(Self.dockGeometryMessage(try DockReader.read()))
     } catch {
       Self.dockLogger.error("Dock geometry unavailable: \(error)")
     }
@@ -127,9 +119,9 @@ final class AppCoordinator {
     overlay.show(phase.mood)
     guard crowdEffect.phaseChanged(to: phase) else { return }
     if overlay.playCrowdEffect() {
-      Self.mascotLogger.notice("The whole Dock nods off")
+      Self.mascotLogger.notice(Self.waveMessage)
     } else {
-      Self.mascotLogger.notice("The whole Dock would nod off, but the overlay isn't showing")
+      Self.mascotLogger.notice(Self.waveWithoutOverlayMessage)
     }
   }
 
@@ -148,7 +140,26 @@ final class AppCoordinator {
     let isGranted = readsAccessibilityGrant()
     guard isGranted != isAccessibilityGranted else { return }
     isAccessibilityGranted = isGranted
-    Self.logger.notice("Accessibility granted: \(isGranted)")
+    Self.logger.notice(Self.accessibilityMessage(isGranted: isGranted))
     dockTracker.accessibilityChanged(isGranted: isGranted)
+  }
+}
+
+// MARK: - Log messages
+
+// scripts/qa-live.sh waits for these lines in the QA log (ADR 0020); QALogMessageTests checks its
+// patterns against them.
+extension AppCoordinator {
+  static let waveMessage = "The whole Dock nods off"
+  static let waveWithoutOverlayMessage =
+    "The whole Dock would nod off, but the overlay isn't showing"
+
+  static func accessibilityMessage(isGranted: Bool) -> String {
+    "Accessibility granted: \(isGranted)"
+  }
+
+  static func dockGeometryMessage(_ geometry: DockGeometry) -> String {
+    let perch = geometry.perch(for: MascotOverlay.spriteSize)
+    return "Dock geometry: \(geometry) hidden: \(geometry.isHidden) perch: \(perch)"
   }
 }

@@ -213,10 +213,32 @@ pause() {
   sleep "$1"
 }
 
+# The app's lines the scenarios wait for, as grep -E patterns. QALogMessageTests checks each one
+# against the line the app logs, so the two can't drift apart.
+log_granted='Accessibility granted: (true|false)'
+log_started_real='Started: .* \(real\)'
+log_changed='Changed: '
+log_changed_real='Changed: .* \(real\)'
+log_overlay='Overlay: '
+log_dock_geometry='Dock geometry: .*orientation: '
+log_dock_hidden='hidden: true'
+log_wave='The whole Dock nods off'
+log_wave_without_overlay='would nod off, but the overlay isn.t showing'
+log_observing_list='Observing the Dock list for:'
+log_observing_create_and_destroy='Observing the Dock list for: .*AXCreated.*AXUIElementDestroyed'
+log_dock_relaunched='The Dock relaunched'
+log_list_destroyed='The Dock list was destroyed'
+
 app_log_opened=false
 run_start=0
 log_mark=0
 app_log_pid=""
+
+# The app's QA log, under the home folder in the account record (id -P), where the app's getpwuid
+# finds it too; HOME doesn't move it.
+qa_log_path() {
+  printf '%s/Library/Logs/DrowsyDock/qa.log\n' "$(id -P | cut -d: -f9)"
+}
 
 app_log_size() {
   if [[ -f $app_log ]]; then stat -f %z "$app_log"; else echo 0; fi
@@ -393,7 +415,7 @@ launch_app() {
   if ! $dry_run; then
     app_log_pid="$(wait_for_app_pid)" || return 1
   fi
-  wait_log "Accessibility granted: (true|false)" 10
+  wait_log "$log_granted" 10
 }
 
 # Prints the pid of this build's DrowsyDock once it runs, within 10 s.
@@ -465,7 +487,7 @@ read_dock_and_logged_perch() {
     return 0
   fi
   local line
-  line="$(app_log_lines | grep -E "Overlay: (shown|fadedOut)" | tail -n 1)"
+  line="$(app_log_lines | grep -E "${log_overlay}(shown|fadedOut)" | tail -n 1)"
   dock_logged_perch="$(qa_helper logged-perch "$line")" || return 1
   read_dock sprite="$(field "$dock_logged_perch" 3),$(field "$dock_logged_perch" 4)"
 }
@@ -610,7 +632,7 @@ preflight_app() {
     say "It refuses a link there, or a file or folder you don't own; remove it and run again." >&2
     exit 1
   fi
-  if ! $dry_run && ! last_log "Accessibility granted:" | grep -q true; then
+  if ! $dry_run && ! last_log "$log_granted" | grep -q true; then
     say "DrowsyDock lacks the Accessibility grant. Grant it (docs/manual-qa.md, section 4), then run again." >&2
     exit 1
   fi
@@ -679,7 +701,7 @@ scenario_launch() {
   step "launch (QA 1.1 to 1.3, 7.0)"
   check 1.1 launch "the app runs" app_running
   check 7.0 launch "the app observes the Dock list for AXCreated and AXUIElementDestroyed" \
-    wait_log 'Observing the Dock list for: .*AXCreated.*AXUIElementDestroyed' 3
+    wait_log "$log_observing_create_and_destroy" 3
   check 1.1 launch "the bundle is a menu-bar app (LSUIElement), so no Dock icon or Cmd-Tab entry" \
     test "$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$app/Contents/Info.plist" 2>/dev/null)" = true
   check 1.1 launch "the menu-bar item exists" menu_bar_item_exists
@@ -702,7 +724,7 @@ scenario_battery() {
   simulate Real
   quit_app
   launch_app
-  check 3.0 battery "the log shows 'Started: … (real)'" wait_log "Started: .* \\(real\\)" 5
+  check 3.0 battery "the log shows 'Started: … (real)'" wait_log "$log_started_real" 5
   if $dry_run; then
     say "    would compare the menu's first line with pmset -g batt"
     return
@@ -722,7 +744,7 @@ scenario_battery() {
 expect_line() {
   mark_log
   simulate "$1"
-  check "$3" levels "$1 shows '$2'" wait_log "Changed: $2 \\(" 3
+  check "$3" levels "$1 shows '$2'" wait_log "$log_changed$2 \\(" 3
 }
 
 scenario_levels() {
@@ -747,15 +769,15 @@ scenario_levels() {
   pause 1
   mark_log
   simulate Charging
-  check 3.14 levels "Charging shows Waking" wait_log "Changed: 5% · Charging · Waking" 3
-  check 3.14 levels "then Awake about 3 s later" wait_log "Changed: 5% · Charging · Awake" 5
+  check 3.14 levels "Charging shows Waking" wait_log "${log_changed}5% · Charging · Waking" 3
+  check 3.14 levels "then Awake about 3 s later" wait_log "${log_changed}5% · Charging · Awake" 5
   expect_line "No battery" "No battery detected" 3.15
   simulate 5%
   pause 1
   mark_log
   simulate Real
   check 3.16 levels "Real shows the real battery again, not Asleep" \
-    wait_log "Changed: .* \\(real\\)" 3
+    wait_log "$log_changed_real" 3
 }
 
 now() {
@@ -779,7 +801,7 @@ timed_change() {
 }
 
 newest_overlay_line() {
-  app_log_lines since-mark | grep -E "Overlay: (shown|fadedOut|hidden)" | tail -n 1
+  app_log_lines since-mark | grep -E "${log_overlay}(shown|fadedOut|hidden)" | tail -n 1
 }
 
 first_overlay_line() {
@@ -794,7 +816,7 @@ first_overlay_line() {
       printf '%s\n' "$line"
       return 0
     fi
-  done < <(app_log_lines since-mark | grep -E "Overlay: $state")
+  done < <(app_log_lines since-mark | grep -E "$log_overlay$state")
   return 1
 }
 
@@ -808,7 +830,7 @@ expect_overlay_within() {
     result FAIL "$rows" "$scenario" "$detail: the change wasn't timed"
     return 1
   fi
-  if ! wait_log "Overlay: $state" "$(awk -v b="$budget" 'BEGIN { print int(b + 4) }')"; then
+  if ! wait_log "$log_overlay$state" "$(awk -v b="$budget" 'BEGIN { print int(b + 4) }')"; then
     result FAIL "$rows" "$scenario" "$detail: no 'Overlay: $state' line"
     return 1
   fi
@@ -823,8 +845,8 @@ expect_overlay_within() {
     return 1
   fi
   newest="$(newest_overlay_line)"
-  if [[ $newest != *"Overlay: $state"* ]]; then
-    result FAIL "$rows" "$scenario" "$detail: a later line undid it: ${newest##*Overlay: }"
+  if [[ $newest != *"$log_overlay$state"* ]]; then
+    result FAIL "$rows" "$scenario" "$detail: a later line undid it: ${newest##*"$log_overlay"}"
     return 1
   fi
   if ! logged="$(qa_helper log-time "$line")"; then
@@ -857,7 +879,7 @@ expect_logged_perch_matches() {
 }
 
 expect_overlay() {
-  check "$3" "$4" "$5" wait_log "Overlay: $1" "$2"
+  check "$3" "$4" "$5" wait_log "$log_overlay$1" "$2"
 }
 
 scenario_position() {
@@ -873,7 +895,7 @@ scenario_position() {
     mark_log
     menu Debug "Log Dock geometry"
     check "5.1 5.2" position "Log Dock geometry logs orientation $side" \
-      wait_log "Dock geometry: .*orientation: .*$side" 3
+      wait_log "$log_dock_geometry.*$side" 3
     if [[ $side != bottom ]]; then
       local facing=right
       [[ $side == right ]] && facing=left
@@ -883,7 +905,7 @@ scenario_position() {
       pause 4
       mark_log
       simulate 5%
-      check 11.5 position "the wave plays on a $side Dock" wait_log "The whole Dock nods off" 3
+      check 11.5 position "the wave plays on a $side Dock" wait_log "$log_wave" 3
       pause 5
       align_checks "8.9" "$side Dock"
       simulate 80%
@@ -904,7 +926,7 @@ scenario_position() {
 
 logged_facing_is() {
   local line
-  line="$(app_log_lines | grep -E "Overlay: (shown|fadedOut)" | tail -n 1)"
+  line="$(app_log_lines | grep -E "${log_overlay}(shown|fadedOut)" | tail -n 1)"
   [[ $(qa_helper logged-facing "$line") == "$1" ]]
 }
 
@@ -927,14 +949,14 @@ scenario_autohide() {
   expect_overlay_within hidden 1 7.4 autohide "the cat hides with the Dock"
   mark_log
   menu Debug "Log Dock geometry"
-  check 5.4 autohide "Log Dock geometry logs hidden: true" wait_log "hidden: true" 3
+  check 5.4 autohide "Log Dock geometry logs hidden: true" wait_log "$log_dock_hidden" 3
   pointer_away
   simulate Charging
   pause 4
   mark_log
   simulate 5%
   check 11.6 autohide "falling asleep with the Dock hidden logs that the overlay isn't showing" \
-    wait_log "would nod off, but the overlay isn't showing" 3
+    wait_log "$log_wave_without_overlay" 3
   timed_change dock_preference autohide false
   expect_overlay_within shown 1 7.4 autohide "the cat returns when auto-hide is off"
   mark_log
@@ -942,7 +964,7 @@ scenario_autohide() {
   simulate 5%
   pause 2
   check 11.6 autohide "no wave until the next charge" \
-    app_runs_with_no_log_since_mark "The whole Dock nods off"
+    app_runs_with_no_log_since_mark "$log_wave"
   simulate 80%
 }
 
@@ -977,7 +999,7 @@ scenario_hover() {
   mark_log
   pause 2
   check 7.5b hover "with magnification off, resting on another icon never fades the cat" \
-    app_runs_with_no_log_since_mark "Overlay: fadedOut"
+    app_runs_with_no_log_since_mark "${log_overlay}fadedOut"
   simulate 5%
   pause 5
   pointer_to "$(mid_x "$dock_last_icon")" "$(mid_y "$dock_last_icon")"
@@ -1020,10 +1042,10 @@ scenario_relaunch() {
   pointer_away
   mark_log
   run_or_print killall Dock
-  check 7.8 relaunch "the log shows 'The Dock relaunched'" wait_log "The Dock relaunched" 10
+  check 7.8 relaunch "the log shows 'The Dock relaunched'" wait_log "$log_dock_relaunched" 10
   expect_overlay shown 10 7.8 relaunch "the cat returns once the Dock's icons are back"
   check 7.8a relaunch "the observer is installed on the new Dock" \
-    wait_log "Observing the Dock list for:" 10
+    wait_log "$log_observing_list" 10
   pause 2
   expect_logged_perch_matches 7.8a relaunch "after the relaunch the cat is at the new Dock's perch"
   if ! $dry_run && pgrep -x Calculator >/dev/null; then
@@ -1035,13 +1057,13 @@ scenario_relaunch() {
   pause 2
   expect_logged_perch_matches "7.8a 7.8b" relaunch "with Calculator's icon in the Dock, the perch is right"
   check 7.8b relaunch "an app's icon appearing isn't taken for the list's destruction" \
-    app_runs_with_no_log_since_mark "The Dock list was destroyed|Observing the Dock list for:"
+    app_runs_with_no_log_since_mark "$log_list_destroyed|$log_observing_list"
   timed_change run_or_print osascript -e 'tell application "Calculator" to quit'
   expect_overlay_within shown 1 "7.8a 7.8b" relaunch "the cat follows the last icon when it goes"
   pause 2
   expect_logged_perch_matches "7.8a 7.8b" relaunch "after Calculator quits, the perch is right"
   check 7.8b relaunch "an app's icon going isn't taken for the list's destruction" \
-    app_runs_with_no_log_since_mark "The Dock list was destroyed|Observing the Dock list for:"
+    app_runs_with_no_log_since_mark "$log_list_destroyed|$log_observing_list"
 }
 
 align_checks() {

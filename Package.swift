@@ -41,7 +41,7 @@ let package = Package(
     .testTarget(
       name: "DrowsyDockTests",
       dependencies: [
-        "DockOverlayKit", "DockOverlayKitTestSupport", "DrowsyDock", "DrowsyDockCore",
+        "DockOverlayKit", "DockOverlayKitTestSupport", "DrowsyDock", "DrowsyDockCore", "LiveQAKit",
       ],
       exclude: ["Snapshots"]
     ),

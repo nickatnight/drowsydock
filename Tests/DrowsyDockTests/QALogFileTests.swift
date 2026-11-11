@@ -1,5 +1,6 @@
 import DockOverlayKit
 import DrowsyDockCore
+import LiveQAKit
 import XCTest
 
 @testable import DrowsyDock
@@ -73,6 +74,19 @@ final class QALogFileTests: XCTestCase {
     )
   }
 
+  // The latency checks read nothing but this time, through the same parser.
+  func testEachLineCarriesTheTimeItWasWrittenAsTheScriptReadsIt() throws {
+    XCTAssertNotNil(start(["DrowsyDock", "--qa-log"]))
+
+    let before = Date().timeIntervalSince1970
+    battery.notice("Changed: 80% · Discharging · Awake (simulated 80%)")
+    let after = Date().timeIntervalSince1970
+
+    let written = try XCTUnwrap(OverlayLog.time(of: try XCTUnwrap(lines().first)))
+    XCTAssertGreaterThanOrEqual(written, before - 0.001)
+    XCTAssertLessThanOrEqual(written, after + 0.001)
+  }
+
   func testALaterLaunchAppendsToTheLinesOfAnEarlierOne() throws {
     XCTAssertNotNil(start(["DrowsyDock", "--qa-log"]))
     battery.notice("first launch")
@@ -83,6 +97,33 @@ final class QALogFileTests: XCTestCase {
       try lines().map(message),
       ["first launch", "second launch"]
     )
+  }
+
+  // MARK: - The path
+
+  func testTheScriptReadsTheFileTheAppWritesWhateverHOMESays() throws {
+    let liveFunctions = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .appending(path: "../../scripts/qa/live-functions.sh")
+    let script = Process()
+    script.executableURL = URL(fileURLWithPath: "/bin/bash")
+    script.arguments = ["-c", "source \"$0\" && qa_log_path", liveFunctions.path]
+    script.environment = [
+      "PATH": "/usr/bin:/bin",
+      "HOME": folder.path,
+      "CFFIXED_USER_HOME": folder.path,
+    ]
+    let output = Pipe()
+    script.standardOutput = output
+    try script.run()
+    script.waitUntilExit()
+    let scriptsPath = String(
+      decoding: output.fileHandleForReading.readDataToEndOfFile(),
+      as: UTF8.self
+    )
+
+    let appsFile = try XCTUnwrap(QALogFile.folder).appending(path: QALogFile.fileName)
+    XCTAssertEqual(scriptsPath, appsFile.path + "\n")
+    XCTAssertTrue(appsFile.path.hasSuffix("/Library/Logs/DrowsyDock/qa.log"), appsFile.path)
   }
 
   // MARK: - Permissions

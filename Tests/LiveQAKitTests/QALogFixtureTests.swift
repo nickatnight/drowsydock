@@ -1,4 +1,5 @@
 import CoreGraphics
+import DockOverlayKit
 import DrowsyDockCore
 import Foundation
 import LiveQAKit
@@ -34,6 +35,35 @@ final class QALogFixtureTests: XCTestCase {
       )
 
       XCTAssertEqual(written, line)
+    }
+  }
+
+  @MainActor
+  func testTheFixturesOverlayLinesAreDockTrackersMessagesForTheirDock() throws {
+    let format = QALogLine(timeZone: try XCTUnwrap(TimeZone(secondsFromGMT: 3600)))
+    let dock = DockGeometry(
+      listFrame: AXRect(CGRect(x: 373, y: 893, width: 766, height: 79)),
+      iconFrames: [AXRect(CGRect(x: 1071, y: 898, width: 63, height: 79))],
+      layout: DisplayLayout(primary: CGRect(x: 0, y: 0, width: 1512, height: 982))
+    )
+    let perch = dock.perch(for: CGSize(width: 64, height: 80))
+    let lines = try fixtureLines()
+
+    for (number, presentation) in [
+      (5, OverlayPresentation.shown(perch, on: dock)),
+      (7, .fadedOut(perch, on: dock)),
+      (9, .hidden),
+    ] {
+      let line = lines[number - 1]
+      let written = format.text(
+        at: Date(timeIntervalSince1970: try XCTUnwrap(OverlayLog.time(of: line))),
+        processIdentifier: 4242,
+        level: "debug",
+        category: "dock",
+        message: DockTracker.overlayMessage(presentation)
+      )
+
+      XCTAssertEqual(written, line, "fixture line \(number)")
     }
   }
 

@@ -70,7 +70,8 @@ while IFS= read -r name; do
   fi
 done < <(scripts/qa-live.sh --list | cut -d' ' -f1)
 for expected in "==> Preflight" "defaults import com.apple.dock" \
-  "would run: defaults export com.apple.dock" "DrowsyDock.app --args --qa-log"; do
+  "would run: defaults export com.apple.dock" "DrowsyDock.app --args --qa-log" \
+  "would read the lines DrowsyDock appends to $(id -P | cut -d: -f9)/Library/Logs/DrowsyDock/qa.log"; do
   if ! grep -qF -- "$expected" <<<"$output"; then
     echo "qa-live.sh --dry-run doesn't print: $expected" >&2
     failed=1

@@ -35,7 +35,6 @@ root="$PWD"
 qa_dir="${QA_DIR:-$root/build/qa}"
 report="$qa_dir/report.md"
 run_log="$qa_dir/app.log"
-app_log="$HOME/Library/Logs/DrowsyDock/qa.log"
 app="$root/build/DrowsyDock.app"
 app_binary="$app/Contents/MacOS/DrowsyDock"
 helper="${QA_HELPER:-$root/.build/release/qa-helper}"
@@ -126,6 +125,7 @@ fi
 
 # shellcheck source=scripts/qa/live-functions.sh
 source "$root/scripts/qa/live-functions.sh"
+app_log="$(qa_log_path)"
 
 if $mode_restore && $dry_run; then
   echo "--restore applies the backup; it has no dry run. Run it without --dry-run." >&2

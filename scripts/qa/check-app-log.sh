@@ -49,13 +49,40 @@ append() {
   for number in "$@"; do fixture_line "$number" >>"$app_log"; done
 }
 
+# A fake process table: one "pid binary" line per running DrowsyDock. 4242 is this build's app, and
+# 999, with OTHER_APP set, another copy's.
+running="$SCRATCH/running"
+: >"$running"
+if [[ -n ${OTHER_APP:-} ]]; then
+  echo "999 /Applications/DrowsyDock.app/Contents/MacOS/DrowsyDock" >>"$running"
+fi
+if [[ -z ${APP_STOPPED:-} ]]; then echo "4242 $app_binary" >>"$running"; fi
+
+stop() {
+  grep -v "^$1 " "$running" >"$running.new"
+  mv "$running.new" "$running"
+}
+
+# Like LaunchServices, it starts this build's app only if that isn't running already.
 open() {
   echo "open $*" >>"$calls"
+  if [[ -z ${APP_NEVER_RUNS:-} ]] && ! grep -q "^4242 " "$running"; then
+    echo "4242 $app_binary" >>"$running"
+  fi
   if [[ -n ${OPEN_WRITES_GRANT:-} ]]; then append "$grant"; fi
 }
-pgrep() { if [[ $* == "-x DrowsyDock" && -z ${APP_NEVER_RUNS:-} ]]; then echo 4242; fi; }
-ps() { echo "$app_binary"; }
-kill() { [[ $1 == -0 && $2 == 4242 && -z ${APP_GONE:-} ]]; }
+pgrep() { if [[ $* == "-x DrowsyDock" ]]; then cut -d' ' -f1 "$running"; fi; }
+ps() { awk -v pid="${@: -1}" '$1 == pid { print $2 }' "$running"; }
+kill() {
+  case $1 in
+    -0) grep -q "^$2 " "$running" ;;
+    -TERM)
+      echo "kill -TERM $2" >>"$calls"
+      if [[ -z ${IGNORES_TERM:-} ]]; then stop "$2"; fi
+      ;;
+    *) echo "kill $*" >>"$calls" ;;
+  esac
+}
 sleep() { :; }
 menu() { echo "menu $*" >>"$calls"; append "$change_to_80"; }
 read_dock() { dock_perch="${DOCK_PERCH:-1070,84,64,80}"; }
@@ -70,12 +97,12 @@ start_run() {
   app_log_pid=4242
 }
 
-# Times the change $1 s and $2 s before the app logged the fixture's Overlay: shown line.
-time_overlay_change() {
-  local shown
-  shown="$(qa_helper log-time "$(fixture_line "$overlay_shown")")"
-  change_started="$(awk -v t="$shown" -v s="$1" 'BEGIN { printf "%.3f", t - s }')"
-  change_done="$(awk -v t="$shown" -v d="$2" 'BEGIN { printf "%.3f", t - d }')"
+# Times the change $2 s and $3 s before the app logged fixture line $1.
+time_change_before() {
+  local logged
+  logged="$(qa_helper log-time "$(fixture_line "$1")")"
+  change_started="$(awk -v t="$logged" -v s="$2" 'BEGIN { printf "%.3f", t - s }')"
+  change_done="$(awk -v t="$logged" -v d="$3" 'BEGIN { printf "%.3f", t - d }')"
 }
 
 case_this_runs_lines_of_this_app() {
@@ -102,6 +129,7 @@ case_app_gone() {
   start_run
   append "$started"
   mark_log
+  stop 4242
   answer "no line, but the app is gone" app_runs_with_no_log_since_mark "Changed:"
   answer "waiting, with the app gone" wait_log "Changed:" 5
 }
@@ -131,7 +159,7 @@ case_overlay_in_time() {
   start_run
   mark_log
   append "$overlay_shown"
-  time_overlay_change 0.300 0.120
+  time_change_before "$overlay_shown" 0.300 0.120
   expect_overlay_within shown 1 7.1 position "the cat moves"
 }
 
@@ -139,7 +167,7 @@ case_overlay_late() {
   start_run
   mark_log
   append "$overlay_shown"
-  time_overlay_change 1.700 1.500
+  time_change_before "$overlay_shown" 1.700 1.500
   expect_overlay_within shown 1 7.1 position "the cat moves"
 }
 
@@ -147,7 +175,7 @@ case_overlay_elsewhere() {
   start_run
   mark_log
   append "$overlay_shown"
-  time_overlay_change 0.300 0.120
+  time_change_before "$overlay_shown" 0.300 0.120
   DOCK_PERCH=0,0,64,80 expect_overlay_within shown 1 7.1 position "the cat moves"
 }
 
@@ -155,8 +183,93 @@ case_overlay_undone() {
   start_run
   mark_log
   append "$overlay_shown" "$overlay_faded"
-  time_overlay_change 0.300 0.120
+  time_change_before "$overlay_shown" 0.300 0.120
   expect_overlay_within shown 1 7.1 position "the cat moves"
+}
+
+case_perch_within_half_a_point() {
+  start_run
+  mark_log
+  append "$overlay_shown"
+  time_change_before "$overlay_shown" 0.300 0.120
+  DOCK_PERCH=1070.4,84,64,80 expect_overlay_within shown 1 7.1 position "0.4 pt off"
+  DOCK_PERCH=1070.6,84,64,80 expect_overlay_within shown 1 7.1 position "0.6 pt off"
+}
+
+case_just_past_the_budget() {
+  start_run
+  mark_log
+  append "$overlay_shown"
+  time_change_before "$overlay_shown" 1.200 1.050
+  expect_overlay_within shown 1 7.1 position "the cat moves"
+}
+
+case_old_perch_early_new_perch_late() {
+  start_run
+  mark_log
+  fixture_line "$overlay_shown" | sed 's/frame: (1070.0, 84.0/frame: (900.0, 84.0/' >>"$app_log"
+  fixture_line "$overlay_shown" | sed 's/^2026-11-10T01:31:07.123/2026-11-10T01:31:08.423/' \
+    >>"$app_log"
+  time_change_before "$overlay_shown" 0.300 0.120
+  expect_overlay_within shown 1 7.1 position "the cat moves"
+}
+
+case_faded_in_time() {
+  start_run
+  mark_log
+  append "$overlay_faded"
+  time_change_before "$overlay_faded" 0.300 0.150
+  expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
+}
+
+case_faded_late() {
+  start_run
+  mark_log
+  append "$overlay_faded"
+  time_change_before "$overlay_faded" 0.300 0.250
+  expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
+}
+
+case_faded_then_shown() {
+  start_run
+  mark_log
+  append "$overlay_faded" "$overlay_shown"
+  time_change_before "$overlay_faded" 0.300 0.150
+  expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
+}
+
+case_hidden_in_time() {
+  start_run
+  mark_log
+  append "$overlay_hidden"
+  time_change_before "$overlay_hidden" 0.300 0.100
+  expect_overlay_within hidden 1 7.4 autohide "the cat hides"
+}
+
+case_cleanup() {
+  start_run
+  append "$started" "$grant"
+  put_dock_back() { return 0; }
+  write_report() { :; }
+  run_pid_file="$SCRATCH/run.pid"
+  ( (exit 3); cleanup )
+  echo "cleanup exit: $?"
+  echo "run log: $(cut -d' ' -f4- "$run_log" | tr '\n' '|')"
+}
+
+# Runs the whole app preflight with the tools stubbed; the bundle is an empty executable.
+case_preflight() {
+  mkdir -p "$app/Contents/MacOS"
+  : >"$app_binary"
+  chmod +x "$app_binary"
+  git() { if [[ $1 == log ]]; then echo 0; fi; }
+  qa_helper() { echo "accessibility=true screen-recording=true"; }
+  osascript() { echo bottom; }
+  append "$earlier_runs_grant"
+  preflight_app
+  echo "preflight: $?, pid $app_log_pid"
+  save_run_log
+  echo "run log: $(cut -d' ' -f4- "$run_log" | tr '\n' '|')"
 }
 
 case_facing() {
@@ -246,7 +359,7 @@ expect "PASS QA 3.9 to 3.13 (levels): 80% shows '80% · Discharging · Awake'"
 grep -qxF "menu Debug Simulate battery 80%" "$scratch/calls.log" ||
   fail "expect_line didn't pick 80% in the menu: $(cat "$scratch/calls.log")"
 
-run_case launch OPEN_WRITES_GRANT=1
+run_case launch OPEN_WRITES_GRANT=1 OTHER_APP=1
 expect "launch: 0, pid 4242"
 grep -qxF "open $scratch/DrowsyDock.app --args --qa-log" "$scratch/calls.log" ||
   fail "launch_app doesn't open this build with --qa-log: $(cat "$scratch/calls.log")"
@@ -254,7 +367,43 @@ grep -qxF "open $scratch/DrowsyDock.app --args --qa-log" "$scratch/calls.log" ||
 run_case launch
 expect "launch: 1, pid 4242"
 
-run_case launch APP_NEVER_RUNS=1
+run_case launch APP_STOPPED=1 APP_NEVER_RUNS=1
 expect "launch: 1, pid "
+
+run_case launch APP_STOPPED=1 APP_NEVER_RUNS=1 OTHER_APP=1
+expect "launch: 1, pid "
+
+run_case perch_within_half_a_point
+expect "PASS QA 7.1 (position): 0.4 pt off: 0.12 s after the change returned (0.30 s after it started; budget 1 s)"
+expect "FAIL QA 7.1 (position): 0.6 pt off: no 'Overlay: shown' line at the Dock's perch"
+
+run_case just_past_the_budget
+expect "FAIL QA 7.1 (position): the cat moves: 1.05 s after the change returned (1.20 s after it started; budget 1 s)"
+
+run_case old_perch_early_new_perch_late
+expect "FAIL QA 7.1 (position): the cat moves: 1.42 s after the change returned (1.60 s after it started; budget 1 s)"
+
+run_case faded_in_time
+expect "PASS QA 8.11 (hover): the cat fades: 0.15 s after the change returned (0.30 s after it started; budget 0.2 s)"
+
+run_case faded_late
+expect "FAIL QA 8.11 (hover): the cat fades: 0.25 s after the change returned (0.30 s after it started; budget 0.2 s)"
+
+run_case faded_then_shown
+shown="$(grep -m 1 'Overlay: shown' Tests/LiveQAKitTests/Fixtures/qa.log)"
+expect "FAIL QA 8.11 (hover): the cat fades: a later line undid it: ${shown#*Overlay: }"
+
+run_case hidden_in_time
+expect "PASS QA 7.4 (autohide): the cat hides: 0.10 s after the change returned (0.30 s after it started; budget 1 s)"
+
+run_case cleanup
+expect "cleanup exit: 3"
+expect "run log: battery: Started: 46% · Discharging · Drowsy (real)|accessibility: Accessibility granted: true|"
+[[ $(cat "$scratch/calls.log") == "kill -TERM 4242"$'\n'"open $scratch/DrowsyDock.app" ]] ||
+  fail "cleanup doesn't quit the app and reopen it without --qa-log: $(cat "$scratch/calls.log")"
+
+run_case preflight OPEN_WRITES_GRANT=1
+expect "preflight: 0, pid 4242"
+expect "run log: accessibility: Accessibility granted: true|"
 
 exit "$failed"
