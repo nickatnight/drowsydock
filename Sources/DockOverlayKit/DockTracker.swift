@@ -1,6 +1,5 @@
 import AppKit
 import ApplicationServices
-import os
 
 /// Follows the Dock. It reads the Dock's geometry whenever something may have moved it, and tells
 /// the caller what the overlay should show.
@@ -37,7 +36,7 @@ public final class DockTracker {
     kAXUIElementDestroyedNotification,
   ]
 
-  private let logger = Logger(
+  private let logger = MirroredLogger(
     subsystem: Bundle.main.bundleIdentifier ?? "DockOverlayKit",
     category: "dock"
   )
@@ -153,7 +152,7 @@ public final class DockTracker {
   // The Dock's list element is gone, so the observer on it is dead. Drop it and retry until the
   // Dock has a new list.
   private func recoverDockList(because reason: String) {
-    logger.notice("\(reason, privacy: .public)")
+    logger.notice(reason)
     listObserver = nil
     listRecovery?.cancel()
     listRecovery = Task { [weak self] in
@@ -188,7 +187,7 @@ public final class DockTracker {
       readFailures.succeeded()
     } catch {
       if readFailures.shouldReport(error) {
-        logger.error("Dock geometry unavailable: \(String(describing: error), privacy: .public)")
+        logger.error("Dock geometry unavailable: \(error)")
       }
       state.dockRead(nil)
     }
@@ -225,14 +224,10 @@ public final class DockTracker {
         }
       }
       observerFailures.succeeded()
-      logger.notice(
-        "Observing the Dock list for: \(self.listObserver?.notifications ?? [], privacy: .public)"
-      )
+      logger.notice("Observing the Dock list for: \(listObserver?.notifications ?? [])")
     } catch {
       if observerFailures.shouldReport(error) {
-        logger.error(
-          "Can't observe the Dock list: \(String(describing: error), privacy: .public)"
-        )
+        logger.error("Can't observe the Dock list: \(error)")
       }
     }
   }
@@ -243,7 +238,7 @@ public final class DockTracker {
     let presentation = state.presentation
     if presentation != appliedPresentation {
       appliedPresentation = presentation
-      logger.debug("Overlay: \(String(describing: presentation), privacy: .public)")
+      logger.debug("Overlay: \(presentation)")
       onPresentationChange(presentation)
     }
     updateFrameCheckTimer()

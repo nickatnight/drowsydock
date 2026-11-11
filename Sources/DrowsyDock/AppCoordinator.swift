@@ -2,7 +2,6 @@ import AppKit
 import DockOverlayKit
 import DrowsyDockCore
 import Observation
-import os
 
 @MainActor
 protocol DockTracking: AnyObject {
@@ -12,14 +11,17 @@ protocol DockTracking: AnyObject {
 @MainActor
 @Observable
 final class AppCoordinator {
-  private static let logger = Logger(
+  private static let logger = MirroredLogger(
     subsystem: "com.drowsydock.DrowsyDock",
     category: "accessibility"
   )
 
-  private static let dockLogger = Logger(subsystem: "com.drowsydock.DrowsyDock", category: "dock")
+  private static let dockLogger = MirroredLogger(
+    subsystem: "com.drowsydock.DrowsyDock",
+    category: "dock"
+  )
 
-  private static let mascotLogger = Logger(
+  private static let mascotLogger = MirroredLogger(
     subsystem: "com.drowsydock.DrowsyDock",
     category: "mascot"
   )
@@ -72,7 +74,7 @@ final class AppCoordinator {
     battery.onPhaseChange = { [weak self] phase in
       self?.batteryPhaseDidChange(phase)
     }
-    Self.logger.notice("Accessibility granted: \(self.isAccessibilityGranted, privacy: .public)")
+    Self.logger.notice("Accessibility granted: \(isAccessibilityGranted)")
 
     // NSMenu posts this for the MenuBarExtra's menu, too.
     menuObserver = NotificationCenter.default.addObserver(
@@ -105,15 +107,13 @@ final class AppCoordinator {
       let perch = geometry.perch(for: MascotOverlay.spriteSize)
       Self.dockLogger.notice(
         """
-        Dock geometry: \(String(describing: geometry), privacy: .public) \
-        hidden: \(geometry.isHidden, privacy: .public) \
-        perch: \(String(describing: perch), privacy: .public)
+        Dock geometry: \(geometry) \
+        hidden: \(geometry.isHidden) \
+        perch: \(perch)
         """
       )
     } catch {
-      Self.dockLogger.error(
-        "Dock geometry unavailable: \(String(describing: error), privacy: .public)"
-      )
+      Self.dockLogger.error("Dock geometry unavailable: \(error)")
     }
   }
 
@@ -142,7 +142,7 @@ final class AppCoordinator {
     let isGranted = readsAccessibilityGrant()
     guard isGranted != isAccessibilityGranted else { return }
     isAccessibilityGranted = isGranted
-    Self.logger.notice("Accessibility granted: \(isGranted, privacy: .public)")
+    Self.logger.notice("Accessibility granted: \(isGranted)")
     dockTracker.accessibilityChanged(isGranted: isGranted)
   }
 }

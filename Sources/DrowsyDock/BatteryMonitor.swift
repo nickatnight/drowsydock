@@ -1,6 +1,6 @@
+import DockOverlayKit
 import DrowsyDockCore
 import Observation
-import os
 
 @MainActor
 protocol PowerSource {
@@ -18,7 +18,7 @@ protocol PowerSourceSubscription: AnyObject {}
 @MainActor
 @Observable
 final class BatteryMonitor {
-  private static let logger = Logger(
+  private static let logger = MirroredLogger(
     subsystem: "com.drowsydock.DrowsyDock",
     category: "battery"
   )
@@ -46,7 +46,7 @@ final class BatteryMonitor {
     self.clock = clock
     session = BatterySession(realReading: source.readBattery())
     isLowPowerModeOn = source.isLowPowerModeOn
-    Self.logger.notice("Started: \(self.logLine, privacy: .public)")
+    Self.logger.notice("Started: \(logLine)")
 
     do {
       powerChanges = try source.subscribe { [weak self] in
@@ -54,7 +54,7 @@ final class BatteryMonitor {
       }
     } catch {
       Self.logger.error(
-        "No power source notifications, so the status will not update: \(error, privacy: .public)"
+        "No power source notifications, so the status will not update: \(error)"
       )
     }
   }
@@ -96,7 +96,7 @@ final class BatteryMonitor {
 
   private func logStatusIfChanged(from previousLogLine: String) {
     guard logLine != previousLogLine else { return }
-    Self.logger.notice("Changed: \(self.logLine, privacy: .public)")
+    Self.logger.notice("Changed: \(logLine)")
   }
 
   private var logLine: String {

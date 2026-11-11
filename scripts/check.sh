@@ -27,6 +27,9 @@ source_roots=(Sources scripts/qa/Sources)
 # Carbon and Quartz re-export AX and AppKit.
 coverage_exempt_imports='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?(AppKit|ApplicationServices|Carbon|Cocoa|HIServices|IOKit|Quartz|ServiceManagement|SpriteKit|SwiftUI)([.[:space:]]|$)'
 
+# Only MirroredLogger may import the unified log, so no line can skip the QA log's mirror.
+unified_log_imports='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?(os|OSLog)([.[:space:]]|$)'
+
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 # Exiting from these traps runs the EXIT trap, so a killed run still deletes the working-tree copy.
@@ -155,6 +158,11 @@ floor_rules() {
   fi
   if scan_swift_files "$unexplained_suppressions"; then
     echo "Floor: suppression without an explaining comment" >&2
+    failed=1
+  fi
+  if found grep -rnE "$unified_log_imports" Sources --exclude=MirroredLogger.swift ||
+    found grep -rnF 'NSLog(' Sources; then
+    echo "Logging: log through MirroredLogger, so a --qa-log run mirrors every line (ADR 0020)" >&2
     failed=1
   fi
   if found grep -rnE "$coverage_exempt_imports" Sources/DrowsyDockCore; then

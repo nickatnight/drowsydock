@@ -1,7 +1,6 @@
 import AppKit
 import DockOverlayKit
 import DrowsyDockCore
-import os
 
 /// Shows the cat on the Dock: the cat in a small window at the perch, and the veil and the crowd
 /// effect in a second window over the whole Dock.
@@ -12,7 +11,10 @@ final class MascotOverlay {
 
   private static let canvasMargin: CGFloat = 48
 
-  private static let logger = Logger(subsystem: "com.drowsydock.DrowsyDock", category: "mascot")
+  private static let logger = MirroredLogger(
+    subsystem: "com.drowsydock.DrowsyDock",
+    category: "mascot"
+  )
 
   let catScene: MascotScene
   let catWindow: OverlayWindow

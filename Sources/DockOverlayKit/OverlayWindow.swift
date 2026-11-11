@@ -1,5 +1,4 @@
 import AppKit
-import os
 
 /// A transparent window just above the Dock. It shows on every Space, including beside
 /// full-screen apps, and lets every click through to whatever is below it.
@@ -54,7 +53,7 @@ public final class OverlayWindow {
   // only while a display is awake.
   package var fader: any Fader = AnimatedFader()
 
-  private let logger = Logger(
+  private let logger = MirroredLogger(
     subsystem: Bundle.main.bundleIdentifier ?? "DockOverlayKit",
     category: "overlay"
   )
@@ -107,7 +106,7 @@ public final class OverlayWindow {
     }
     if !hasReportedUnusableFrame {
       hasReportedUnusableFrame = true
-      logger.error("Overlay hidden: unusable frame \(String(describing: frame), privacy: .public)")
+      logger.error("Overlay hidden: unusable frame \(frame)")
     }
     hide()
     return false
