@@ -18,11 +18,11 @@ found() {
   return "$status"
 }
 
-manual_qa_names_real_tests() {
-  local failed=0 table cell row token class method scenario rows_of_scenario
-  table="$(sed -n '/^## Automated and live rows/,/^## Coverage/p' "$doc" |
-    awk -F'|' 'NF > 5 && $2 ~ /[0-9]/')"
+table="$(sed -n '/^## Automated and live rows/,/^## Coverage/p' "$doc" |
+  awk -F'|' 'NF > 5 && $2 ~ /[0-9]/')"
 
+tests_cells_name_real_tests() {
+  local failed=0 token class method
   while IFS= read -r token; do
     class="${token%%.*}"
     if [[ $token == *.* ]]; then
@@ -41,8 +41,11 @@ manual_qa_names_real_tests() {
     echo "Manual QA: a Tests cell names something that isn't a test class or Class.testMethod" >&2
     failed=1
   fi
+  return "$failed"
+}
 
-  local listing
+live_cells_name_scenarios_that_list_the_row() {
+  local failed=0 listing row cell scenario rows_of_scenario
   listing="$(scripts/qa-live.sh --list)"
   while IFS='|' read -r row cell; do
     while IFS= read -r scenario; do
@@ -62,20 +65,31 @@ manual_qa_names_real_tests() {
       fi
     done < <(grep -oE '`[^`]+`' <<<"$cell" | tr -d '`')
   done < <(awk -F'|' '{gsub(/ /, "", $2); print $2 "|" $5}' <<<"$table")
+  return "$failed"
+}
 
+every_row_cites_something() {
+  local failed=0 row
   while IFS= read -r row; do
     echo "Manual QA: row $row names no test and no live scenario" >&2
     failed=1
   done < <(awk -F'|' '$4 !~ /`/ && $5 !~ /`/ {gsub(/ /, "", $2); print $2}' <<<"$table")
+  return "$failed"
+}
 
+rows_equal_the_list() {
   if ! found cmp -s <(grep -oE '^\| ([0-9]+\.[0-9]+[a-z]?|E\.[0-9]+) ' "$doc" |
     tr -d '| ' | sort) <(sort "$rows_file"); then
     echo "Manual QA: $doc's rows differ from $rows_file:" >&2
     diff <(grep -oE '^\| ([0-9]+\.[0-9]+[a-z]?|E\.[0-9]+) ' "$doc" | tr -d '| ' | sort) \
       <(sort "$rows_file") >&2 || true
-    failed=1
+    return 1
   fi
-  return "$failed"
 }
 
-manual_qa_names_real_tests
+failed=0
+tests_cells_name_real_tests || failed=1
+live_cells_name_scenarios_that_list_the_row || failed=1
+every_row_cites_something || failed=1
+rows_equal_the_list || failed=1
+exit "$failed"
