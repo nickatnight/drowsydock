@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// Checks QA 8.5 and 8.15 on screenshots of the real Dock: that the Dock's drawn rim, the veil's
+/// Checks QA 8.5, 8.15 and 6.1 on screenshots of the real Dock: that the Dock's drawn rim, the veil's
 /// edges and the cat's paws lie where the Accessibility frames put the Dock's background, within
 /// 1 point.
 ///
@@ -42,7 +42,8 @@ public struct DockAlignment {
   }
 
   /// Returns every check that applies to this Dock: for each edge it can see, the rim and the veil
-  /// against the Accessibility frames and the veil against the rim itself, then the paws.
+  /// against the Accessibility frames and the veil against the rim itself, then the paws. Each
+  /// check's name ends with the QA rows it checks, in parentheses.
   public func checks(bare: LumaImage, awake: LumaImage, asleep: LumaImage) -> [EdgeCheck] {
     let veil = asleep.ratio(to: bare, floor: Self.veilFloor)
     let cat = awake.subtracting(bare)
@@ -61,7 +62,8 @@ public struct DockAlignment {
       ]
     }
     let pawsName =
-      edge == .bottom ? "paws on the Dock's top edge (8.15)" : "paws on the Dock's top end (8.9)"
+      edge == .bottom
+      ? "paws on the Dock's top edge (8.15 6.1)" : "paws on the Dock's top end (8.9)"
     checks.append(EdgeCheck(name: pawsName, expected: background.maxY, found: paws(in: cat)))
     return checks
   }

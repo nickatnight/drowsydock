@@ -93,7 +93,7 @@ final class DockAlignmentTests: XCTestCase {
   func testPawsFivePointsAboveTheRimFail() throws {
     let checks = checks(veil: background, catBottom: background.maxY + 5)
 
-    let paws = try XCTUnwrap(checks["paws on the Dock's top edge (8.15)"])
+    let paws = try XCTUnwrap(checks["paws on the Dock's top edge (8.15 6.1)"])
     XCTAssertFalse(paws.passes)
     XCTAssertEqual(try XCTUnwrap(paws.offset), 5, accuracy: 0.01)
   }

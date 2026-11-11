@@ -1184,8 +1184,10 @@ align_checks() {
   fi
   local line_rows
   while IFS= read -r line; do
-    line_rows="$rows"
-    [[ $line == *"(8.15)"* ]] && line_rows="8.15 6.1"
+    # Each check's name ends with its QA rows: "PASS paws on the Dock's top edge (8.15 6.1): …".
+    line_rows="${line%%):*}"
+    line_rows="${line_rows##*(}"
+    [[ $line == *"):"* ]] || line_rows="$rows"
     result "${line%% *}" "$line_rows" "align, $label" "${line#* }"
     [[ $line == FAIL* ]] && align_failed=true
   done <<<"$output"
