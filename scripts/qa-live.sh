@@ -525,19 +525,30 @@ quit_app() {
 read_dock() {
   if $dry_run; then
     printf '    would run: %s dock %s\n' "$helper" "$*"
-    dock_orientation=bottom dock_hidden=false dock_background=0,0,0,0 dock_perch=0,0,64,80
-    dock_capture=0,0,0,0 dock_scale=2 dock_primary_height=0 dock_last_icon=0,0,0,0
-    dock_first_icon=0,0,0,0 dock_screen=0,0,0,0 dock_facing=left dock_capture_region=0,0,0,0
+    dock_orientation=bottom
+    dock_background=0,0,0,0
+    dock_screen=0,0,0,0
+    dock_scale=2
+    dock_first_icon=0,0,0,0
+    dock_last_icon=0,0,0,0
+    dock_perch=0,0,64,80
+    dock_capture=0,0,0,0
+    dock_capture_region=0,0,0,0
     return 0
   fi
   local output key value
   output="$(qa_helper dock "$@")" || return 1
   while IFS='=' read -r key value; do
     case $key in
-      orientation | hidden | icons | list | background | facing | perch | capture | screen | \
-        scale | primary-height | first-icon | last-icon | capture-region)
-        printf -v "dock_${key//-/_}" '%s' "$value"
-        ;;
+      orientation) dock_orientation="$value" ;;
+      background) dock_background="$value" ;;
+      screen) dock_screen="$value" ;;
+      scale) dock_scale="$value" ;;
+      first-icon) dock_first_icon="$value" ;;
+      last-icon) dock_last_icon="$value" ;;
+      perch) dock_perch="$value" ;;
+      capture) dock_capture="$value" ;;
+      capture-region) dock_capture_region="$value" ;;
     esac
   done <<<"$output"
 }
