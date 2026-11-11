@@ -41,4 +41,23 @@ final class PreferencesChangeTests: XCTestCase {
     XCTAssertEqual(PreferencesChange.dictionary(at: dictionary)?["tilesize"] as? Int, 48)
     XCTAssertNil(PreferencesChange.dictionary(at: string))
   }
+
+  // qa-live.sh passes `<(defaults export com.apple.dock -)`, which names a pipe in /dev/fd.
+  func testADictionaryIsReadThroughAPipe() throws {
+    let pipe = Pipe()
+    try pipe.fileHandleForWriting.write(
+      contentsOf: PropertyListSerialization.data(
+        fromPropertyList: ["tilesize": 48],
+        format: .xml,
+        options: 0
+      )
+    )
+    try pipe.fileHandleForWriting.close()
+    let path = "/dev/fd/\(pipe.fileHandleForReading.fileDescriptor)"
+
+    XCTAssertEqual(
+      PreferencesChange.dictionary(at: URL(fileURLWithPath: path))?["tilesize"] as? Int,
+      48
+    )
+  }
 }

@@ -731,19 +731,16 @@ scenario_restore_selftest() {
   check - restore-selftest "the harmless key is gone" selftest_key_absent
   check - restore-selftest "the backup is deleted after a verified restore" test ! -e "$dock_backup"
   # The restore compared before it relaunched the Dock. This compares again once the Dock is back,
-  # and names any key it wrote on launch. A copy left by a killed run is removed first, since
-  # `defaults export` can exit 0 without writing.
+  # and names any key it wrote on launch. An export that writes nothing fails the helper.
   wait_for_dock_relaunch
-  local live="$qa_dir/selftest-live.plist" changes
-  rm -f "$live"
-  if defaults export com.apple.dock "$live" &&
-    changes="$(qa_helper preferences-change "$live" "$saved")"; then
+  local changes
+  if changes="$(qa_helper preferences-change <(defaults export com.apple.dock -) "$saved")"; then
     check - restore-selftest "after the Dock relaunched, its preferences still equal the backup${changes:+ (differ: ${changes//$'\n'/, })}" \
       test -z "$changes"
   else
     result FAIL - restore-selftest "couldn't compare the Dock's preferences with the backup after the relaunch; see the message above"
   fi
-  rm -f "$live" "$saved"
+  rm -f "$saved"
   take_dock_backup
 }
 
