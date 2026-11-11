@@ -141,8 +141,8 @@ other_run_pid() {
   printf '%s\n' "$pid"
 }
 
-# Restores the Dock first, since that is what matters; the menu step after it is cosmetic and
-# bounded by AppleScript timeouts. Signals are ignored from here on, so a second Ctrl-C can't cut
+# Restores the Dock first, since that is what matters; the relaunch after it only stops the QA log,
+# and quit_app gives up after 5 s. Signals are ignored from here on, so a second Ctrl-C can't cut
 # the restore short.
 cleanup() {
   local status=$?
