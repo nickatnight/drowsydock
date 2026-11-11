@@ -748,9 +748,10 @@ scenario_restore_selftest() {
   local saved="$qa_dir/selftest-backup.plist"
   cp "$dock_backup" "$saved"
   if ! check - restore-selftest "the restore succeeds and verifies" put_dock_back; then
-    # The backup this run saved is kept and still owned, so cleanup restores from it at the end.
+    # The restore the run depends on just failed, so nothing else may change the Dock. The backup
+    # this run saved is kept and still owned, so cleanup retries the restore from it on exit.
     rm -f "$saved"
-    return
+    exit 1
   fi
   check - restore-selftest "the harmless key is gone" selftest_key_absent
   check - restore-selftest "the backup is deleted after a verified restore" test ! -e "$dock_backup"

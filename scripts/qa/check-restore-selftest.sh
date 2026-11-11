@@ -5,8 +5,9 @@
 # runs the self-test in its own bash process, the way qa-live.sh's main flow does: save the
 # backup, run the self-test, then change the Dock through System Events as the next scenario would.
 # It checks that the compare after the Dock's relaunch passes when nothing changed, and fails when
-# the relaunch wrote a key or the helper fails. scripts/check.sh fast runs it after the build that
-# makes qa-helper.
+# the relaunch wrote a key or the helper fails. It checks that a self-test restore that fails ends
+# the run before any further Dock change, and that cleanup then restores from the kept backup.
+# scripts/check.sh fast runs it after the build that makes qa-helper.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 scratch="$(mktemp -d)"
@@ -33,6 +34,8 @@ source "$SCRATCH/qa-live-functions.sh"
 
 domain="$SCRATCH/dock"
 calls="$SCRATCH/calls.log"
+# FAIL_IMPORTS is how many imports into the domain fail before one succeeds.
+imports_to_fail="${FAIL_IMPORTS:-0}"
 
 defaults() {
   local arguments=() argument
@@ -44,6 +47,10 @@ defaults() {
     fi
     arguments+=("$argument")
   done
+  if [[ ${arguments[0]} == import && ${arguments[1]} == "$domain" ]] && ((imports_to_fail > 0)); then
+    imports_to_fail=$((imports_to_fail - 1))
+    return 1
+  fi
   command defaults "${arguments[@]}"
 }
 
@@ -168,5 +175,17 @@ has_line "PASS QA - $relaunch_row" &&
 grep -q '^FAIL QA - (restore-selftest)' <<<"$output" ||
   fail "a helper that fails records no FAIL:"$'\n'"$(rows)"
 ((status == 1)) || fail "a self-test whose helper fails exits $status, not 1"
+
+# The self-test's restore fails once: the run stops before the next scenario changes the Dock,
+# and cleanup's retry restores the domain from the kept backup.
+run_selftest FAIL_IMPORTS=1
+has_line "FAIL QA - (restore-selftest): the restore succeeds and verifies" ||
+  fail "a failed self-test restore isn't reported:"$'\n'"$(rows)"
+grep -q '^osascript' "$scratch/calls.log" &&
+  fail "after a failed self-test restore, the run went on to change the Dock: $(cat "$scratch/calls.log")"
+((status == 1)) || fail "a run whose self-test restore fails exits $status, not 1"
+domain_is_original || fail "cleanup didn't restore the domain after a failed self-test restore"
+[[ ! -e $scratch/qa/dock-backup.plist ]] ||
+  fail "cleanup's restore after a failed self-test restore kept the backup"
 
 exit "$failed"
