@@ -10,14 +10,18 @@ Every row keeps its number. The tables after the checklist map each automated or
 
 Every Swift file that the coverage gate exempts must be named here in backticks; `scripts/check.sh fast` fails otherwise. The last section lists them.
 
-`scripts/qa-live.sh` changes the Dock's preferences and puts them back: it saves and checks a backup in `build/qa/dock-backup.plist` before any change, restores it on exit and deletes it only once the Dock's preferences match it again. If a restore can't be verified, it keeps the backup and prints the command to retry; `scripts/qa-live.sh --restore` shows the backup's date and the keys it would change, asks first (`--yes` skips the question), and refuses while a run is still in progress. The backup is readable by your account only. After a run, `build/qa` holds `report.md` and `app.log`; screenshots and samples are deleted when their checks pass and kept when they fail (`--keep-captures` keeps them all). The terminal you run it from needs Accessibility and Screen Recording, and every process started from that terminal inherits both: consider a terminal profile used only for the run, and revoking the grants afterwards. The run quits and relaunches `build/DrowsyDock.app` only, refuses to start while another DrowsyDock runs, and skips the Calculator step of 7.8b if Calculator is already open.
+`scripts/qa-live.sh` changes the Dock's preferences and puts them back: it saves and checks a backup in `build/qa/dock-backup.plist` before any change, restores it on exit and deletes it only once the Dock's preferences match it again. If a restore can't be verified, it keeps the backup and prints the command to retry; `scripts/qa-live.sh --restore` shows the backup's date and the keys it would change, asks first (`--yes` skips the question), and refuses while a run is still in progress. The backup is readable by your account only. After a run, `build/qa` holds `report.md` and `app.log`; screenshots and samples are deleted when their checks pass and kept when they fail (`--keep-captures` keeps them all). The terminal you run it from needs Accessibility, Screen Recording and Automation of System Events (ADR 0018), and every process started from that terminal inherits them: consider a terminal profile used only for the run, and revoking the grants afterwards. It reads the app's log with `log stream`, which macOS allows only for administrators; on a standard account the preflight stops and says so. The run quits and relaunches `build/DrowsyDock.app` only, refuses to start while another DrowsyDock runs, and skips the Calculator step of 7.8b if Calculator is already open.
 
 ## Before a merge
 
 ```
-scripts/bundle.sh && open build/DrowsyDock.app     # the branch to merge, clean, with the grant
+scripts/bundle.sh && open build/DrowsyDock.app     # the branch to merge, clean
+scripts/qa-live.sh --dry-run                        # every step, nothing changed
 scripts/qa-live.sh                                  # then the manual checklist
+scripts/qa-live.sh --restore --yes                  # only if a run was killed and left the Dock changed
 ```
+
+An ad-hoc signed build is a new app to macOS, so after `scripts/bundle.sh` re-grant DrowsyDock's Accessibility as the precondition of section 4 says, or the preflight stops.
 
 Watch the log in a second terminal for the manual rows (it needs an admin account):
 
