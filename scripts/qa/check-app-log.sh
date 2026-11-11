@@ -38,7 +38,7 @@ open() {
   echo "open $*" >>"$calls"
   if [[ -n ${OPEN_WRITES:-} ]]; then append $OPEN_WRITES; fi
 }
-pgrep() { if [[ $* == "-x DrowsyDock" ]]; then echo 4242; fi; }
+pgrep() { if [[ $* == "-x DrowsyDock" && -z ${APP_NEVER_RUNS:-} ]]; then echo 4242; fi; }
 ps() { echo "$app_binary"; }
 kill() { [[ $1 == -0 && $2 == 4242 && -z ${APP_GONE:-} ]]; }
 sleep() { :; }
@@ -234,5 +234,8 @@ grep -qxF "open $scratch/DrowsyDock.app --args --qa-log" "$scratch/calls.log" ||
 
 run_case launch
 expect "launch: 1, pid 4242"
+
+run_case launch APP_NEVER_RUNS=1
+expect "launch: 1, pid "
 
 exit "$failed"

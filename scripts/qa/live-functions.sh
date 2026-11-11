@@ -390,15 +390,17 @@ menu_bar_item_exists() {
 launch_app() {
   mark_log
   run_or_print open "$app" --args --qa-log
-  find_launched_app && wait_log "Accessibility granted: (true|false)" 10
+  if ! $dry_run; then
+    app_log_pid="$(wait_for_app_pid)" || return 1
+  fi
+  wait_log "Accessibility granted: (true|false)" 10
 }
 
-find_launched_app() {
-  $dry_run && return 0
+# Prints the pid of this build's DrowsyDock once it runs, within 10 s.
+wait_for_app_pid() {
   local waited=0
-  app_log_pid=""
   while ((waited < 100)); do
-    if app_log_pid="$(app_pid)"; then return 0; fi
+    app_pid && return 0
     sleep 0.1
     waited=$((waited + 1))
   done
