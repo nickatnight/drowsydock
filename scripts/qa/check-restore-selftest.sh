@@ -6,7 +6,8 @@
 # backup, run the self-test, then change the Dock through System Events as the next scenario would.
 # It checks that the compare after the Dock's relaunch passes when nothing changed, and fails when
 # the relaunch wrote a key or the helper fails. It checks that a self-test restore that fails ends
-# the run before any further Dock change, and that cleanup then restores from the kept backup.
+# the run before any further Dock change, and that cleanup then restores from the kept backup. And
+# it checks that a Ctrl-C after a successful self-test restore doesn't report the Dock unrestored.
 # scripts/check.sh fast runs it after the build that makes qa-helper.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
@@ -69,7 +70,13 @@ osascript() { echo "osascript $*" >>"$calls"; }
 open() { echo "open $*" >>"$calls"; }
 pkill() { echo "pkill $*" >>"$calls"; }
 pgrep() { return 0; }
-sleep() { :; }
+# INTERRUPT_ON_SLEEP sends this run a Ctrl-C while it waits for the Dock to relaunch.
+sleep() {
+  if [[ -n ${INTERRUPT_ON_SLEEP:-} ]]; then
+    INTERRUPT_ON_SLEEP=""
+    kill -INT $$
+  fi
+}
 
 root="$PWD"
 dry_run=false
@@ -187,5 +194,15 @@ grep -q '^osascript' "$scratch/calls.log" &&
 domain_is_original || fail "cleanup didn't restore the domain after a failed self-test restore"
 [[ ! -e $scratch/qa/dock-backup.plist ]] ||
   fail "cleanup's restore after a failed self-test restore kept the backup"
+
+# A Ctrl-C while the self-test waits for the relaunched Dock, after its restore succeeded and
+# deleted the backup: cleanup has nothing to restore and reports no failure.
+run_selftest INTERRUPT_ON_SLEEP=1
+((status == 130)) || fail "a Ctrl-C during the self-test exits $status, not 130"
+grep -q '^FAIL QA' <<<"$output" &&
+  fail "a Ctrl-C after a successful self-test restore records a FAIL:"$'\n'"$(rows)"
+has_line "the Dock wasn't restored" &&
+  fail "a Ctrl-C after a successful self-test restore says the Dock wasn't restored"
+domain_is_original || fail "a Ctrl-C after a successful self-test restore leaves the domain changed"
 
 exit "$failed"

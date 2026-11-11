@@ -753,6 +753,8 @@ scenario_restore_selftest() {
     rm -f "$saved"
     exit 1
   fi
+  # The restore deleted the backup, so a Ctrl-C from here on has nothing for cleanup to restore.
+  owns_backup=false
   check - restore-selftest "the harmless key is gone" selftest_key_absent
   check - restore-selftest "the backup is deleted after a verified restore" test ! -e "$dock_backup"
   # The restore compared before it relaunched the Dock. This compares again once the Dock is back,
@@ -770,7 +772,6 @@ scenario_restore_selftest() {
     result FAIL - restore-selftest "couldn't compare the Dock's preferences with the backup after the relaunch; see the message above"
   fi
   rm -f "$live" "$saved"
-  owns_backup=false
   take_dock_backup
 }
 
