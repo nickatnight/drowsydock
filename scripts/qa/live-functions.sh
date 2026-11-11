@@ -281,7 +281,7 @@ last_log() {
   app_log_lines since-mark | grep -E -- "$1" | tail -n 1
 }
 
-no_log_since_mark() {
+app_runs_with_no_log_since_mark() {
   app_alive || return 1
   ! logged_since_mark "$1"
 }
@@ -939,7 +939,8 @@ scenario_autohide() {
   simulate 15%
   simulate 5%
   pause 2
-  check 11.6 autohide "no wave until the next charge" no_log_since_mark "The whole Dock nods off"
+  check 11.6 autohide "no wave until the next charge" \
+    app_runs_with_no_log_since_mark "The whole Dock nods off"
   simulate 80%
 }
 
@@ -974,7 +975,7 @@ scenario_hover() {
   mark_log
   pause 2
   check 7.5b hover "with magnification off, resting on another icon never fades the cat" \
-    no_log_since_mark "Overlay: fadedOut"
+    app_runs_with_no_log_since_mark "Overlay: fadedOut"
   simulate 5%
   pause 5
   pointer_to "$(mid_x "$dock_last_icon")" "$(mid_y "$dock_last_icon")"
@@ -1032,13 +1033,13 @@ scenario_relaunch() {
   pause 2
   expect_logged_perch_matches "7.8a 7.8b" relaunch "with Calculator's icon in the Dock, the perch is right"
   check 7.8b relaunch "an app's icon appearing isn't taken for the list's destruction" \
-    no_log_since_mark "The Dock list was destroyed|Observing the Dock list for:"
+    app_runs_with_no_log_since_mark "The Dock list was destroyed|Observing the Dock list for:"
   timed_change run_or_print osascript -e 'tell application "Calculator" to quit'
   expect_overlay_within shown 1 "7.8a 7.8b" relaunch "the cat follows the last icon when it goes"
   pause 2
   expect_logged_perch_matches "7.8a 7.8b" relaunch "after Calculator quits, the perch is right"
   check 7.8b relaunch "an app's icon going isn't taken for the list's destruction" \
-    no_log_since_mark "The Dock list was destroyed|Observing the Dock list for:"
+    app_runs_with_no_log_since_mark "The Dock list was destroyed|Observing the Dock list for:"
 }
 
 align_checks() {

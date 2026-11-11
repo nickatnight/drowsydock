@@ -73,10 +73,10 @@ case_mark() {
   start_run
   append 2 3
   mark_log
-  answer "nothing since the mark" no_log_since_mark "Accessibility granted"
+  answer "nothing since the mark" app_runs_with_no_log_since_mark "Accessibility granted"
   append 6
   answer "a line since the mark" wait_log "Changed: 80%" 1
-  answer "no such line since the mark" no_log_since_mark "Changed: 80%"
+  answer "no such line since the mark" app_runs_with_no_log_since_mark "Changed: 80%"
   echo "last: $(last_log "Changed:" | cut -d' ' -f3-)"
 }
 
@@ -84,7 +84,7 @@ case_app_gone() {
   start_run
   append 2
   mark_log
-  answer "no line, but the app is gone" no_log_since_mark "Changed:"
+  answer "no line, but the app is gone" app_runs_with_no_log_since_mark "Changed:"
   answer "waiting, with the app gone" wait_log "Changed:" 5
 }
 
