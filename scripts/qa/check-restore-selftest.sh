@@ -13,18 +13,10 @@ if [[ ! -x $helper ]]; then
   exit 1
 fi
 
-# Executing qa-live.sh starts a run, so take only its function definitions.
-awk '
-  /^[a-z_]+\(\) \{.*\}$/ { print; next }
-  /^[a-z_]+\(\) \{$/ { inside = 1 }
-  inside { print }
-  inside && /^\}$/ { inside = 0 }
-' scripts/qa-live.sh >"$scratch/qa-live-functions.sh"
-
 cat >"$scratch/run-selftest.sh" <<'RUN'
 set -uo pipefail
 source scripts/qa/dock-preferences.sh
-source "$SCRATCH/qa-live-functions.sh"
+source scripts/qa/live-functions.sh
 
 domain="$SCRATCH/dock"
 calls="$SCRATCH/calls.log"
@@ -82,7 +74,6 @@ dock_domain="$domain"
 dock_backup="$qa_dir/dock-backup.plist"
 run_pid_file="$qa_dir/run.pid"
 log_pid_file="$qa_dir/log.pid"
-selftest_key="qa-live-selftest"
 
 mkdir -p "$qa_dir"
 trap cleanup EXIT
@@ -96,13 +87,6 @@ dock_preference "screen edge" left
 $failed && exit 1
 exit 0
 RUN
-
-for name in scenario_restore_selftest cleanup take_dock_backup put_dock_back check result; do
-  if ! grep -q "^$name() {" "$scratch/qa-live-functions.sh"; then
-    echo "check-restore-selftest: qa-live.sh no longer defines $name()" >&2
-    exit 1
-  fi
-done
 
 failed=0
 fail() {

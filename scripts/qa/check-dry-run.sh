@@ -29,7 +29,8 @@ failed=0
 
 # A command named by its full path, such as /usr/bin/defaults, would skip both the PATH stubs and
 # the UNGUARDED functions. Only the read-only PlistBuddy may be named that way.
-if grep -nE '(^|[[:space:];|&(`])/(usr/)?(s)?bin/' scripts/qa-live.sh scripts/qa/dock-preferences.sh |
+if grep -nE '(^|[[:space:];|&(`])/(usr/)?(s)?bin/' scripts/qa-live.sh scripts/qa/live-functions.sh \
+  scripts/qa/dock-preferences.sh |
   grep -v '^[^:]*:1:#!'; then
   echo "qa-live.sh names a command by its full path; call it by name so the dry run can stub it" >&2
   failed=1
