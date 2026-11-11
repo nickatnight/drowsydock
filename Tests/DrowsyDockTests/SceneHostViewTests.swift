@@ -127,8 +127,10 @@ final class SceneHostViewTests: XCTestCase {
     let crossfadeFrames = Int(
       MascotAnimation.crossfade.duration.inSeconds * Double(MascotScene.oneShotFramesPerSecond)
     )
+    // The first frame, and the frames drawn before the crossfade's completion pauses the host.
+    let framesBesideTheTicks = 4
     XCTAssertTrue(
-      (crossfadeFrames...crossfadeFrames + 4).contains(frames),
+      (crossfadeFrames...crossfadeFrames + framesBesideTheTicks).contains(frames),
       "\(frames) frames for a crossfade of \(crossfadeFrames)"
     )
     XCTAssertTrue(cat.isPaused)

@@ -6,6 +6,9 @@ import LiveQAKit
 @main
 @MainActor
 enum QAHelper {
+  // Antialiasing and the label's shadow move a pixel of two screenshots of the same thing by less.
+  static let sameScreenshotBrightnessTolerance = 24.0
+
   static func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data("qa-helper: \(message)\n".utf8))
     exit(2)
@@ -166,7 +169,10 @@ enum QAHelper {
         guard first.width == second.width, first.height == second.height else {
           fail("the screenshots differ in size")
         }
-        let differing = first.countOfPixels(differingFrom: second, by: 24)
+        let differing = first.countOfPixels(
+          differingFrom: second,
+          by: sameScreenshotBrightnessTolerance
+        )
         print("\(differing) \(first.values.count)")
       } catch {
         fail("couldn't read a screenshot: \(error)")

@@ -6,6 +6,7 @@ import XCTest
 
 @MainActor
 final class TransitionSnapshotTests: XCTestCase {
+  // SpriteKit state out of the app's reach; commit 71cb987's message lists what was ruled out.
   private let afterDrawnWakeUp = SnapshotTolerance(channel: 40, differingPixels: 4)
 
   private let firstFrame = 1.0 / Double(MascotScene.oneShotFramesPerSecond)

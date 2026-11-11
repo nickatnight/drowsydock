@@ -51,10 +51,10 @@ public struct DockAlignment {
       let rim = find(side, in: bare, finder: .line)
       let veilEdge = find(side, in: veil, finder: .step)
       checks += [
-        EdgeCheck(name: "Dock rim, \(side.name) (\(row))", expected: side.expected, found: rim),
-        EdgeCheck(name: "veil, \(side.name) (\(row))", expected: side.expected, found: veilEdge),
+        EdgeCheck(name: "Dock rim, \(side.name) (\(qaRow))", expected: side.expected, found: rim),
+        EdgeCheck(name: "veil, \(side.name) (\(qaRow))", expected: side.expected, found: veilEdge),
         EdgeCheck(
-          name: "veil against the rim, \(side.name) (\(row))",
+          name: "veil against the rim, \(side.name) (\(qaRow))",
           expected: rim ?? side.expected,
           found: rim == nil ? nil : veilEdge
         ),
@@ -66,7 +66,7 @@ public struct DockAlignment {
     return checks
   }
 
-  private var row: String {
+  private var qaRow: String {
     edge == .bottom ? "8.5" : "8.9"
   }
 

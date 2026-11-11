@@ -17,9 +17,9 @@ final class DockAlignmentTests: XCTestCase {
   private func screenshot(
     veil: CGRect? = nil,
     catBottom: Double? = nil,
-    drawn: CGRect? = nil
+    drawnBackground: CGRect? = nil
   ) -> LumaImage {
-    let drawn = drawn ?? background
+    let drawn = drawnBackground ?? background
     let (width, height) = (400, 120)
     var values = [Double](repeating: Pixel.desktop, count: width * height)
     for row in 0..<height {
@@ -50,13 +50,13 @@ final class DockAlignmentTests: XCTestCase {
   private func checks(
     veil: CGRect,
     catBottom: Double,
-    drawn: CGRect? = nil
+    drawnBackground: CGRect? = nil
   ) -> [String: EdgeCheck] {
     let alignment = DockAlignment(area: area, edge: .bottom, background: background, perch: perch)
     let checks = alignment.checks(
-      bare: screenshot(drawn: drawn),
-      awake: screenshot(catBottom: catBottom, drawn: drawn),
-      asleep: screenshot(veil: veil, catBottom: catBottom, drawn: drawn)
+      bare: screenshot(drawnBackground: drawnBackground),
+      awake: screenshot(catBottom: catBottom, drawnBackground: drawnBackground),
+      asleep: screenshot(veil: veil, catBottom: catBottom, drawnBackground: drawnBackground)
     )
     return Dictionary(uniqueKeysWithValues: checks.map { ($0.name, $0) })
   }
@@ -111,7 +111,7 @@ final class DockAlignmentTests: XCTestCase {
 
   func testAVeilOnTheDrawnOutlinePassesAgainstTheRimEvenWhereTheFramesAreOff() throws {
     let drawn = background.offsetBy(dx: 0, dy: 2)
-    let checks = checks(veil: drawn, catBottom: drawn.maxY, drawn: drawn)
+    let checks = checks(veil: drawn, catBottom: drawn.maxY, drawnBackground: drawn)
 
     XCTAssertFalse(try XCTUnwrap(checks["Dock rim, top edge (8.5)"]).passes)
     XCTAssertTrue(try XCTUnwrap(checks["veil against the rim, top edge (8.5)"]).passes)

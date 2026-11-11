@@ -19,16 +19,19 @@ final class Job003ScreenshotTests: XCTestCase {
 
   private static let scale = 2.0
 
-  private func crop(_ name: String, x: Double, y: Double, width: Double, height: Double) throws -> (
-    LumaImage, CaptureArea
-  ) {
+  /// Returns the fixture `name`, cut from the full screenshot at `screenshotPixels` (top-left
+  /// origin, in the full screenshot's pixels), and the screen area it shows.
+  private func crop(
+    _ name: String,
+    screenshotPixels pixels: CGRect
+  ) throws -> (LumaImage, CaptureArea) {
     let image = try LumaImage(contentsOf: Self.fixtures.appendingPathComponent("\(name).png"))
     let origin = Self.screenshotTopLeft
     let frame = CGRect(
-      x: origin.x + x / Self.scale,
-      y: origin.y - (y + height) / Self.scale,
-      width: width / Self.scale,
-      height: height / Self.scale
+      x: origin.x + pixels.minX / Self.scale,
+      y: origin.y - pixels.maxY / Self.scale,
+      width: pixels.width / Self.scale,
+      height: pixels.height / Self.scale
     )
     return (image, CaptureArea(frame: frame, scale: Self.scale))
   }
@@ -40,7 +43,10 @@ final class Job003ScreenshotTests: XCTestCase {
   private let midDockRows = 20...40
 
   func testTheStepFinderPutsTheOldVeilOnTheListFrameFivePointsAboveTheBackground() throws {
-    let (image, area) = try crop("veil-top-over-window", x: 720, y: 120, width: 80, height: 50)
+    let (image, area) = try crop(
+      "veil-top-over-window",
+      screenshotPixels: CGRect(x: 720, y: 120, width: 80, height: 50)
+    )
 
     let row = try XCTUnwrap(
       Profile.strongestStep(in: image.profileDown(columns: insideColumns, rows: aboveTheRim))
@@ -54,7 +60,10 @@ final class Job003ScreenshotTests: XCTestCase {
   }
 
   func testTheLineFinderPutsTheDocksRimOnTheBackgroundsTopEdge() throws {
-    let (image, area) = try crop("rim-top-over-dark", x: 1430, y: 120, width: 80, height: 55)
+    let (image, area) = try crop(
+      "rim-top-over-dark",
+      screenshotPixels: CGRect(x: 1430, y: 120, width: 80, height: 55)
+    )
 
     let row = try XCTUnwrap(
       Profile.thinLine(in: image.profileDown(columns: insideColumns, rows: aroundTheTopRim))
@@ -66,7 +75,10 @@ final class Job003ScreenshotTests: XCTestCase {
   }
 
   func testTheLineFinderPutsTheRimsRightEndOnTheBackgroundsRightEdge() throws {
-    let (image, area) = try crop("rim-right-end", x: 1625, y: 200, width: 80, height: 60)
+    let (image, area) = try crop(
+      "rim-right-end",
+      screenshotPixels: CGRect(x: 1625, y: 200, width: 80, height: 60)
+    )
 
     let column = try XCTUnwrap(
       Profile.thinLine(in: image.profileAcross(rows: midDockRows, columns: aroundTheRightEnd))
