@@ -42,7 +42,13 @@ final class AppCoordinator {
   @ObservationIgnored private let dockTracker: any DockTracking
   @ObservationIgnored private var crowdEffect: CrowdEffectRule
 
-  convenience init() {
+  convenience init(
+    arguments: [String] = CommandLine.arguments,
+    qaLogFolder: URL = QALogFile.folder
+  ) {
+    // First, so the file gets BatteryMonitor's "Started:" and the grant line, which the live script
+    // waits for.
+    QALogFile.startIfRequested(by: arguments, in: qaLogFolder)
     self.init(
       battery: BatteryMonitor(),
       overlay: MascotOverlay(),

@@ -154,6 +154,23 @@ final class QALogFileTests: XCTestCase {
     XCTAssertTrue(try XCTUnwrap(lines.last).hasSuffix("battery: Changed: line 40"))
   }
 
+  // MARK: - Launch order
+
+  func testTheCoordinatorTheAppLaunchesWritesItsFirstLinesToTheFile() throws {
+    addTeardownBlock { MirroredLogger.mirror = nil }
+
+    let coordinator = AppCoordinator(arguments: ["DrowsyDock", "--qa-log"], qaLogFolder: folder)
+    addTeardownBlock { coordinator.overlay.show(nil) }
+    KeepAlive.keep(coordinator)
+
+    let firstTwo = try lines().prefix(2).map(message)
+    XCTAssertEqual(
+      firstTwo.map { $0.components(separatedBy: ": ").first },
+      ["Started", "Accessibility granted"]
+    )
+    XCTAssertTrue(firstTwo.first?.hasSuffix(" (real)") ?? false, "\(firstTwo)")
+  }
+
   // MARK: - Both sinks
 
   func testEveryLineTheAppLogsReachesTheUnifiedLogAndTheFileAlike() throws {
