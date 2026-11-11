@@ -29,7 +29,7 @@ Reading the unified log without `log`, through `OSLogStore`, was tried in a prob
   - The preflight notes the file's size when the run starts, and `mark_log` takes byte offsets after that. A read starts at that offset, or at 0 when the app has started the file over since.
   - It keeps only lines from the pid that `launch_app` found running this build's binary. That rules out another DrowsyDock and earlier runs.
   - Latency comes from each line's own time, as before.
-  - At exit the script copies the run's lines to `build/qa/app.log` and relaunches the app without `--qa-log`.
+  - At exit the script copies the run's lines to `build/qa/app.log` and relaunches the app without `--qa-log`. If the app doesn't quit within 5 s, it opens nothing, records `FAIL QA - (cleanup): DrowsyDock (pid N) didn't quit within 5 s, so it may still write the QA log; quit it`, and exits 1. The preflight stops the same way before its relaunch.
 - No entitlement is added, and the hardened runtime stays on (ADR 0005, ADR 0007).
 
 ## Alternatives considered
@@ -46,7 +46,9 @@ Reading the unified log without `log`, through `OSLogStore`, was tried in a prob
 - Without `--qa-log`, the unified log gets the same text as before. Each message is now built as a `String` before `os.Logger` sees it, even at debug level when the system doesn't keep debug lines. The debug lines fire on state changes and power notifications, not on every frame.
 - `--qa-log` adds one `fstat` and one `write` on the main thread per line, only while it is on.
 - `~/Library/Logs/DrowsyDock/qa.log` stays after a run, at most 1 MiB. Deleting the folder is safe; the next `--qa-log` launch creates it again.
-- If the app starts the file over in the middle of a check, the lines between the mark and the start-over are lost and that check can fail. A run that hits the limit that often should get a larger limit.
-- A run killed with `kill -9` leaves the app running with `--qa-log` until it quits.
+- If the app starts the file over in the middle of a check, the lines between the mark and the start-over are lost. A check that waits for a line can then fail. A check that requires a line to be absent (11.6, 7.5b, 7.8b) can pass falsely if the file also grows back past the mark before the next read, which takes about 1 MiB of lines within the check. A run that hits the limit that often should get a larger limit.
+- A run killed with `kill -9`, or an app that didn't quit at the end, leaves the app running with `--qa-log` until it quits.
+- The test that the app and the script name the same file sets `HOME` and `CFFIXED_USER_HOME` only for the script. That the app ignores both rests on `getpwuid` reading the account record; a launch with both set to a scratch folder wrote to the real home.
+- Every message is public in the unified log, as every `Logger` call already marked it before. `MirroredLogger` can't redact part of a message, so a log line must carry no user data.
 - `scripts/qa/check-app-log.sh` replays `Tests/LiveQAKitTests/Fixtures/qa.log` through the script's log reads. `QALogFixtureTests` pin that the fixture is what `QALogLine` writes and what `qa-helper` reads, and that its `Overlay:` lines are `DockTracker.overlayMessage`'s.
 - The script names every app line it waits for as a `log_…` pattern in `live-functions.sh`. `QALogMessageTests` runs the app's code with the mirror recording and fails when a pattern matches no line the app logs. The lines only the Accessibility paths log (`The Dock relaunched`, `The Dock list was destroyed`, `Observing the Dock list for:`, `Dock geometry:`) are checked through the constants and functions their call sites use, not through a run.
