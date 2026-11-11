@@ -21,44 +21,45 @@ if ! check_copy unchanged; then
   failed=1
 fi
 
-plants=(
-  'a missing method|s/`AppCoordinatorTests\.testLaunchingAsleepPlaysNoWave`/`AppCoordinatorTests.testNoSuchThing`/'
-  'an unknown class|s/`AppCoordinatorTests\.testLaunchingAsleepPlaysNoWave`/`NoSuchTests`/'
-  'prose in the Tests cell|s/`AppCoordinatorTests\.testLaunchingAsleepPlaysNoWave`/`the coordinator tests`/'
-  'a method under the wrong class|s/`AppCoordinatorTests\.testLaunchingAsleepPlaysNoWave`/`PoseSnapshotTests.testLaunchingAsleepPlaysNoWave`/'
-  'an unknown scenario|s/(\| 7\.9 \|.*)`cpu`/$1`cpus`/'
-  'a non-scenario token in the Live column|s/(\| 7\.9 \|.*)`cpu`/$1`CPU scenario`/'
-  'a scenario that does not list the row|s/(\| 1\.1 \|.*)`launch`/$1`cpu`/'
-  'a row with no citation|s/^(\| 11\.8 \|[^|]*\|)[^|]*\|[^|]*\|$/$1 – | – |/'
-  'a deleted row|s/^\| 11\.8 \|.*\n//'
-  'a renumbered row|s/^\| 11\.8 \|/| 11.9 |/'
-  'rows:a row missing from the list|s/^11\.8\n//'
-)
-index=0
-for plant in "${plants[@]}"; do
-  index=$((index + 1))
-  name="${plant%%|*}"
-  edit="${plant#*|}"
+planted=()
+
+# plant NAME FILE EDIT: copies the doc and the row list, applies the perl EDIT to FILE in the copy,
+# and checks the copy in the background.
+plant() {
+  local index=$((${#planted[@]} + 1)) target
+  planted+=("$1")
   copy "$index"
-  target="$scratch/$index/manual-qa.md"
-  if [[ $name == rows:* ]]; then
-    target="$scratch/$index/qa-rows.txt"
-  fi
-  perl -pi -e "$edit" "$target"
-  if cmp -s "$target" "docs/$(basename "$target")"; then
-    echo "check-qa-mapping-selftest: the plant '${name#rows:}' changed nothing" >&2
+  target="$scratch/$index/$2"
+  perl -pi -e "$3" "$target"
+  if cmp -s "$target" "docs/$2"; then
+    echo "check-qa-mapping-selftest: the plant '$1' changed nothing" >&2
     failed=1
-    continue
+    return
   fi
   (check_copy "$index" && touch "$scratch/$index/passed") &
-done
+}
+
+wave='`AppCoordinatorTests\.testLaunchingAsleepPlaysNoWave`'
+plant "a missing method" manual-qa.md "s/$wave/\`AppCoordinatorTests.testNoSuchThing\`/"
+plant "an unknown class" manual-qa.md "s/$wave/\`NoSuchTests\`/"
+plant "prose in the Tests cell" manual-qa.md "s/$wave/\`the coordinator tests\`/"
+plant "a method under the wrong class" manual-qa.md \
+  "s/$wave/\`PoseSnapshotTests.testLaunchingAsleepPlaysNoWave\`/"
+plant "an unknown scenario" manual-qa.md 's/(\| 7\.9 \|.*)`cpu`/$1`cpus`/'
+plant "a non-scenario token in the Live column" manual-qa.md \
+  's/(\| 7\.9 \|.*)`cpu`/$1`CPU scenario`/'
+plant "a scenario that does not list the row" manual-qa.md 's/(\| 1\.1 \|.*)`launch`/$1`cpu`/'
+plant "a row with no citation" manual-qa.md 's/^(\| 11\.8 \|[^|]*\|)[^|]*\|[^|]*\|$/$1 – | – |/'
+plant "a deleted row" manual-qa.md 's/^\| 11\.8 \|.*\n//'
+plant "a renumbered row" manual-qa.md 's/^\| 11\.8 \|/| 11.9 |/'
+plant "a row missing from the list" qa-rows.txt 's/^11\.8\n//'
 wait
+
 index=0
-for plant in "${plants[@]}"; do
+for name in "${planted[@]}"; do
   index=$((index + 1))
   if [[ -e $scratch/$index/passed ]]; then
-    name="${plant%%|*}"
-    echo "check-qa-mapping-selftest: the check missed ${name#rows:}" >&2
+    echo "check-qa-mapping-selftest: the check missed $name" >&2
     failed=1
   fi
 done
