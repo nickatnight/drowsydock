@@ -272,6 +272,17 @@ case_preflight() {
   echo "run log: $(cut -d' ' -f4- "$run_log" | tr '\n' '|')"
 }
 
+case_preflight_after_a_stuck_quit() {
+  mkdir -p "$app/Contents/MacOS"
+  : >"$app_binary"
+  chmod +x "$app_binary"
+  git() { if [[ $1 == log ]]; then echo 0; fi; }
+  qa_helper() { echo "accessibility=true screen-recording=true"; }
+  osascript() { echo bottom; }
+  ( preflight_app )
+  echo "preflight exit: $?"
+}
+
 case_facing() {
   start_run
   append "$overlay_shown"
@@ -401,6 +412,18 @@ expect "cleanup exit: 3"
 expect "run log: battery: Started: 46% · Discharging · Drowsy (real)|accessibility: Accessibility granted: true|"
 [[ $(cat "$scratch/calls.log") == "kill -TERM 4242"$'\n'"open $scratch/DrowsyDock.app" ]] ||
   fail "cleanup doesn't quit the app and reopen it without --qa-log: $(cat "$scratch/calls.log")"
+
+run_case cleanup IGNORES_TERM=1
+expect "cleanup exit: 1"
+expect "FAIL QA - (cleanup): DrowsyDock (pid 4242) didn't quit within 5 s, so it may still write the QA log; quit it"
+[[ $(cat "$scratch/calls.log") == "kill -TERM 4242" ]] ||
+  fail "after a stuck quit, cleanup must not open the app again: $(cat "$scratch/calls.log")"
+
+run_case preflight_after_a_stuck_quit IGNORES_TERM=1 OPEN_WRITES_GRANT=1
+expect "preflight exit: 1"
+expect "DrowsyDock (pid 4242) didn't quit within 5 s, so it can't be relaunched with --qa-log; quit it, then run again."
+grep -q '^open' "$scratch/calls.log" &&
+  fail "after a stuck quit, the preflight opened the app: $(cat "$scratch/calls.log")"
 
 run_case preflight OPEN_WRITES_GRANT=1
 expect "preflight: 0, pid 4242"

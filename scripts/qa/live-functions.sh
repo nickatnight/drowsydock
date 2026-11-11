@@ -153,7 +153,7 @@ cleanup() {
     status=1
   fi
   if $needs_app && ! $dry_run; then
-    if app_running; then relaunch_without_qa_log; fi
+    if app_running && ! relaunch_without_qa_log; then status=1; fi
     save_run_log
   fi
   write_report
@@ -429,8 +429,14 @@ wait_for_app_pid() {
   return 1
 }
 
+# Opening the app while it still runs would only bring the --qa-log copy forward.
 relaunch_without_qa_log() {
   quit_app
+  if app_running; then
+    result FAIL - cleanup \
+      "DrowsyDock (pid $(app_pid)) didn't quit within 5 s, so it may still write the QA log; quit it"
+    return 1
+  fi
   open "$app"
 }
 
@@ -627,6 +633,10 @@ preflight_app() {
 
   say "DrowsyDock needs its Accessibility grant: relaunching it to read the grant from its QA log."
   quit_app
+  if ! $dry_run && app_running; then
+    say "DrowsyDock (pid $(app_pid)) didn't quit within 5 s, so it can't be relaunched with --qa-log; quit it, then run again." >&2
+    exit 1
+  fi
   if ! launch_app; then
     say "DrowsyDock wrote no 'Accessibility granted:' line to $app_log within 10 s." >&2
     say "It refuses a link there, or a file or folder you don't own; remove it and run again." >&2
