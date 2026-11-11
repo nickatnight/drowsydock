@@ -40,7 +40,7 @@ final class QALogFile {
 
   private let descriptor: Int32
   private let sizeLimit: Int
-  private let line = QALogLine(timeZone: .current)
+  private let lineFormat = QALogLine(timeZone: .current)
 
   @discardableResult
   static func startIfRequested(
@@ -114,25 +114,23 @@ final class QALogFile {
   }
 
   private func append(level: String, category: String, message: String) {
-    let bytes = Array(text(level: level, category: category, message: message).utf8)
+    let line = text(level: level, category: category, message: message)
     var status = stat()
-    if fstat(descriptor, &status) == 0, Int(status.st_size) + bytes.count > sizeLimit {
+    if fstat(descriptor, &status) == 0, Int(status.st_size) + line.utf8.count > sizeLimit {
       ftruncate(descriptor, 0)
-      write(
-        Array(
-          text(
-            level: "notice",
-            category: "qa-log",
-            message: "\(Self.fileName) reached its limit of \(sizeLimit) bytes and started over"
-          ).utf8
+      writeDroppingFailures(
+        text(
+          level: "notice",
+          category: "qa-log",
+          message: "\(Self.fileName) reached its limit of \(sizeLimit) bytes and started over"
         )
       )
     }
-    write(bytes)
+    writeDroppingFailures(line)
   }
 
   private func text(level: String, category: String, message: String) -> String {
-    line.text(
+    lineFormat.text(
       at: Date(),
       processIdentifier: getpid(),
       level: level,
@@ -141,7 +139,9 @@ final class QALogFile {
     ) + "\n"
   }
 
-  private func write(_ bytes: [UInt8]) {
+  // Reporting a failed write would log the failure, and so write again.
+  private func writeDroppingFailures(_ text: String) {
+    let bytes = Array(text.utf8)
     _ = bytes.withUnsafeBytes { Darwin.write(descriptor, $0.baseAddress, $0.count) }
   }
 }
