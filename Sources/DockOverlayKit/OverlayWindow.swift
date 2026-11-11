@@ -50,9 +50,9 @@ public final class OverlayWindow {
 
   private(set) var hasReportedUnusableFrame = false
 
-  // Internal so the kit's and the app's tests can record each fade and end it at once: AppKit runs
-  // window animations only while a display is awake.
-  var fader: any Fader = AnimatedFader()
+  // Package-wide so tests can record each fade and end it at once: AppKit runs window animations
+  // only while a display is awake.
+  package var fader: any Fader = AnimatedFader()
 
   private let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "DockOverlayKit",
@@ -132,7 +132,7 @@ public final class OverlayWindow {
 
   /// Changes a window's alpha over time.
   @MainActor
-  protocol Fader {
+  package protocol Fader {
     /// Fades `window` to `alpha` over `duration` seconds, then calls `completion`.
     func fade(
       _ window: NSWindow,

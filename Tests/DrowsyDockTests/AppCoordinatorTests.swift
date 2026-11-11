@@ -1,4 +1,5 @@
 import AppKit
+import DockOverlayKitTestSupport
 import DrowsyDockCore
 import XCTest
 

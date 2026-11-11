@@ -23,7 +23,15 @@ let package = Package(
       dependencies: ["DockOverlayKit", "LiveQAKit"],
       path: "scripts/qa/Sources/qa-helper"
     ),
-    .testTarget(name: "DockOverlayKitTests", dependencies: ["DockOverlayKit"]),
+    .target(
+      name: "DockOverlayKitTestSupport",
+      dependencies: ["DockOverlayKit"],
+      path: "Tests/DockOverlayKitTestSupport"
+    ),
+    .testTarget(
+      name: "DockOverlayKitTests",
+      dependencies: ["DockOverlayKit", "DockOverlayKitTestSupport"]
+    ),
     .testTarget(name: "DrowsyDockCoreTests", dependencies: ["DrowsyDockCore"]),
     .testTarget(
       name: "LiveQAKitTests",
@@ -32,7 +40,9 @@ let package = Package(
     ),
     .testTarget(
       name: "DrowsyDockTests",
-      dependencies: ["DockOverlayKit", "DrowsyDock", "DrowsyDockCore"],
+      dependencies: [
+        "DockOverlayKit", "DockOverlayKitTestSupport", "DrowsyDock", "DrowsyDockCore",
+      ],
       exclude: ["Snapshots"]
     ),
   ]

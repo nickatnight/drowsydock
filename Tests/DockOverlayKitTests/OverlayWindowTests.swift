@@ -1,4 +1,5 @@
 import AppKit
+import DockOverlayKitTestSupport
 import XCTest
 
 @testable import DockOverlayKit
@@ -60,38 +61,11 @@ final class OverlayWindowTests: XCTestCase {
 
   // MARK: - Fades
 
-  private final class FadeRecorder: OverlayWindow.Fader {
-    var fades: [(alpha: CGFloat, duration: TimeInterval)] = []
-    var completesAtOnce = true
-    var pending: [@MainActor () -> Void] = []
-
-    func fade(
-      _ window: NSWindow,
-      to alpha: CGFloat,
-      over duration: TimeInterval,
-      then completion: @escaping @MainActor () -> Void
-    ) {
-      fades.append((alpha, duration))
-      window.alphaValue = alpha
-      if completesAtOnce {
-        completion()
-      } else {
-        pending.append(completion)
-      }
-    }
-  }
-
-  private func recordingFades(of overlay: OverlayWindow) -> FadeRecorder {
-    let recorder = FadeRecorder()
-    overlay.fader = recorder
-    return recorder
-  }
-
   private let fadeDuration: TimeInterval = 0.2
 
   func testShowingFadesTheWindowInOverTheFade() {
     let overlay = overlay()
-    let recorder = recordingFades(of: overlay)
+    let recorder = FadeRecorder(overlay)
 
     overlay.show(at: offscreenFrame)
 
@@ -102,7 +76,7 @@ final class OverlayWindowTests: XCTestCase {
 
   func testFadingOutFadesTheWindowToTransparentAndKeepsItOnScreen() {
     let overlay = overlay()
-    let recorder = recordingFades(of: overlay)
+    let recorder = FadeRecorder(overlay)
     overlay.show(at: offscreenFrame)
 
     overlay.fadeOut(at: offscreenFrame)
@@ -114,7 +88,7 @@ final class OverlayWindowTests: XCTestCase {
 
   func testHidingWithAFadeFadesFirstThenTakesTheWindowOffScreen() {
     let overlay = overlay()
-    let recorder = recordingFades(of: overlay)
+    let recorder = FadeRecorder(overlay)
     overlay.show(at: offscreenFrame)
 
     overlay.hide(fading: true)
@@ -126,7 +100,7 @@ final class OverlayWindowTests: XCTestCase {
 
   func testHidingWithoutAFadeStartsNone() {
     let overlay = overlay()
-    let recorder = recordingFades(of: overlay)
+    let recorder = FadeRecorder(overlay)
     overlay.show(at: offscreenFrame)
 
     overlay.hide()
@@ -137,7 +111,7 @@ final class OverlayWindowTests: XCTestCase {
 
   func testShowingDuringAFadingHideKeepsTheWindowOnScreen() {
     let overlay = overlay()
-    let recorder = recordingFades(of: overlay)
+    let recorder = FadeRecorder(overlay)
     overlay.show(at: offscreenFrame)
     recorder.completesAtOnce = false
 
