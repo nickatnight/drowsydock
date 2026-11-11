@@ -1,7 +1,6 @@
 import DrowsyDockCore
 import XCTest
 
-/// A small generator whose sequence depends only on its seed.
 private struct SplitMix64: RandomNumberGenerator {
   private var state: UInt64
 

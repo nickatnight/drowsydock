@@ -8,7 +8,6 @@ public enum PreferencesChange {
   /// (only in the live domain, so the restore removes it).
   public static func summary(live: [String: Any], backup: [String: Any]) -> [String] {
     let keys = Set(live.keys).union(backup.keys).sorted()
-    // Every key is in one dictionary or both, so a key missing from one is added or removed.
     return keys.compactMap { key in
       guard let saved = backup[key] else { return "removed: \(key)" }
       guard let now = live[key] else { return "added: \(key)" }

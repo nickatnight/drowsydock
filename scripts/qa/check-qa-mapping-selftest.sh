@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Shows that scripts/qa/check-qa-mapping.sh catches each kind of error: it plants one at a time in
-# a copy of docs/manual-qa.md (or of docs/qa-rows.txt) and expects the check to fail, and expects
-# the unchanged copy to pass. scripts/check.sh fast runs it.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 scratch="$(mktemp -d)"
@@ -9,7 +6,6 @@ trap 'rm -rf "$scratch"' EXIT
 
 failed=0
 
-# copy NAME: a fresh copy of the doc and the row list in their own folder.
 copy() {
   mkdir -p "$scratch/$1"
   cp docs/manual-qa.md docs/qa-rows.txt "$scratch/$1/"
@@ -25,7 +21,6 @@ if ! check_copy unchanged; then
   failed=1
 fi
 
-# Each plant: a name, then a perl substitution for the doc, or for the row list with "rows:".
 plants=(
   'a missing method|s/`AppCoordinatorTests\.testLaunchingAsleepPlaysNoWave`/`AppCoordinatorTests.testNoSuchThing`/'
   'an unknown class|s/`AppCoordinatorTests\.testLaunchingAsleepPlaysNoWave`/`NoSuchTests`/'
@@ -39,7 +34,6 @@ plants=(
   'a renumbered row|s/^\| 11\.8 \|/| 11.9 |/'
   'rows:a row missing from the list|s/^11\.8\n//'
 )
-# The checks run side by side, each on its own copy; the results are read once all have ended.
 index=0
 for plant in "${plants[@]}"; do
   index=$((index + 1))

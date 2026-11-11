@@ -35,7 +35,6 @@ final class OverlayLogTests: XCTestCase {
     XCTAssertNil(OverlayLog.perchFacing(in: "Overlay: hidden"))
   }
 
-  // The compact timestamp `log stream --style compact` starts each line with, in local time.
   func testTheTimeIsReadFromTheLinesTimestamp() throws {
     let utc = try XCTUnwrap(TimeZone(identifier: "UTC"))
     let line =

@@ -1,9 +1,6 @@
 # Saves and restores a defaults domain exactly, for scripts/qa-live.sh, which changes the Dock's
 # preferences (com.apple.dock) and must put them back. scripts/qa/check-dock-restore.sh runs these
 # functions against a scratch domain in a temporary folder, never against com.apple.dock.
-#
-# Source it, then set dock_domain and dock_backup. dock_restart relaunches whatever reads the
-# domain; the check redefines it.
 
 dock_domain="com.apple.dock"
 dock_backup=""
@@ -12,7 +9,6 @@ dock_restart() {
   killall Dock
 }
 
-# The command a person runs by hand to restore after a kill -9.
 dock_restore_command() {
   printf 'plutil -lint -s %q && { defaults delete %q; defaults import %q %q; } && killall Dock && rm %q' \
     "$dock_backup" "$dock_domain" "$dock_domain" "$dock_backup" "$dock_backup"
@@ -44,9 +40,9 @@ dock_matches_backup() {
 
 # Saves the domain to dock_backup through a temporary file in the same folder, so a run killed
 # mid-export never leaves a partial backup. The backup is readable by its owner only, like the
-# Dock's own plist: it holds the pinned apps and the recent-apps list. The backup must parse and match the live domain;
-# otherwise nothing is kept and it returns 1. `defaults export` exits 0 even when it can't write,
-# so only these checks catch a failed save.
+# Dock's own plist: it holds the pinned apps and the recent-apps list. The backup must parse and
+# match the live domain; otherwise nothing is kept and it returns 1. `defaults export` exits 0
+# even when it can't write, so only these checks catch a failed save.
 save_dock_backup() {
   local temporary="$dock_backup.tmp"
   rm -f "$temporary"

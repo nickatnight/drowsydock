@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 # Runs scripts/qa/dock-preferences.sh against a scratch defaults domain in a temporary folder, never
-# com.apple.dock: a save and an exact restore, a restore with nothing changed, a corrupt or
-# truncated backup, an export that can't be written (a missing folder and a read-only one), an
-# export that doesn't match, an import that fails, an import that "succeeds" without taking, a
-# Ctrl-C between the delete and the import, the caller's traps after a restore, and the printed
-# restore-by-hand command. scripts/check.sh fast runs it.
+# com.apple.dock.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 scratch="$(mktemp -d)"
@@ -42,7 +38,6 @@ fresh_domain() {
 
 original="$scratch/original.xml"
 
-# A save, a harmless change, and a restore that removes it exactly.
 fresh_domain
 dock_domain_xml >"$original"
 expect "the save succeeds" save_dock_backup
@@ -56,14 +51,12 @@ expect "the domain equals the original" cmp -s "$original" <(dock_domain_xml)
 expect "the backup is deleted after a verified restore" test ! -e "$dock_backup"
 expect "the Dock is relaunched once" test "$restarts" -eq 1
 
-# Nothing changed: no relaunch, and the backup goes.
 fresh_domain
 save_dock_backup
 expect "an unchanged restore succeeds" restore_dock
 expect "an unchanged restore relaunches nothing" test "$restarts" -eq 0
 expect "an unchanged restore deletes the backup" test ! -e "$dock_backup"
 
-# A backup that doesn't parse: the domain is left alone and the backup kept.
 fresh_domain
 save_dock_backup
 defaults write "$dock_domain" orientation -string right
@@ -78,14 +71,12 @@ expect "a corrupt backup leaves the domain changed, not wiped" \
 expect "a corrupt backup is kept" test -s "$dock_backup"
 expect "a corrupt backup relaunches nothing" test "$restarts" -eq 0
 
-# An export that can't be written: no backup, and the save reports it.
 fresh_domain
 dock_backup="/nonexistent-qa-folder/dock-backup.plist"
 expect_failure "a save that can't write fails" save_dock_backup
 expect "a failed save leaves no backup" test ! -e "$dock_backup"
 dock_backup="$scratch/qa/dock-backup.plist"
 
-# An export that writes something other than the live domain: the save fails and keeps nothing.
 fresh_domain
 defaults() {
   if [[ $1 == export && $3 != - ]]; then
@@ -109,8 +100,6 @@ expect "a save into a read-only folder leaves no backup" test ! -e "$dock_backup
 chmod 755 "$scratch/readonly"
 dock_backup="$scratch/qa/dock-backup.plist"
 
-# An import that exits 0 but leaves the domain different: the compare catches it, the backup is
-# kept and the Dock isn't relaunched.
 fresh_domain
 save_dock_backup
 defaults write "$dock_domain" orientation -string left
@@ -127,8 +116,7 @@ expect "an import that doesn't take keeps the backup" test -s "$dock_backup"
 expect "an import that doesn't take relaunches nothing" test "$restarts" -eq 0
 rm -f "$dock_backup"
 
-# The command printed for restoring by hand after a kill -9 puts the domain back exactly and
-# removes the backup. killall is stubbed: it must never reach the real Dock.
+# killall is stubbed: it must never reach the real Dock.
 fresh_domain
 dock_domain_xml >"$original"
 save_dock_backup
@@ -141,8 +129,6 @@ defaults write "$dock_domain" qa-live-selftest -bool true
 expect "the printed command restores the domain exactly" cmp -s "$original" <(dock_domain_xml)
 expect "the printed command removes the backup" test ! -e "$dock_backup"
 
-# A restore leaves the caller's traps as they were: qa-live.sh restores mid-run and still needs
-# its Ctrl-C handler afterwards.
 fresh_domain
 save_dock_backup
 defaults write "$dock_domain" orientation -string left
@@ -152,7 +138,6 @@ restore_dock
 expect "the caller's INT trap is back after a restore" test "$(trap -p INT)" = "$before_traps"
 trap - INT
 
-# An import that fails after the delete: the backup is kept, and nothing is relaunched.
 fresh_domain
 save_dock_backup
 defaults write "$dock_domain" orientation -string left
@@ -167,7 +152,6 @@ expect "a failed import relaunches nothing" test "$restarts" -eq 0
 expect "a retry with a working import restores" restore_dock
 expect "the retry deletes the backup" test ! -e "$dock_backup"
 
-# A Ctrl-C between the delete and the import is ignored, so the restore still completes.
 fresh_domain
 save_dock_backup
 defaults write "$dock_domain" orientation -string left

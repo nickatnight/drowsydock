@@ -1,14 +1,7 @@
 #!/usr/bin/env bash
 # Runs qa-live.sh's restore self-test and its exit cleanup against a scratch defaults domain, never
 # com.apple.dock. A `defaults` stub sends com.apple.dock to the scratch domain and refuses any other
-# name that contains it; killall, osascript, open, pkill, pgrep and sleep are stubs too. Each case
-# runs the self-test in its own bash process, the way qa-live.sh's main flow does: save the
-# backup, run the self-test, then change the Dock through System Events as the next scenario would.
-# It checks that the compare after the Dock's relaunch passes when nothing changed, and fails when
-# the relaunch wrote a key or the helper fails. It checks that a self-test restore that fails ends
-# the run before any further Dock change, and that cleanup then restores from the kept backup. And
-# it checks that a Ctrl-C after a successful self-test restore doesn't report the Dock unrestored.
-# scripts/check.sh fast runs it after the build that makes qa-helper.
+# name that contains it; killall, osascript, open, pkill, pgrep and sleep are stubs too.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 scratch="$(mktemp -d)"
@@ -35,7 +28,6 @@ source "$SCRATCH/qa-live-functions.sh"
 
 domain="$SCRATCH/dock"
 calls="$SCRATCH/calls.log"
-# FAIL_IMPORTS is how many imports into the domain fail before one succeeds.
 imports_to_fail="${FAIL_IMPORTS:-0}"
 
 defaults() {
@@ -55,7 +47,6 @@ defaults() {
   command defaults "${arguments[@]}"
 }
 
-# The Dock relaunching; RELAUNCH_WRITES names a key the relaunched Dock writes.
 killall() {
   if [[ $* != Dock ]]; then
     echo "killall $*" >>"$calls"
@@ -70,7 +61,6 @@ osascript() { echo "osascript $*" >>"$calls"; }
 open() { echo "open $*" >>"$calls"; }
 pkill() { echo "pkill $*" >>"$calls"; }
 pgrep() { return 0; }
-# INTERRUPT_ON_SLEEP sends this run a Ctrl-C while it waits for the Dock to relaunch.
 sleep() {
   if [[ -n ${INTERRUPT_ON_SLEEP:-} ]]; then
     INTERRUPT_ON_SLEEP=""
@@ -124,7 +114,6 @@ original="$scratch/original.xml"
 output=""
 status=0
 
-# Runs the self-test with the given environment on a fresh scratch domain.
 run_selftest() {
   rm -rf "$scratch/dock.plist" "$scratch/qa" "$scratch/calls.log"
   : >"$scratch/calls.log"
@@ -149,7 +138,6 @@ has_line() {
   grep -qF -- "$1" <<<"$output"
 }
 
-# The run's result rows and its own error lines, for a failure message.
 rows() {
   printf 'exit %s\n' "$status"
   grep -E '^(PASS|FAIL) QA|usage' <<<"$output" | sed 's/^/  /'
@@ -157,14 +145,12 @@ rows() {
 
 relaunch_row="(restore-selftest): after the Dock relaunched, its preferences still equal the backup"
 
-# The Dock writes nothing on relaunch: the compare passes.
 run_selftest
 has_line "PASS QA - $relaunch_row" ||
   fail "a relaunch that changes nothing doesn't pass the compare (status $status):"$'\n'"$(rows)"
 ((status == 0)) || fail "a clean self-test exits $status"
 domain_is_original || fail "a clean self-test leaves the domain changed"
 
-# The relaunched Dock writes a key: the compare fails and names it.
 run_selftest RELAUNCH_WRITES=qa-relaunch-key
 has_line "PASS QA - $relaunch_row" &&
   fail "a relaunch that writes a key passes the compare:"$'\n'"$(rows)"
@@ -172,7 +158,6 @@ grep -q '^FAIL QA - (restore-selftest): .*qa-relaunch-key' <<<"$output" ||
   fail "a relaunch that writes a key isn't a FAIL naming the key:"$'\n'"$(rows)"
 ((status == 1)) || fail "a self-test with a failed compare exits $status, not 1"
 
-# The helper fails: the compare can't be made, and that is a FAIL, not a pass.
 printf '#!/bin/sh\necho "usage: qa-helper preferences-change LIVE.plist BACKUP.plist" >&2\nexit 2\n' \
   >"$scratch/broken-helper"
 chmod +x "$scratch/broken-helper"
@@ -183,8 +168,6 @@ grep -q '^FAIL QA - (restore-selftest)' <<<"$output" ||
   fail "a helper that fails records no FAIL:"$'\n'"$(rows)"
 ((status == 1)) || fail "a self-test whose helper fails exits $status, not 1"
 
-# The self-test's restore fails once: the run stops before the next scenario changes the Dock,
-# and cleanup's retry restores the domain from the kept backup.
 run_selftest FAIL_IMPORTS=1
 has_line "FAIL QA - (restore-selftest): the restore succeeds and verifies" ||
   fail "a failed self-test restore isn't reported:"$'\n'"$(rows)"
@@ -195,8 +178,6 @@ domain_is_original || fail "cleanup didn't restore the domain after a failed sel
 [[ ! -e $scratch/qa/dock-backup.plist ]] ||
   fail "cleanup's restore after a failed self-test restore kept the backup"
 
-# A Ctrl-C while the self-test waits for the relaunched Dock, after its restore succeeded and
-# deleted the backup: cleanup has nothing to restore and reports no failure.
 run_selftest INTERRUPT_ON_SLEEP=1
 ((status == 130)) || fail "a Ctrl-C during the self-test exits $status, not 130"
 grep -q '^FAIL QA' <<<"$output" &&

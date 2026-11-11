@@ -60,11 +60,6 @@ final class OverlayWindowTests: XCTestCase {
 
   // MARK: - Fades
 
-  // Records each fade the window starts. By default it ends the fade at once, so the tests see the
-  // alpha and the length of every fade without waiting for AppKit, which animates only while a
-  // display is awake. With `completesAtOnce` false it sets the alpha but holds the completion, so
-  // a test can act in the middle of a fade. Tests/DrowsyDockTests/Support/FadeRecorder.swift is
-  // the app tests' copy; change both together.
   private final class FadeRecorder {
     var fades: [(alpha: CGFloat, duration: TimeInterval)] = []
     var completesAtOnce = true
@@ -85,7 +80,6 @@ final class OverlayWindowTests: XCTestCase {
     return recorder
   }
 
-  // QA 8.11's "fades out within about 0.2 s", and every fade in and out.
   private let fadeDuration: TimeInterval = 0.2
 
   func testShowingFadesTheWindowInOverTheFade() {
@@ -134,8 +128,6 @@ final class OverlayWindowTests: XCTestCase {
     XCTAssertFalse(overlay.window.isVisible)
   }
 
-  // A quick 5%, 15%, 5% shows the veil again while its fade-out runs. The fade's end must not then
-  // take the shown window off screen.
   func testShowingDuringAFadingHideKeepsTheWindowOnScreen() {
     let overlay = overlay()
     let recorder = recordingFades(of: overlay)
@@ -154,9 +146,6 @@ final class OverlayWindowTests: XCTestCase {
 
   // MARK: - The real fade, through AppKit
 
-  // Wall-clock deadlines, generous so a loaded machine doesn't fail them. AppKit animates windows
-  // only while a display is awake, so these tests run only then; the recorded fades above pin each
-  // fade's alpha and length either way.
   private let realFadeDeadline: TimeInterval = 2
 
   private func skipWhileTheDisplaySleeps() throws {
@@ -166,8 +155,6 @@ final class OverlayWindowTests: XCTestCase {
     )
   }
 
-  // Runs the run loop until `condition` holds, and returns how long that took, or nil after the
-  // deadline.
   private func secondsUntil(_ condition: () -> Bool) -> TimeInterval? {
     let start = Date()
     while !condition() {
@@ -177,8 +164,6 @@ final class OverlayWindowTests: XCTestCase {
     return Date().timeIntervalSince(start)
   }
 
-  // It fades in rather than popping: not opaque at once, and opaque only after at least half the
-  // fade's length.
   func testTheRealFadeInAnimatesToFullOpacity() throws {
     try skipWhileTheDisplaySleeps()
     let overlay = overlay()
@@ -260,7 +245,6 @@ final class OverlayWindowTests: XCTestCase {
     XCTAssertEqual(overlay.frame, offscreenFrame)
   }
 
-  // Job 003 H11: each run of unusable frames logs once, and a usable frame re-arms the log.
   func testAUsableFrameReArmsTheUnusableFrameLog() {
     let overlay = overlay()
     let unusable = CGRect(x: CGFloat.infinity, y: 0, width: 64, height: 80)

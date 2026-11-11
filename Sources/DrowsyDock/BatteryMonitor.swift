@@ -13,7 +13,6 @@ protocol PowerSource {
   ) throws -> any PowerSourceSubscription
 }
 
-/// Keeps a `PowerSource`'s change notifications coming: they stop when it is released.
 protocol PowerSourceSubscription: AnyObject {}
 
 @MainActor

@@ -4,8 +4,6 @@ import XCTest
 
 @testable import DrowsyDock
 
-// QA section 8: the cat's pose in each state, drawn by the real `MascotScene` with the cat still,
-// and the whole overlay (cat, veil and perch) over fixture Docks.
 @MainActor
 final class PoseSnapshotTests: XCTestCase {
   override func setUpWithError() throws {

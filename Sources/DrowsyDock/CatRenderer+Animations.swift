@@ -106,9 +106,6 @@ extension CatRenderer {
     }
   }
 
-  // The wake-up fades the "z"s and the bubble out from where they are. `apply(pose)` set them to
-  // the interrupted transition's target, which may show ones not yet faded in, so they go back to
-  // what was on screen.
   private func keepShownForWakeUpFade(zs alphas: [CGFloat], bubble: CGFloat) {
     for (z, alpha) in zip(zs, alphas) {
       z.alpha = alpha

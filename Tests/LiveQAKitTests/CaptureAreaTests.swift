@@ -21,8 +21,6 @@ final class CaptureAreaTests: XCTestCase {
     XCTAssertEqual(area.screencaptureRegion(primaryHeight: 982), "325,850,862,132")
   }
 
-  // Room for the edge searches around the background, the perch above it, and nothing off the
-  // display.
   func testTheAreaAroundADockHoldsTheSearchesAndThePerchOnTheDisplay() {
     let around = CaptureArea.around(
       background: CGRect(x: 373, y: 5, width: 766, height: 79),

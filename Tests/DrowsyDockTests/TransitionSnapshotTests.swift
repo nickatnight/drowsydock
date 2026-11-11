@@ -6,14 +6,8 @@ import XCTest
 
 @MainActor
 final class TransitionSnapshotTests: XCTestCase {
-  // The awake pose after a wake-up whose first 0.12 s were drawn: edge pixels of the face and ears
-  // differ from a fresh awake pose by up to 32 of 255, and nothing else does. No node property
-  // differs; turning each cached group's rasterizing off, re-adding the groups, re-setting every
-  // shape's path and a new SKRenderer all left it. A wrong pose moves edges by whole pixels, which
-  // differ by over 100.
   private let afterDrawnWakeUp = SnapshotTolerance(channel: 40, differingPixels: 4)
 
-  // The first frame drawn after a change: transitions draw at the one-shot rate.
   private let firstFrame = 1.0 / Double(MascotScene.oneShotFramesPerSecond)
 
   override func setUpWithError() throws {
@@ -149,10 +143,8 @@ final class TransitionSnapshotTests: XCTestCase {
     )
   }
 
-  // MARK: - Charging during a transition (job 003 H3)
+  // MARK: - Charging during a transition
 
-  // The "z"s and the snore bubble are the only parts bluer than red by more than this; the
-  // backdrop is bluer by 16, the cat's fur and eyes are redder.
   private let blueOverRedOfZsAndBubble = 25
 
   private func zAndBubblePixels(in frame: Bitmap) -> Int {

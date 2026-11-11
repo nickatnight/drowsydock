@@ -66,22 +66,17 @@ public struct DockAlignment {
     return checks
   }
 
-  // The QA row the edge checks belong to.
   private var row: String {
     edge == .bottom ? "8.5" : "8.9"
   }
 
-  // One edge of the Dock's background, and the bands of pixels across it to search.
   private struct Side {
     let name: String
     let expected: CGFloat
-    // Whether the edge runs across the screen, so it is found by searching down columns.
     let isHorizontal: Bool
     let bands: [PixelBand]
   }
 
-  // A bottom Dock shows all four edges; a side Dock shows its inner edge and its bottom end, with
-  // the cat on its top end.
   private var sides: [Side] {
     let columns = bands(from: background.minX, to: perch.minX)
     switch edge {

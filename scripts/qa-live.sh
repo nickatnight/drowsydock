@@ -29,7 +29,6 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 root="$PWD"
 
-# QA_DIR and QA_HELPER exist for scripts/qa/check-dry-run.sh, which points them at stubs.
 qa_dir="${QA_DIR:-$root/build/qa}"
 report="$qa_dir/report.md"
 app_log="$qa_dir/app.log"
@@ -41,8 +40,6 @@ subsystem="com.drowsydock.DrowsyDock"
 # shellcheck source=scripts/qa/dock-preferences.sh
 source "$root/scripts/qa/dock-preferences.sh"
 dock_backup="$qa_dir/dock-backup.plist"
-# This run's pid while it owns the backup, and log stream's pid while it runs, so another terminal
-# and the next run can tell a live run from a killed one.
 run_pid_file="$qa_dir/run.pid"
 log_pid_file="$qa_dir/log.pid"
 
@@ -201,7 +198,6 @@ owns_backup=false
 
 # Changes one Dock preference the way System Settings does, through System Events, so the Dock
 # keeps running and the app sees the change through com.apple.dock.prefchanged and Accessibility.
-# PROPERTY and VALUE come from this script's own fixed set, such as "screen edge" left.
 dock_preference() {
   if $dry_run; then
     run_or_print osascript -e \
@@ -249,7 +245,6 @@ put_dock_back() {
   restore_dock
 }
 
-# The pid of another qa-live.sh run that owns build/qa, or nothing.
 other_run_pid() {
   [[ -f $run_pid_file ]] || return 1
   local pid
@@ -293,7 +288,6 @@ cleanup() {
   exit "$status"
 }
 
-# --restore: shows how old the backup is and what it would change, and asks before applying it.
 restore_from_backup() {
   if [[ ! -f $dock_backup ]]; then
     say "No backup at $dock_backup; nothing to restore."
@@ -355,9 +349,6 @@ pause() {
   sleep "$1"
 }
 
-# Every read of the app's log goes through these functions, so the source can change (today a
-# `log stream` writing to build/qa/app.log) without touching the scenarios.
-
 log_mark=0
 
 start_app_log() {
@@ -379,7 +370,6 @@ app_log_alive() {
   [[ -n $log_pid ]] && kill -0 "$log_pid" 2>/dev/null
 }
 
-# The whole log so far, or only what came after the last mark_log.
 app_log_lines() {
   if [[ ${1:-} == since-mark ]]; then
     tail -n "+$((log_mark + 1))" "$app_log"
@@ -412,7 +402,6 @@ last_log() {
   app_log_lines since-mark | grep -E -- "$1" | tail -n 1
 }
 
-# A negative check can only pass while the log is still being read.
 no_log_since_mark() {
   app_log_alive || return 1
   ! app_log_lines since-mark | grep -Eq -- "$1"
@@ -452,9 +441,6 @@ simulate() {
   menu Debug "Simulate battery" "$1"
 }
 
-# The app logs a Changed: line only when the menu line changes, and picking the choice already
-# shown changes nothing. Every level differs from No battery, so a run of checks that waits for
-# Changed: lines starts there.
 start_from_no_battery() {
   simulate "No battery"
 }
@@ -476,7 +462,6 @@ end timeout
 APPLESCRIPT
 }
 
-# This build's process only, never another installed copy.
 app_pid() {
   local pid
   for pid in $(pgrep -x DrowsyDock); do
@@ -493,7 +478,7 @@ app_running() { [[ -n $(app_pid) ]]; }
 app_stopped() { ! app_running; }
 
 # Opens the menu and presses Cmd-Q only once the menu is open, so the key never reaches the
-# terminal or whatever app is in front. Prints "sent" when it pressed it.
+# terminal or whatever app is in front.
 cmd_q_with_menu_open() {
   osascript <<'APPLESCRIPT'
 with timeout of 10 seconds
@@ -537,9 +522,6 @@ quit_app() {
   done
 }
 
-# read_dock [sprite=W,H]: reads the Dock over Accessibility into shell variables named after the
-# helper's keys: dock_orientation, dock_background, dock_screen, dock_first_icon, dock_last_icon,
-# dock_facing, dock_scale, dock_primary_height, and with a sprite size dock_perch and dock_capture.
 read_dock() {
   if $dry_run; then
     printf '    would run: %s dock %s\n' "$helper" "$*"
@@ -560,8 +542,6 @@ read_dock() {
   done <<<"$output"
 }
 
-# Reads the perch the app last logged into dock_logged_perch, then the Dock with that sprite size,
-# so the checks use the size the app draws rather than a copy of it.
 read_dock_and_logged_perch() {
   if $dry_run; then
     printf '    would read the perch from the newest "Overlay: shown" line in %s\n' "$app_log"
@@ -575,7 +555,6 @@ read_dock_and_logged_perch() {
   read_dock sprite="$(field "$dock_logged_perch" 3),$(field "$dock_logged_perch" 4)"
 }
 
-# same_frame A B: whether two x,y,width,height frames agree within half a point.
 same_frame() {
   awk -F, -v a="$1" -v b="$2" 'BEGIN {
     split(a, p, ","); split(b, q, ",")
@@ -608,12 +587,9 @@ capture() {
   screencapture -x -R "$dock_capture_region" "$qa_dir/$1.png" && [[ -s $qa_dir/$1.png ]]
 }
 
-# The symbols a sample shows while the cat draws, and while a run-loop timer fires. Positive and
-# negative checks share them, so a renamed or inlined symbol fails the positive check.
 draw_symbols='drawFrame|displayLinkFired|SKCRenderer'
 timer_symbols='__CFRUNLOOP_IS_CALLING_OUT_TO_A_TIMER_CALLBACK_FUNCTION__'
 
-# sample_app NAME SECONDS: samples this build's process into build/qa/NAME.txt.
 sample_app() {
   local pid
   if $dry_run; then
@@ -625,7 +601,6 @@ sample_app() {
   [[ -n $pid ]] && sample "$pid" "$2" -file "$qa_dir/$1.txt" >/dev/null 2>&1
 }
 
-# A sample check fails when the sample is missing or empty, whatever it looks for.
 sample_has() {
   [[ -s $qa_dir/$2.txt ]] && grep -Eq -- "$1" "$qa_dir/$2.txt"
 }
@@ -731,8 +706,6 @@ preflight() {
 
 selftest_key="qa-live-selftest"
 
-# Runs the real restore once: one harmless key the Dock ignores, then the restore that must remove
-# it, then a fresh backup for the scenarios that follow.
 scenario_restore_selftest() {
   step "restore-selftest: save, add one harmless key, restore"
   run_or_print defaults write com.apple.dock "$selftest_key" -bool true
@@ -758,9 +731,8 @@ scenario_restore_selftest() {
   check - restore-selftest "the harmless key is gone" selftest_key_absent
   check - restore-selftest "the backup is deleted after a verified restore" test ! -e "$dock_backup"
   # The restore compared before it relaunched the Dock. This compares again once the Dock is back,
-  # and names any key it wrote on launch: a Gate 2 watch item, kept strict until it's known. The
-  # helper reads regular files only, not a <(…) pipe. A copy left by a killed run is removed first,
-  # since `defaults export` can exit 0 without writing.
+  # and names any key it wrote on launch. A copy left by a killed run is removed first, since
+  # `defaults export` can exit 0 without writing.
   wait_for_dock_relaunch
   local live="$qa_dir/selftest-live.plist" changes
   rm -f "$live"
@@ -875,7 +847,6 @@ scenario_levels() {
     wait_log "Changed: .* \\(real\\)" 3
 }
 
-# Seconds since the epoch, to the millisecond, from the helper (no perl needed).
 now() {
   qa_helper now
 }
@@ -883,8 +854,6 @@ now() {
 change_started=""
 change_done=""
 
-# timed_change COMMAND…: marks the log, then runs COMMAND (a Dock or pointer change) and notes the
-# time before and after it.
 timed_change() {
   mark_log
   if $dry_run; then
@@ -898,8 +867,6 @@ timed_change() {
   return "$status"
 }
 
-# The newest Overlay: line since the mark, and the first one that matches STATE (and, for shown,
-# the perch DockGeometry gives for the Dock as it is now).
 newest_overlay_line() {
   app_log_lines since-mark | grep -E "Overlay: (shown|fadedOut|hidden)" | tail -n 1
 }
@@ -920,10 +887,6 @@ first_overlay_line() {
   return 1
 }
 
-# expect_overlay_within STATE BUDGET ROWS SCENARIO DETAIL: after the last timed_change, the app
-# must log Overlay: STATE (for shown, at the settled Dock's perch) within BUDGET seconds of the
-# change, by the app's own log timestamp, and no later Overlay: line may undo it. The report gives
-# the latency from the command's end, and from its start.
 expect_overlay_within() {
   local state="$1" budget="$2" rows="$3" scenario="$4" detail="$5"
   if $dry_run; then
@@ -938,7 +901,6 @@ expect_overlay_within() {
     result FAIL "$rows" "$scenario" "$detail: no 'Overlay: $state' line"
     return 1
   fi
-  # Let the Dock and the app settle, then read where the cat belongs.
   sleep 1
   if [[ $state == shown ]] && ! read_dock_and_logged_perch; then
     result FAIL "$rows" "$scenario" "$detail: couldn't read the Dock or the logged perch"
@@ -970,7 +932,6 @@ expect_overlay_within() {
   fi
 }
 
-# The perch the app logged must be the one DockGeometry gives for the Dock as it is now.
 expect_logged_perch_matches() {
   local rows="$1" scenario="$2" detail="$3"
   if $dry_run; then
@@ -1084,7 +1045,6 @@ scenario_hover() {
     return
   fi
 
-  # What the perch looks like with the label showing and no cat, to compare the faded cat with.
   simulate "No battery"
   pointer_to "$(mid_x "$dock_last_icon")" "$(mid_y "$dock_last_icon")"
   pause 1
@@ -1206,7 +1166,6 @@ align_checks() {
   fi
   local line_rows
   while IFS= read -r line; do
-    # The paws on the Dock's edge are also 6.1's "paws on the edge".
     line_rows="$rows"
     [[ $line == *"(8.15)"* ]] && line_rows="8.15 6.1"
     result "${line%% *}" "$line_rows" "align, $label" "${line#* }"
@@ -1215,8 +1174,6 @@ align_checks() {
   $align_failed || forget_captures bare.png awake.png asleep.png align.err
 }
 
-# Deletes screenshots and samples once their checks passed, unless --keep-captures. A failed
-# check keeps them as evidence.
 forget_captures() {
   $dry_run && return
   $keep_captures && return
@@ -1238,9 +1195,6 @@ scenario_align() {
   simulate 80%
 }
 
-# QA 5.5: on a bottom Dock the perch is a 64 x 80 frame whose bottom edge is the background's top
-# edge and whose right edge is the last icon's right edge. The size is the row's own number, so a
-# wrong sprite size handed to the tracker fails here.
 expect_perch_on_last_icon() {
   if $dry_run; then
     printf '    would check: the logged perch is 64 x 80, on the background, at the last icon (QA 5.5)\n'
@@ -1264,12 +1218,10 @@ frame_edge() {
   }' <<<"$1"
 }
 
-# near A B: within half a point.
 near() {
   awk -v a="$1" -v b="$2" 'BEGIN { exit !(a - b <= 0.5 && b - a <= 0.5) }'
 }
 
-# capture_frame NAME FRAME: a screenshot of FRAME, in AppKit points, into build/qa/NAME.png.
 capture_frame() {
   if $dry_run; then
     printf '    would run: screencapture -x -R <%s> %s/%s.png\n' "$2" "$qa_dir" "$1"
@@ -1280,8 +1232,6 @@ capture_frame() {
   screencapture -x -R "$region" "$qa_dir/$1.png" && [[ -s $qa_dir/$1.png ]]
 }
 
-# Whether two screenshots of the same area look the same: at most 1% of pixels differ by more
-# than 24 levels of brightness, which allows for antialiasing and the label's shadow.
 screenshots_match() {
   local counts differing total
   counts="$(qa_helper differing-pixels "$qa_dir/$1.png" "$qa_dir/$2.png")" || return 1
@@ -1289,8 +1239,6 @@ screenshots_match() {
   ((total > 0 && differing * 100 <= total))
 }
 
-# The app's mean CPU over SECONDS of one-second samples, as CONSTRAINTS.md measures it. Fails with
-# no output when the app isn't running or top gave no samples.
 cpu_average() {
   local pid
   pid="$(app_pid)"

@@ -14,8 +14,6 @@ final class DockAlignmentTests: XCTestCase {
     static let cat = 200.0
   }
 
-  // `drawn` is where the Dock really draws its background, which is `background` unless a test
-  // moves it away from the Accessibility frames.
   private func screenshot(
     veil: CGRect? = nil,
     catBottom: Double? = nil,
@@ -111,8 +109,6 @@ final class DockAlignmentTests: XCTestCase {
     XCTAssertEqual(missing, Set(checks.map(\.name)).subtracting(rims))
   }
 
-  // QA 8.5 asks for the veil within 1 pt of the outline itself. The Accessibility frames could be
-  // off while the veil sits on the outline, or the other way round.
   func testAVeilOnTheDrawnOutlinePassesAgainstTheRimEvenWhereTheFramesAreOff() throws {
     let drawn = background.offsetBy(dx: 0, dy: 2)
     let checks = checks(veil: drawn, catBottom: drawn.maxY, drawn: drawn)
@@ -141,8 +137,6 @@ final class DockAlignmentTests: XCTestCase {
     XCTAssertFalse(try XCTUnwrap(checks["veil, bottom edge (8.5)"]).passes)
   }
 
-  // With no rim to find (a Dock as bright as what is behind it, no outline), the veil can't be
-  // judged against the rim: that check must find nothing, not fall back to the frames.
   func testWithNoRimTheVeilAgainstTheRimFindsNothing() throws {
     let flat = LumaImage(width: 400, height: 120, values: [Double](repeating: 60, count: 48_000))
     var veiled = flat.values

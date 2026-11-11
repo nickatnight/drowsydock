@@ -50,9 +50,8 @@ public final class OverlayWindow {
 
   private(set) var hasReportedUnusableFrame = false
 
-  // Runs a fade of `window` to `alpha` over `duration` seconds, then `completion`. Internal so the
-  // kit's and the app's tests can record each fade and end it at once: AppKit runs window
-  // animations only while a display is awake.
+  // Internal so the kit's and the app's tests can record each fade and end it at once: AppKit runs
+  // window animations only while a display is awake.
   var fader: @MainActor (NSWindow, CGFloat, TimeInterval, @escaping @MainActor () -> Void) -> Void =
     OverlayWindow.animatedFade
 

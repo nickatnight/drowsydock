@@ -195,9 +195,6 @@ final class AppCoordinatorTests: XCTestCase {
 
   // MARK: - When the overlay shows
 
-  // The tracker's own rule (DockTrackerTests.testTheOverlayStaysHiddenWithoutTheGrant) hides the
-  // overlay without the grant. This test proves the coordinator's part: the grant reaches the
-  // tracker at launch and when it is revoked, and the tracker's hidden presentation hides the cat.
   func testTheGrantReachesTheTrackerAndItsHiddenPresentationHidesTheCat() {
     let rig = rig(granted: false)
     XCTAssertEqual(rig.tracker.grants, [false])

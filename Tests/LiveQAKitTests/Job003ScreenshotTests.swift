@@ -15,13 +15,10 @@ final class Job003ScreenshotTests: XCTestCase {
     layout: DisplayLayout(primary: CGRect(x: 0, y: 0, width: 1512, height: 982))
   )
 
-  // The full screenshot's top-left pixel shows AppKit point (312.4, 159), at 2 pixels a point.
-  // Job 003 fitted it from the Finder icon's centre and the old veil's top edge (`veilfit`).
   private static let screenshotTopLeft = CGPoint(x: 312.4, y: 159)
 
   private static let scale = 2.0
 
-  // Each crop's pixel rectangle within the full screenshot.
   private func crop(_ name: String, x: Double, y: Double, width: Double, height: Double) throws -> (
     LumaImage, CaptureArea
   ) {
@@ -36,9 +33,6 @@ final class Job003ScreenshotTests: XCTestCase {
     return (image, CaptureArea(frame: frame, scale: Self.scale))
   }
 
-  // Bands of columns or rows inside each crop that avoid its edges, and the rows or columns to
-  // search: around the veil's top edge but above the Dock's rim, which is a stronger feature,
-  // around the rim's top edge, and around its right end.
   private let insideColumns = 10...70
   private let aboveTheRim = 5...27
   private let aroundTheTopRim = 15...45

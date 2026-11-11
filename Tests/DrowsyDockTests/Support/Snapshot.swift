@@ -12,7 +12,6 @@ enum Snapshot {
     .deletingLastPathComponent().deletingLastPathComponent()
     .appendingPathComponent(".build/snapshot-failures")
 
-  // The colour every snapshot is drawn over, so the cat's outline shows.
   static let backdrop: (red: UInt8, green: UInt8, blue: UInt8) = (214, 220, 230)
 
   // The Mac the references were drawn on, written beside them when recording. Another GPU or a

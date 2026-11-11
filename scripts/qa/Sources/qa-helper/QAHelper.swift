@@ -31,8 +31,6 @@ enum QAHelper {
     NSScreen.screens.first?.frame.height ?? 0
   }
 
-  // With `sprite`, the size the app draws the cat at (from its log), it also prints where
-  // DockGeometry perches that sprite and the area to capture around the Dock and the perch.
   static func printDock(sprite: CGSize?) {
     let geometry: DockGeometry
     do {
