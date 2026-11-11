@@ -232,12 +232,19 @@ open_app_log() {
   app_log_opened=true
 }
 
+# Prints the QA log from byte offset $1. Once the app has started the file over at its size limit,
+# the file is shorter than the offset and all of it is newer.
+app_log_from() {
+  local from="$1"
+  if (($(app_log_size) < from)); then from=0; fi
+  tail -c "+$((from + 1))" "$app_log"
+}
+
 app_log_lines() {
   local from="$run_start"
   if [[ ${1:-} == since-mark ]]; then from="$log_mark"; fi
   [[ -f $app_log ]] || return 0
-  if (($(app_log_size) < from)); then from=0; fi
-  tail -c "+$((from + 1))" "$app_log" | grep -F -- " DrowsyDock[$app_log_pid] "
+  app_log_from "$from" | grep -F -- " DrowsyDock[$app_log_pid] "
 }
 
 mark_log() {
@@ -282,9 +289,7 @@ no_log_since_mark() {
 save_run_log() {
   $app_log_opened && [[ -f $app_log ]] || return 0
   mkdir -p "$qa_dir"
-  local from="$run_start"
-  if (($(app_log_size) < from)); then from=0; fi
-  tail -c "+$((from + 1))" "$app_log" >"$run_log"
+  app_log_from "$run_start" >"$run_log"
 }
 
 # MARK: - Driving the app

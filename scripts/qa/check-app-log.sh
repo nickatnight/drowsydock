@@ -26,6 +26,7 @@ qa_dir="$SCRATCH/qa"
 app="$SCRATCH/DrowsyDock.app"
 app_binary="$app/Contents/MacOS/DrowsyDock"
 app_log="$SCRATCH/qa.log"
+run_log="$qa_dir/app.log"
 calls="$SCRATCH/calls.log"
 
 append() {
@@ -94,6 +95,18 @@ case_started_over() {
   : >"$app_log"
   append 8 9
   answer "a line after the app started the file over" wait_log "Overlay: hidden" 1
+}
+
+case_run_log() {
+  append 1 5 7
+  open_app_log
+  append 2 4
+  save_run_log
+  echo "run log: $(cut -d' ' -f2 "$run_log" | tr '\n' ' ')"
+  : >"$app_log"
+  append 8
+  save_run_log
+  echo "run log after the start-over: $(cut -d' ' -f4- "$run_log")"
 }
 
 case_overlay_in_time() {
@@ -192,6 +205,10 @@ expect "a line after the app started the file over: yes"
 run_case facing
 expect "faces left: yes"
 expect "faces right: no"
+
+run_case run_log
+expect "run log: DrowsyDock[4242] DrowsyDock[999] "
+expect "run log after the start-over: qa-log: qa.log reached its limit of 1048576 bytes and started over"
 
 run_case overlay_in_time
 expect "PASS QA 7.1 (position): the cat moves: 0.12 s after the change returned (0.30 s after it started; budget 1 s)"
