@@ -10,7 +10,6 @@ final class OverlayLogTests: XCTestCase {
     layout: DisplayLayout(primary: CGRect(x: 0, y: 0, width: 1512, height: 982))
   )
 
-  // DockTracker logs `Overlay: \(String(describing: presentation))`.
   func testThePerchIsReadFromTheLineDockTrackerLogs() throws {
     let perch = dock.perch(for: CGSize(width: 64, height: 80))
     for presentation in [OverlayPresentation.shown(perch, on: dock), .fadedOut(perch, on: dock)] {

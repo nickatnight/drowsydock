@@ -13,9 +13,8 @@ import Foundation
 @MainActor
 final class QALogFile {
   enum Error: Swift.Error, CustomStringConvertible {
-    /// `open` or `mkdir` failed, with this `errno`. A symbolic link fails with `ELOOP`.
+    /// A symbolic link fails with `ELOOP`.
     case openFailed(path: String, errno: Int32)
-    /// The path isn't a folder or a file of this user's, or the file has another name too.
     case notPrivate(path: String)
 
     var description: String {
@@ -32,7 +31,6 @@ final class QALogFile {
   static let folder = FileManager.default.homeDirectoryForCurrentUser
     .appending(path: "Library/Logs/DrowsyDock")
   static let fileName = "qa.log"
-  // About 1,000 `Overlay:` lines for a Dock of 20 icons; each lists every icon's frame.
   static let sizeLimit = 1_048_576
 
   private static let logger = MirroredLogger(
@@ -44,8 +42,6 @@ final class QALogFile {
   private let sizeLimit: Int
   private let line = QALogLine(timeZone: .current)
 
-  /// Mirrors every log line into the file when `arguments` hold `--qa-log`, and returns the file.
-  /// Returns `nil`, creating nothing, without the argument or when the path is refused.
   @discardableResult
   static func startIfRequested(
     by arguments: [String],
@@ -145,7 +141,6 @@ final class QALogFile {
     ) + "\n"
   }
 
-  // A line that can't be written is dropped: reporting it would log, and so write, again.
   private func write(_ bytes: [UInt8]) {
     _ = bytes.withUnsafeBytes { Darwin.write(descriptor, $0.baseAddress, $0.count) }
   }

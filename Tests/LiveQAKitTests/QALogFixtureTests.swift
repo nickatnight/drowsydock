@@ -4,8 +4,6 @@ import Foundation
 import LiveQAKit
 import XCTest
 
-// scripts/qa/check-app-log.sh runs qa-live.sh's log functions over Fixtures/qa.log. These tests pin
-// that the fixture is what the app writes and what the helper reads.
 final class QALogFixtureTests: XCTestCase {
   private static let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
     .appending(path: "Fixtures/qa.log")

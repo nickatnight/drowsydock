@@ -12,7 +12,6 @@ final class MirroredLoggerTests: XCTestCase {
   private var unified: [Line] = []
   private var mirrored: [Line] = []
 
-  // Records what reaches each sink until the test ends, then puts the real sinks back.
   private func recordLines(inTheUnifiedLog recordsUnifiedLog: Bool = true) {
     let realUnifiedLog = MirroredLogger.unifiedLog
     if recordsUnifiedLog {

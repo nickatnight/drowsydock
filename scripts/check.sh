@@ -27,7 +27,6 @@ source_roots=(Sources scripts/qa/Sources)
 # Carbon and Quartz re-export AX and AppKit.
 coverage_exempt_imports='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?(AppKit|ApplicationServices|Carbon|Cocoa|HIServices|IOKit|Quartz|ServiceManagement|SpriteKit|SwiftUI)([.[:space:]]|$)'
 
-# Only MirroredLogger may import the unified log, so no line can skip the QA log's mirror.
 unified_log_imports='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?(os|OSLog)([.[:space:]]|$)'
 
 work="$(mktemp -d)"

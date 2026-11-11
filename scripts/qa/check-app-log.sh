@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 # Runs qa-live.sh's log reads over Tests/LiveQAKitTests/Fixtures/qa.log, the QA log the app writes
-# when launched with --qa-log (ADR 0020), with the real debug qa-helper. Each case copies fixture
-# lines into a scratch qa.log as the app would append them. open, pgrep, ps, kill, sleep, menu and
-# read_dock are stubs, so nothing is launched, clicked or read from the Dock. The app the run
-# launched is pid 4242; the fixture also holds an earlier run's line and another DrowsyDock's
-# (pid 999).
+# when launched with --qa-log (ADR 0020), with the real debug qa-helper.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 scratch="$(mktemp -d)"
@@ -32,7 +28,6 @@ app_binary="$app/Contents/MacOS/DrowsyDock"
 app_log="$SCRATCH/qa.log"
 calls="$SCRATCH/calls.log"
 
-# Appends the fixture's lines with these numbers, as the app would write them.
 append() {
   local number
   for number in "$@"; do sed -n "${number}p" "$FIXTURE" >>"$app_log"; done
@@ -53,14 +48,12 @@ answer() {
   if "${@:2}"; then echo "$1: yes"; else echo "$1: no"; fi
 }
 
-# A run starts after line 1, an earlier run's grant line of the same pid.
 start_run() {
   append 1
   open_app_log
   app_log_pid=4242
 }
 
-# The fixture's Overlay: shown line, logged at 1794270667.123.
 time_overlay_change() {
   change_started="$(awk -v s="$1" 'BEGIN { printf "%.3f", 1794270667.123 - s }')"
   change_done="$(awk -v d="$2" 'BEGIN { printf "%.3f", 1794270667.123 - d }')"
@@ -163,7 +156,6 @@ fail() {
   failed=1
 }
 
-# run_case NAME [VARIABLE=VALUE...] runs case_NAME with those variables set.
 run_case() {
   case_name="$1"
   rm -rf "$scratch/qa" "$scratch/qa.log" "$scratch/calls.log"

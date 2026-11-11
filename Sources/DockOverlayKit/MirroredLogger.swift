@@ -5,7 +5,7 @@ import os
 ///
 /// Every line the app and this library log goes through a `MirroredLogger`. The app sets `mirror`
 /// at launch only when asked for a QA log (ADR 0020); otherwise a line goes to the unified log
-/// alone. Every message is public, as each `Logger` call here marked it before.
+/// alone. Every message is public.
 @MainActor
 public struct MirroredLogger {
   /// A line's severity. Each level is the `Logger` method of the same name.
@@ -19,7 +19,6 @@ public struct MirroredLogger {
   public typealias Mirror = @MainActor (_ level: Level, _ category: String, _ message: String) ->
     Void
 
-  /// What sends a line to the unified log through its `Logger`.
   package typealias UnifiedLog = @MainActor (Logger, Level, String) -> Void
 
   /// Receives every line after the unified log does. `nil`, the default, mirrors nothing.

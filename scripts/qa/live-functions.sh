@@ -213,9 +213,6 @@ pause() {
   sleep "$1"
 }
 
-# The app appends to $app_log only when launch_app starts it with --qa-log (ADR 0020). The file
-# outlives runs and may hold another DrowsyDock's lines, so a read starts at this run's first byte,
-# or at a later mark, and keeps only the lines of the app that launch_app started from this build.
 app_log_opened=false
 run_start=0
 log_mark=0
@@ -239,7 +236,6 @@ app_log_lines() {
   local from="$run_start"
   if [[ ${1:-} == since-mark ]]; then from="$log_mark"; fi
   [[ -f $app_log ]] || return 0
-  # The app starts the file over at its size limit; everything in it is then newer than any mark.
   if (($(app_log_size) < from)); then from=0; fi
   tail -c "+$((from + 1))" "$app_log" | grep -F -- " DrowsyDock[$app_log_pid] "
 }
@@ -278,13 +274,11 @@ last_log() {
   app_log_lines since-mark | grep -E -- "$1" | tail -n 1
 }
 
-# A missing line counts only while the app is still there to have written it.
 no_log_since_mark() {
   app_alive || return 1
   ! logged_since_mark "$1"
 }
 
-# Keeps this run's lines, of every process, in build/qa/app.log for the report.
 save_run_log() {
   $app_log_opened && [[ -f $app_log ]] || return 0
   mkdir -p "$qa_dir"
@@ -394,8 +388,6 @@ launch_app() {
   find_launched_app && wait_log "Accessibility granted: (true|false)" 10
 }
 
-# Sets app_log_pid to the DrowsyDock that launch_app started from this build, whose lines the log
-# reads keep.
 find_launched_app() {
   $dry_run && return 0
   local waited=0
@@ -408,8 +400,6 @@ find_launched_app() {
   return 1
 }
 
-# The app keeps writing the QA log until it quits; relaunched without --qa-log it runs on as it
-# did before the run, and writes no file.
 relaunch_without_qa_log() {
   quit_app
   open "$app"
@@ -540,7 +530,6 @@ preflight() {
     }
   done
 
-  # restore-selftest compares the Dock's preferences through the helper, so every run builds it.
   say "Building the helper (it is never part of the app bundle)."
   if ! run_or_print swift build -c release --product qa-helper; then
     say "qa-helper failed to build; see the swift build output above." >&2

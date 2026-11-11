@@ -6,7 +6,6 @@ import XCTest
 
 @MainActor
 final class QALogFileTests: XCTestCase {
-  // A fresh Logs folder per test; DrowsyDock's folder inside it doesn't exist yet.
   private var folder: URL!
   private var file: URL { folder.appending(path: "qa.log") }
 
@@ -20,7 +19,6 @@ final class QALogFileTests: XCTestCase {
     }
   }
 
-  // Undoes startIfRequested's mirror when the test ends.
   private func start(_ arguments: [String], sizeLimit: Int = QALogFile.sizeLimit) -> QALogFile? {
     addTeardownBlock { MirroredLogger.mirror = nil }
     return QALogFile.startIfRequested(by: arguments, in: folder, sizeLimit: sizeLimit)
@@ -30,7 +28,6 @@ final class QALogFileTests: XCTestCase {
     try String(contentsOf: file, encoding: .utf8).split(separator: "\n").map(String.init)
   }
 
-  // A line's message starts after the category's ": "; the time before it has no ": ".
   private func message(_ line: String) -> String {
     line.components(separatedBy: ": ").dropFirst().joined(separator: ": ")
   }

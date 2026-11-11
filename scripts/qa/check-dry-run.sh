@@ -20,7 +20,6 @@ done
 # a redirect into it would succeed; nothing may appear in it.
 qa_dir="$stubs/qa"
 mkdir "$qa_dir"
-# The QA log lives under HOME, so HOME is an empty folder that must stay empty.
 home="$stubs/home"
 mkdir "$home"
 
