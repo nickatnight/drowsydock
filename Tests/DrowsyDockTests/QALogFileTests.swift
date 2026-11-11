@@ -28,8 +28,12 @@ final class QALogFileTests: XCTestCase {
     try String(contentsOf: file, encoding: .utf8).split(separator: "\n").map(String.init)
   }
 
-  private func message(_ line: String) -> String {
-    line.components(separatedBy: ": ").dropFirst().joined(separator: ": ")
+  private func message(_ line: String) throws -> String {
+    let match = try XCTUnwrap(
+      line.wholeMatch(of: #/\S+ DrowsyDock\[\d+\] \w+ [\w-]+: (.*)/#),
+      "not a QA log line: \(line)"
+    )
+    return String(match.output.1)
   }
 
   private func permissions(of url: URL) throws -> Int {
@@ -76,7 +80,7 @@ final class QALogFileTests: XCTestCase {
     battery.notice("second launch")
 
     XCTAssertEqual(
-      try lines().map { $0.components(separatedBy: ": ").last },
+      try lines().map(message),
       ["first launch", "second launch"]
     )
   }
