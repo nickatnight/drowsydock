@@ -176,7 +176,9 @@ final class CatRenderer {
     apply(pose)
   }
 
-  func apply(_ pose: MascotPose) {
+  /// Puts the cat in `pose` at once. With `keepingZsAndBubble`, the "z"s and the snore bubble keep
+  /// the alpha they have.
+  func apply(_ pose: MascotPose, keepingZsAndBubble: Bool = false) {
     self.pose = pose
     torso.setScale(1)
     head.position = Metrics.neck
@@ -192,6 +194,7 @@ final class CatRenderer {
     let droop = CGFloat(pose.earDroop) * Metrics.maxEarDroop
     ears[0].zRotation = droop
     ears[1].zRotation = -droop
+    guard !keepingZsAndBubble else { return }
     for (index, z) in zs.enumerated() {
       z.alpha = index < pose.zCount ? 1 : 0
     }

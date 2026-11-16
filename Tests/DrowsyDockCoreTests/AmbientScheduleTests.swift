@@ -1,8 +1,7 @@
 import DrowsyDockCore
 import XCTest
 
-/// SplitMix64: a small generator whose sequence depends only on its seed.
-private struct SeededGenerator: RandomNumberGenerator {
+private struct SplitMix64: RandomNumberGenerator {
   private var state: UInt64
 
   init(seed: UInt64) {
@@ -25,7 +24,7 @@ final class AmbientScheduleTests: XCTestCase {
     count: Int = 2000,
     seed: UInt64 = 7
   ) -> [Double] {
-    var generator = SeededGenerator(seed: seed)
+    var generator = SplitMix64(seed: seed)
     return (0..<count).compactMap { _ in
       guard case .oneShot(_, let delay) = AmbientSchedule.next(for: state, using: &generator)
       else { return nil }
@@ -34,7 +33,7 @@ final class AmbientScheduleTests: XCTestCase {
   }
 
   private func behaviour(for state: DrowsinessState) -> AmbientBehaviour {
-    var generator = SeededGenerator(seed: 1)
+    var generator = SplitMix64(seed: 1)
     return AmbientSchedule.next(for: state, using: &generator)
   }
 

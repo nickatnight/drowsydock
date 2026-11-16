@@ -1,11 +1,24 @@
+import DockOverlayKit
 import DrowsyDockCore
 import Observation
-import os
+
+@MainActor
+protocol PowerSource {
+  var isLowPowerModeOn: Bool { get }
+
+  func readBattery() -> BatteryReading?
+
+  func subscribe(
+    onChange: @escaping @MainActor @Sendable () -> Void
+  ) throws -> any PowerSourceSubscription
+}
+
+protocol PowerSourceSubscription: AnyObject {}
 
 @MainActor
 @Observable
 final class BatteryMonitor {
-  private static let logger = Logger(
+  private static let logger = MirroredLogger(
     subsystem: "com.drowsydock.DrowsyDock",
     category: "battery"
   )
@@ -16,25 +29,32 @@ final class BatteryMonitor {
   /// Called after each change of the tracker's phase, with the new phase.
   @ObservationIgnored var onPhaseChange: ((DrowsinessTracker.Phase) -> Void)?
 
-  @ObservationIgnored private var powerChanges: IOKitPowerSource.Subscription?
+  @ObservationIgnored private let source: any PowerSource
+  @ObservationIgnored private let clock: any Clock<Duration>
+  @ObservationIgnored private var powerChanges: (any PowerSourceSubscription)?
   @ObservationIgnored private var wakingTask: Task<Void, Never>?
 
   var statusText: String {
     StatusLine.text(for: session.tracker, isLowPowerModeOn: isLowPowerModeOn)
   }
 
-  init() {
-    session = BatterySession(realReading: IOKitPowerSource.readBattery())
-    isLowPowerModeOn = IOKitPowerSource.isLowPowerModeOn
-    Self.logger.notice("Started: \(self.logLine, privacy: .public)")
+  init(
+    source: any PowerSource = IOKitPowerSource(),
+    clock: any Clock<Duration> = ContinuousClock()
+  ) {
+    self.source = source
+    self.clock = clock
+    session = BatterySession(realReading: source.readBattery())
+    isLowPowerModeOn = source.isLowPowerModeOn
+    Self.logger.notice("Started: \(logLine)")
 
     do {
-      powerChanges = try IOKitPowerSource.Subscription { [weak self] in
+      powerChanges = try source.subscribe { [weak self] in
         self?.powerSourceDidChange()
       }
     } catch {
       Self.logger.error(
-        "No power source notifications, so the status will not update: \(error, privacy: .public)"
+        "No power source notifications, so the status will not update: \(error)"
       )
     }
   }
@@ -45,9 +65,9 @@ final class BatteryMonitor {
 
   private func powerSourceDidChange() {
     Self.logger.debug("Power source notification")
-    let reading = IOKitPowerSource.readBattery()
+    let reading = source.readBattery()
     changeStatus {
-      isLowPowerModeOn = IOKitPowerSource.isLowPowerModeOn
+      isLowPowerModeOn = source.isLowPowerModeOn
       session.receive(reading)
     }
   }
@@ -66,8 +86,8 @@ final class BatteryMonitor {
   private func scheduleEndOfWakingIfEntered(from previousPhase: DrowsinessTracker.Phase) {
     guard session.tracker.phase == .waking, previousPhase != .waking else { return }
     wakingTask?.cancel()
-    wakingTask = Task { [weak self] in
-      guard (try? await Task.sleep(for: DrowsinessTracker.wakingDuration)) != nil, let self else {
+    wakingTask = Task { [weak self, clock] in
+      guard (try? await clock.sleep(for: DrowsinessTracker.wakingDuration)) != nil, let self else {
         return
       }
       changeStatus { session.finishWaking() }
@@ -76,7 +96,7 @@ final class BatteryMonitor {
 
   private func logStatusIfChanged(from previousLogLine: String) {
     guard logLine != previousLogLine else { return }
-    Self.logger.notice("Changed: \(self.logLine, privacy: .public)")
+    Self.logger.notice("Changed: \(logLine)")
   }
 
   private var logLine: String {

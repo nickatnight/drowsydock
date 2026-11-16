@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Runs the checks from CONSTRAINTS.md.
 #
-#   scripts/check.sh fast   compile, format, floor rules, secrets (run after every edit)
+#   scripts/check.sh fast   compile, format, the live QA script's checks (dry run, Dock restore,
+#                           restore self-test, log reads), floor rules, the QA row mapping,
+#                           secrets (every edit)
 #   scripts/check.sh task   fast + tests, coverage gate, bundle (run before every commit)
 #
 # The coverage gate compares against the merge base with $CHECK_BASE (default: main).
@@ -18,13 +20,14 @@ case "$mode" in
 esac
 
 coverage_minimum=80
-# The coverage gate covers the files in these targets that import no adapter framework. Every
-# other file under Sources is exempt and needs a manual-QA entry instead.
-gated_targets=(Sources/DrowsyDockCore Sources/DockOverlayKit)
+gated_targets=(Sources/DrowsyDockCore Sources/DockOverlayKit scripts/qa/Sources/LiveQAKit)
+source_roots=(Sources scripts/qa/Sources)
 # An import may carry attributes (`@preconcurrency`, `@_exported`, `@_spi(Name)`), an access level
 # (`internal import`) and a kind (`import class AppKit.NSColor`). HIServices holds the AX API, and
 # Carbon and Quartz re-export AX and AppKit.
 coverage_exempt_imports='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?(AppKit|ApplicationServices|Carbon|Cocoa|HIServices|IOKit|Quartz|ServiceManagement|SpriteKit|SwiftUI)([.[:space:]]|$)'
+
+unified_log_imports='^[[:space:]]*(@[[:alnum:]_]+(\([^)]*\))?[[:space:]]+)*((public|package|internal|fileprivate|private)[[:space:]]+)?import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?(os|OSLog)([.[:space:]]|$)'
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -74,7 +77,7 @@ gated_files() {
   local file
   while IFS= read -r -d '' file; do
     if is_gated "$file"; then printf '%s\0' "$file"; fi
-  done < <(swift_files_under Sources)
+  done < <(swift_files_under "${source_roots[@]}")
 }
 
 coverage_exempt_files_are_in_manual_qa() {
@@ -86,13 +89,13 @@ coverage_exempt_files_are_in_manual_qa() {
       echo "Manual QA: $file is exempt from coverage but docs/manual-qa.md never names \`$name\`" >&2
       failed=1
     fi
-  done < <(swift_files_under Sources)
+  done < <(swift_files_under "${source_roots[@]}")
   return "$failed"
 }
 
 scan_swift_files() {
   local file files=()
-  while IFS= read -r -d '' file; do files+=("$file"); done < <(swift_files_under Sources Tests)
+  while IFS= read -r -d '' file; do files+=("$file"); done < <(swift_files_under "${source_roots[@]}" Tests)
   if ((${#files[@]} == 0)); then return 1; fi
   found awk "$1" "${files[@]}"
 }
@@ -140,11 +143,11 @@ empty_catches='
 
 floor_rules() {
   local failed=0
-  if found grep -rnF 'try!' Sources; then
+  if found grep -rnF 'try!' "${source_roots[@]}"; then
     echo "Floor: try! outside tests" >&2
     failed=1
   fi
-  if found grep -rnE 'fatalError\("(TODO|not implemented)' Sources Tests; then
+  if found grep -rnE 'fatalError\("(TODO|not implemented)' "${source_roots[@]}" Tests; then
     echo "Floor: unimplemented stub" >&2
     failed=1
   fi
@@ -154,6 +157,11 @@ floor_rules() {
   fi
   if scan_swift_files "$unexplained_suppressions"; then
     echo "Floor: suppression without an explaining comment" >&2
+    failed=1
+  fi
+  if found grep -rnE "$unified_log_imports" Sources --exclude=MirroredLogger.swift ||
+    found grep -rnF 'NSLog(' Sources; then
+    echo "Logging: log through MirroredLogger, so a --qa-log run mirrors every line (ADR 0020)" >&2
     failed=1
   fi
   if found grep -rnE "$coverage_exempt_imports" Sources/DrowsyDockCore; then
@@ -248,11 +256,20 @@ step "Compile (Swift 6, warnings are errors)"
 swift build --build-tests -Xswiftc -warnings-as-errors
 
 step "Format"
-swift format lint --strict --recursive Sources Tests
+swift format lint --strict --recursive "${source_roots[@]}" Tests
+
+step "Live QA script (syntax, a dry run that must touch nothing, the Dock restore and its self-test on a scratch domain, the log reads over a fixture QA log)"
+bash -n scripts/qa-live.sh
+scripts/qa/check-dry-run.sh
+scripts/qa/check-dock-restore.sh
+scripts/qa/check-restore-selftest.sh
+scripts/qa/check-app-log.sh
 
 step "Floor rules"
 floor_rules
 coverage_exempt_files_are_in_manual_qa
+scripts/qa/check-qa-mapping.sh
+scripts/qa/check-qa-mapping-selftest.sh
 
 step "Secrets"
 # gitleaks matches text, so binary signing material needs its own check.

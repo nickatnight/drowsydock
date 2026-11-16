@@ -17,7 +17,6 @@ final class MascotTimelineTests: XCTestCase {
     }
   }
 
-  // The wake-up's stretch moves the body and the head; it must start after they have eased back.
   // The yawn moves the head's height only after its settle, so the head must have eased back.
   func testTheLoopEaseOutEndsBeforeTheYawnsSettleDoes() {
     XCTAssertLessThanOrEqual(MascotTimeline.loopEaseOut, MascotTimeline.flexiblePhase(of: .yawn))

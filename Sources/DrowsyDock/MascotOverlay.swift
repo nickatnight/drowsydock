@@ -1,7 +1,6 @@
 import AppKit
 import DockOverlayKit
 import DrowsyDockCore
-import os
 
 /// Shows the cat on the Dock: the cat in a small window at the perch, and the veil and the crowd
 /// effect in a second window over the whole Dock.
@@ -12,17 +11,21 @@ final class MascotOverlay {
 
   private static let canvasMargin: CGFloat = 48
 
-  private static let logger = Logger(subsystem: "com.drowsydock.DrowsyDock", category: "mascot")
+  private static let logger = MirroredLogger(
+    subsystem: "com.drowsydock.DrowsyDock",
+    category: "mascot"
+  )
 
-  private let catScene = MascotScene()
-  private let catWindow: OverlayWindow
-  private let canvasScene = DockCanvasScene()
-  private let canvasWindow: OverlayWindow
+  let catScene: MascotScene
+  let catWindow: OverlayWindow
+  let canvasScene = DockCanvasScene()
+  let canvasWindow: OverlayWindow
   private var presentation = OverlayPresentation.hidden
   private var mood: MascotMood?
   private var isCrowdEffectPlaying = false
 
-  init() {
+  init(catScene: MascotScene = MascotScene()) {
+    self.catScene = catScene
     let catHost = SceneHostView(scene: catScene)
     let canvasHost = SceneHostView(scene: canvasScene)
     catScene.host = catHost
@@ -79,9 +82,9 @@ final class MascotOverlay {
       (perch, dock, isFaded) = (fadedPerch, fadedDock, true)
     }
 
-    catScene.setActive(!isFaded)
+    let isPlaced = place(catWindow, at: perch.frame, isFaded: isFaded)
+    catScene.setActive(isPlaced && !isFaded)
     catScene.show(mood, facing: perch.facing)
-    place(catWindow, at: perch.frame, isFaded: isFaded)
 
     if isFaded {
       stopCrowdEffect()
@@ -100,7 +103,7 @@ final class MascotOverlay {
     place(canvasWindow, at: canvas, isFaded: isFaded)
   }
 
-  private static func canvasFrame(around dock: DockGeometry) -> CGRect {
+  static func canvasFrame(around dock: DockGeometry) -> CGRect {
     dock.backgroundFrame.insetBy(dx: -canvasMargin, dy: -canvasMargin)
       .intersection(dock.screenFrame)
   }
@@ -110,12 +113,9 @@ final class MascotOverlay {
     canvasScene.stopCrowdEffect()
   }
 
-  private func place(_ window: OverlayWindow, at frame: CGRect, isFaded: Bool) {
-    if isFaded {
-      window.fadeOut(at: frame)
-    } else {
-      window.show(at: frame)
-    }
+  @discardableResult
+  private func place(_ window: OverlayWindow, at frame: CGRect, isFaded: Bool) -> Bool {
+    isFaded ? window.fadeOut(at: frame) : window.show(at: frame)
   }
 
   private func hide() {

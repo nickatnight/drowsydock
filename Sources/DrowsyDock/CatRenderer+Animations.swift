@@ -90,11 +90,15 @@ extension CatRenderer {
         child.removeFromParent()
       }
     }
-    apply(pose)
+    // The wake-up fades the "z"s and the bubble out from what is on screen.
+    let keepsZsAndBubble = next == .wakeUp
+    apply(pose, keepingZsAndBubble: keepsZsAndBubble)
     if isLooping {
       isLooping = false
-      for z in zs {
-        z.alpha = 0
+      if !keepsZsAndBubble {
+        for z in zs {
+          z.alpha = 0
+        }
       }
     }
     if easesLoopOut, let next {

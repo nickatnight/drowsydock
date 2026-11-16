@@ -299,12 +299,26 @@ final class DockGeometryTests: XCTestCase {
   func testAnItemWithANonFiniteFrameIsLeftOut() {
     let dock = DockGeometry(
       listFrame: ax(370, 816, 700, 79),
-      iconFrames: [ax(378, 821, 63, 79), ax(.nan, 821, 63, 79), ax(999, 821, 63, .infinity)],
+      iconFrames: [
+        ax(378, 821, 63, 79), ax(.nan, 821, 63, 79), ax(999, 821, 63, .infinity),
+        ax(999, 821, .infinity, 79),
+      ],
       layout: DisplayLayout(primary: laptop)
     )
 
     XCTAssertEqual(dock.iconFrames, [CGRect(x: 378, y: 0, width: 63, height: 79)])
     XCTAssertEqual(dock.backgroundFrame, CGRect(x: 370, y: 0, width: 700, height: 79))
+  }
+
+  func testAnItemWhoseFarEdgeOverflowsIsLeftOut() {
+    let dock = DockGeometry(
+      listFrame: ax(1356, 200, 79, 500),
+      iconFrames: [ax(1356, 208, 79, 63), ax(1.5e308, 271, 1.5e308, 63)],
+      layout: DisplayLayout(primary: laptop)
+    )
+
+    XCTAssertEqual(dock.iconFrames, [CGRect(x: 1356, y: 629, width: 79, height: 63)])
+    XCTAssertEqual(dock.backgroundFrame, dock.frame)
   }
 
   func testALoneItemWithANonFiniteFrameLeavesTheBackgroundAndPerchFinite() {
@@ -353,7 +367,7 @@ final class DockGeometryTests: XCTestCase {
   func testTheSlideFollowsTheItemNearestTheScreenEdgeNotTheFirst() {
     let dock = DockGeometry(
       listFrame: ax(370, 816, 700, 79),
-      iconFrames: [ax(378, 790, 63, 79), ax(441, 821, 63, 79)],
+      iconFrames: [ax(378, 790, 63, 79), ax(441, 821, 63, 79), ax(504, 790, 63, 79)],
       layout: DisplayLayout(primary: laptop)
     )
 

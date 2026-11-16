@@ -1,6 +1,5 @@
 import AppKit
 import ApplicationServices
-import os
 
 /// Follows the Dock. It reads the Dock's geometry whenever something may have moved it, and tells
 /// the caller what the overlay should show.
@@ -30,14 +29,14 @@ public final class DockTracker {
 
   private static let dockPreferencesChanged = Notification.Name("com.apple.dock.prefchanged")
 
-  private static let listNotifications = [
+  package static let listNotifications = [
     kAXMovedNotification,
     kAXResizedNotification,
     kAXCreatedNotification,
     kAXUIElementDestroyedNotification,
   ]
 
-  private let logger = Logger(
+  private let logger = MirroredLogger(
     subsystem: Bundle.main.bundleIdentifier ?? "DockOverlayKit",
     category: "dock"
   )
@@ -102,7 +101,7 @@ public final class DockTracker {
       guard change.kind == .insertion else { return }
       let dockLaunched = change.newValue?.contains { DockReader.isDock($0) } ?? false
       guard dockLaunched else { return }
-      MainActor.assumeIsolated { self?.recoverDockList(because: "The Dock relaunched") }
+      MainActor.assumeIsolated { self?.recoverDockList(because: Self.dockRelaunched) }
     }
     pointerMonitor = NSEvent.addGlobalMonitorForEvents(
       matching: [.mouseMoved, .leftMouseDragged]
@@ -153,7 +152,7 @@ public final class DockTracker {
   // The Dock's list element is gone, so the observer on it is dead. Drop it and retry until the
   // Dock has a new list.
   private func recoverDockList(because reason: String) {
-    logger.notice("\(reason, privacy: .public)")
+    logger.notice(reason)
     listObserver = nil
     listRecovery?.cancel()
     listRecovery = Task { [weak self] in
@@ -188,7 +187,7 @@ public final class DockTracker {
       readFailures.succeeded()
     } catch {
       if readFailures.shouldReport(error) {
-        logger.error("Dock geometry unavailable: \(String(describing: error), privacy: .public)")
+        logger.error("Dock geometry unavailable: \(error)")
       }
       state.dockRead(nil)
     }
@@ -219,20 +218,16 @@ public final class DockTracker {
         notifications: Self.listNotifications
       ) { [weak self] isListDestroyed in
         if isListDestroyed {
-          self?.recoverDockList(because: "The Dock list was destroyed")
+          self?.recoverDockList(because: Self.listDestroyed)
         } else {
           self?.dockMayHaveChanged()
         }
       }
       observerFailures.succeeded()
-      logger.notice(
-        "Observing the Dock list for: \(self.listObserver?.notifications ?? [], privacy: .public)"
-      )
+      logger.notice(Self.observingListMessage(listObserver?.notifications ?? []))
     } catch {
       if observerFailures.shouldReport(error) {
-        logger.error(
-          "Can't observe the Dock list: \(String(describing: error), privacy: .public)"
-        )
+        logger.error("Can't observe the Dock list: \(error)")
       }
     }
   }
@@ -242,9 +237,7 @@ public final class DockTracker {
   private func apply() {
     let presentation = state.presentation
     if presentation != appliedPresentation {
-      appliedPresentation = presentation
-      logger.debug("Overlay: \(String(describing: presentation), privacy: .public)")
-      onPresentationChange(presentation)
+      present(presentation)
     }
     updateFrameCheckTimer()
     // Timed from the moment the pointer left, even if an earlier follow-up read is pending, so the
@@ -253,6 +246,13 @@ public final class DockTracker {
       scheduleFollowUpRead(after: Self.followUpReadDelay)
     }
     awaitedSettledRead = state.awaitsSettledRead
+  }
+
+  // Package-wide so tests can see the line the live script reads for every overlay change.
+  package func present(_ presentation: OverlayPresentation) {
+    appliedPresentation = presentation
+    logger.debug(Self.overlayMessage(presentation))
+    onPresentationChange(presentation)
   }
 
   private func updateFrameCheckTimer() {
@@ -272,6 +272,23 @@ public final class DockTracker {
     timer.tolerance = Self.frameCheckInterval / 10
     RunLoop.main.add(timer, forMode: .common)
     frameCheckTimer = timer
+  }
+}
+
+// MARK: - Log messages
+
+// scripts/qa-live.sh waits for these lines in the QA log (ADR 0020); QALogMessageTests checks its
+// patterns against them.
+extension DockTracker {
+  package static let dockRelaunched = "The Dock relaunched"
+  package static let listDestroyed = "The Dock list was destroyed"
+
+  package static func observingListMessage(_ notifications: [String]) -> String {
+    "Observing the Dock list for: \(notifications)"
+  }
+
+  package static func overlayMessage(_ presentation: OverlayPresentation) -> String {
+    "Overlay: \(presentation)"
   }
 }
 

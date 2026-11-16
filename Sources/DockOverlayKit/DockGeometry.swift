@@ -41,7 +41,7 @@ public struct DockGeometry: Equatable, Sendable {
   public let frame: CGRect
 
   /// The frames of the Dock's items in Dock order, without separators. An item whose frame has a
-  /// non-finite component is left out.
+  /// non-finite component or edge is left out.
   public let iconFrames: [CGRect]
 
   /// The frame of the background the Dock draws behind its items.
@@ -66,7 +66,7 @@ public struct DockGeometry: Equatable, Sendable {
   /// and its items.
   public init(listFrame: AXRect, iconFrames: [AXRect], layout: DisplayLayout) {
     frame = layout.appKitRect(listFrame)
-    self.iconFrames = iconFrames.map(layout.appKitRect).filter(Self.isFinite)
+    self.iconFrames = iconFrames.map(layout.appKitRect).filter(Self.hasFiniteEdges)
     let display = layout.display(holding: frame)
     screenFrame = display.frame
     visibleScreenFrame = display.visibleFrame
@@ -107,8 +107,6 @@ public struct DockGeometry: Equatable, Sendable {
   ) -> CGRect {
     guard let first = icons.first else { return list }
     let items = icons.dropFirst().reduce(first) { $0.union($1) }
-    // How far the items reach past the list toward the screen edge, or 0 when they don't. A
-    // background a whole thickness away is no drawn background; ADR 0013 measured 5 points.
     let overhang: CGFloat
     switch orientation {
     case .bottom: overhang = list.minY - items.minY
@@ -124,9 +122,8 @@ public struct DockGeometry: Equatable, Sendable {
     }
   }
 
-  private static func isFinite(_ rect: CGRect) -> Bool {
-    rect.origin.x.isFinite && rect.origin.y.isFinite && rect.width.isFinite
-      && rect.height.isFinite
+  private static func hasFiniteEdges(_ rect: CGRect) -> Bool {
+    [rect.minX, rect.minY, rect.maxX, rect.maxY].allSatisfy(\.isFinite)
   }
 
   /// Whether the Dock is off screen, as an auto-hidden Dock is until the pointer reaches the edge.

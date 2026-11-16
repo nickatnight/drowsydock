@@ -6,12 +6,13 @@ Read CONSTRAINTS.md before writing code. Do not weaken it to make a change pass.
 
 ## Layout
 
-- `Sources/DockOverlayKit/`: Dock geometry (AX), overlay window, Accessibility permission. Shared with future Dock apps, so keep it free of battery or mascot knowledge.
+- `Sources/DockOverlayKit/`: Dock geometry (AX), overlay window, Accessibility permission, and `MirroredLogger`, which every log line goes through (ADR 0020). Every message is public in the unified log and the QA log, so log no user data. Shared with future Dock apps, so keep it free of battery or mascot knowledge.
 - `Sources/DrowsyDockCore/`: pure logic and value types. No AppKit, SpriteKit, IOKit or AX imports. Everything here is unit-tested.
 - `Sources/DrowsyDock/`: the executable. SwiftUI menu bar and settings, the IOKit adapter, the SpriteKit scene, wiring.
-- `Tests/`: XCTest, one target per library.
-- `docs/manual-qa.md`: checks that need a real Dock, a real charger or an Accessibility grant.
-- `docs/adr/`: architecture decision records. Read them before changing the build setup (0001), the target split (0002), the drowsiness tracker's phases (0003), the Dock tracker's phases and triggers (0004), signing (0005, 0007), the Accessibility coordinate handling (0006) the mascot's windows and renderer (0008), how it animates within the CPU budget (0009, 0011, 0015), how `waking` ends (0010), where animation timing lives (0012, 0014) or how the veil and the perch fit the Dock's drawn background (0013). Supersede an ADR with a new one; don't edit its decision.
+- `Tests/`: XCTest, one target per library, plus `DrowsyDockTests` for the app (`@testable import DrowsyDock`, snapshot references under `Snapshots/`, ADR 0016) and `LiveQAKitTests` for the live QA helper. `DockOverlayKitTestSupport` is a library both overlay test targets import: `FadeRecorder`, through `OverlayWindow`'s `package` fade seam.
+- `scripts/qa/`: the live QA helper (`qa-helper`, its pure checks in `LiveQAKit`), `dock-preferences.sh` (the Dock backup and restore that `qa-live.sh` sources), `live-functions.sh` (every function `qa-live.sh` runs, sourced so the checks can call them; it names every app log line it waits for as a `log_…` pattern, which `QALogMessageTests` checks against the app's messages, so a scenario reads the log only through those names), and the checks `check.sh fast` runs on them: `check-dry-run.sh`, `check-dock-restore.sh` (the restore against a scratch defaults domain, never `com.apple.dock`), `check-restore-selftest.sh` (`qa-live.sh`'s restore self-test and exit cleanup on a scratch domain, needs the built `qa-helper`), `check-app-log.sh` (`qa-live.sh`'s log reads over `Tests/LiveQAKitTests/Fixtures/qa.log`, needs the built `qa-helper`), `check-qa-mapping.sh` and its `check-qa-mapping-selftest.sh`. The app bundle never includes any of it.
+- `docs/manual-qa.md`: every QA row, mapped to the test or `scripts/qa-live.sh` scenario that covers it, with a short manual checklist for what needs hardware, a permission dialog or an eye.
+- `docs/adr/`: architecture decision records. Read them before changing the build setup (0001), the target split (0002), the drowsiness tracker's phases (0003), the Dock tracker's phases and triggers (0004), signing (0005, 0007), the Accessibility coordinate handling (0006) the mascot's windows and renderer (0008), how it animates within the CPU budget (0009, 0011, 0015, 0017), how `waking` ends (0010), where animation timing lives (0012, 0014) how the veil and the perch fit the Dock's drawn background (0013) how the app is tested (0016), how the live QA script drives the app and the Dock (0018) and reads the app's QA log (0020), or how test helpers reach a module's seams (0019). Supersede an ADR with a new one; don't edit its decision.
 
 ## Commands
 
@@ -19,22 +20,28 @@ Read CONSTRAINTS.md before writing code. Do not weaken it to make a change pass.
 Build:   swift build -Xswiftc -warnings-as-errors
 Test:    swift test
 Cover:   swift test --enable-code-coverage
-Format:  swift format lint --strict --recursive Sources Tests
+Record:  RECORD_SNAPSHOTS=1 swift test      # rewrites the snapshot references, then fails on purpose
+Format:  swift format lint --strict --recursive Sources scripts/qa/Sources Tests
 Bundle:  scripts/bundle.sh                 # → build/DrowsyDock.app, universal, ad-hoc signed
 Run:     open build/DrowsyDock.app
 Quit:    pkill -x DrowsyDock
-Logs:    log stream --predicate 'subsystem == "com.drowsydock.DrowsyDock"'
+Logs:    open build/DrowsyDock.app --args --qa-log && tail -F ~/Library/Logs/DrowsyDock/qa.log
+         log stream --level debug --predicate 'subsystem == "com.drowsydock.DrowsyDock"'   # admin only
 Checks:  scripts/check.sh fast | task
+Live QA: scripts/qa-live.sh [--only a,b] [--dry-run] [--list] [--keep-captures]   # the owner runs it; agents only --dry-run
+Restore: scripts/qa-live.sh --restore [--yes]   # puts back the Dock preferences a killed run left changed
 ```
 
-- `scripts/check.sh fast` runs after every edit. It compiles with warnings as errors and runs the format lint. It checks the CONSTRAINTS floor rules and keeps `DrowsyDockCore` free of UI and hardware imports. It requires every coverage-exempt file to be named in `docs/manual-qa.md`. Last comes the secret scan (commits, uncommitted files and signing-material file types).
+- `scripts/check.sh fast` runs after every edit. It compiles with warnings as errors and runs the format lint. It checks `scripts/qa-live.sh` with `bash -n`, a dry run that must call no Dock, app, pointer, screen or log command and write nothing (`scripts/qa/check-dry-run.sh`), the Dock restore and the restore self-test on a scratch domain (`scripts/qa/check-dock-restore.sh`, `scripts/qa/check-restore-selftest.sh`), and the script's log reads over a fixture QA log (`scripts/qa/check-app-log.sh`). It checks the CONSTRAINTS floor rules, keeps `DrowsyDockCore` free of UI and hardware imports, and lets only `MirroredLogger` import `os` (ADR 0020). It requires every coverage-exempt file under `Sources` and `scripts/qa/Sources` to be named in `docs/manual-qa.md`, and every test and live scenario that file cites to exist and each cited scenario to list the row, with each automated row citing at least one and the row numbers equal to `docs/qa-rows.txt` (`scripts/qa/check-qa-mapping.sh`, which `check-qa-mapping-selftest.sh` checks with planted errors). A new QA row goes into both files. Last comes the secret scan (commits, uncommitted files and signing-material file types).
 - `scripts/check.sh task` runs before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate and the signed bundle. The bundle must carry the hardened runtime (ADR 0005) and no entitlements (ADR 0007). The gate diffs against the merge base with `$CHECK_BASE` (default `main`).
 - `scripts/bundle.sh` signs with `$SIGN_IDENTITY`, default `-` (ad hoc), always with `--options runtime`. No signing identity exists yet. Scripts never create certificates or touch the keychain.
-- `swift format --in-place --recursive Sources Tests` fixes most format findings.
+- `swift format --in-place --recursive Sources scripts/qa/Sources Tests` fixes most format findings.
+- A snapshot mismatch writes the actual and a diff image under `.build/snapshot-failures/` and names them in the failure. The references were recorded on Apple silicon; elsewhere the snapshot tests skip. Record new references only for a deliberate visual change, and look at the diff.
+- `scripts/qa-live.sh` drives the real app and the real Dock. It changes the Dock's preferences through System Events and restores them from `build/qa/dock-backup.plist` on exit, deleting the backup only once the restore verifies; after a kill -9, run the restore command it printed or `--restore`, which shows what it would change and asks first (`--yes` skips the question, and it refuses while a run still owns the backup). Screenshots and samples are deleted when their checks pass; `--keep-captures` keeps them. Never run it for real as an agent: no Dock settings changes, synthetic events or menu driving.
 
 ## Swift style
 
-Follow the [Google Swift Style Guide](https://google.github.io/swift/). It includes Apple's [API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/) by reference. `swift format` implements the formatting rules and is the arbiter: run `swift format lint --strict --recursive Sources Tests`. Where CONSTRAINTS.md is stricter, CONSTRAINTS.md wins.
+Follow the [Google Swift Style Guide](https://google.github.io/swift/). It includes Apple's [API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/) by reference. `swift format` implements the formatting rules and is the arbiter: run `swift format lint --strict --recursive Sources scripts/qa/Sources Tests`. Where CONSTRAINTS.md is stricter, CONSTRAINTS.md wins.
 
 ### Files and imports
 

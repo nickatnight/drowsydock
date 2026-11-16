@@ -35,10 +35,13 @@ final class SceneHostView: NSView {
     }
   }
 
+  private(set) var framesDrawn = 0
+
+  private(set) var displayLink: CADisplayLink?
+
   private let renderer: SKRenderer
   private let commandQueue: MTLCommandQueue
   private let metalLayer = CAMetalLayer()
-  private var displayLink: CADisplayLink?
 
   /// Creates a view drawing `scene`, or returns `nil` when the Mac has no Metal device.
   init?(scene: any HostedScene) {
@@ -97,7 +100,7 @@ final class SceneHostView: NSView {
 
   private func updateDisplayLink() {
     if displayLink == nil, window != nil {
-      let link = displayLink(target: self, selector: #selector(drawFrame(_:)))
+      let link = displayLink(target: self, selector: #selector(displayLinkFired(_:)))
       link.add(to: .main, forMode: .common)
       displayLink = link
       applyFrameRate()
@@ -114,13 +117,17 @@ final class SceneHostView: NSView {
     )
   }
 
-  @objc private func drawFrame(_ link: CADisplayLink) {
+  @objc private func displayLinkFired(_ link: CADisplayLink) {
+    drawFrame(atTime: CACurrentMediaTime())
+  }
+
+  func drawFrame(atTime time: CFTimeInterval) {
     guard
       metalLayer.drawableSize != .zero,
       let drawable = metalLayer.nextDrawable(),
       let commandBuffer = commandQueue.makeCommandBuffer()
     else { return }
-    renderer.update(atTime: CACurrentMediaTime())
+    renderer.update(atTime: time)
     let pass = MTLRenderPassDescriptor()
     pass.colorAttachments[0].texture = drawable.texture
     pass.colorAttachments[0].loadAction = .clear
@@ -133,6 +140,7 @@ final class SceneHostView: NSView {
     )
     commandBuffer.present(drawable)
     commandBuffer.commit()
+    framesDrawn += 1
     if !scene.needsAnotherFrame {
       isPaused = true
     }

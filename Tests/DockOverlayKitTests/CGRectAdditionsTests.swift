@@ -31,5 +31,18 @@ final class CGRectAdditionsTests: XCTestCase {
 
   func testAFrameWithNoAreaIsNotUsable() {
     XCTAssertFalse(CGRect(x: 10, y: 10, width: 0, height: 80).isUsableWindowFrame)
+    XCTAssertFalse(CGRect(x: 10, y: 10, width: 64, height: 0).isUsableWindowFrame)
+  }
+
+  // AppKit's window frames are bounded by the window server's 32-bit coordinates, edge by edge.
+  func testAFrameWithAnyEdgeOutsideTheWindowServersRangeIsNotUsable() {
+    XCTAssertFalse(CGRect(x: -3e9, y: 20, width: 3e9 + 100, height: 80).isUsableWindowFrame)
+    XCTAssertFalse(CGRect(x: 20, y: -3e9, width: 64, height: 3e9 + 100).isUsableWindowFrame)
+    XCTAssertFalse(CGRect(x: 2e9, y: 20, width: 2e9, height: 80).isUsableWindowFrame)
+    XCTAssertFalse(CGRect(x: 20, y: 2e9, width: 64, height: 2e9).isUsableWindowFrame)
+  }
+
+  func testAFrameFarFromTheMainDisplayButInsideTheRangeIsUsable() {
+    XCTAssertTrue(CGRect(x: 40_000, y: -40_000, width: 64, height: 80).isUsableWindowFrame)
   }
 }

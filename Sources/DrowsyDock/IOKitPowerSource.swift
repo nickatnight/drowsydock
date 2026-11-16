@@ -2,10 +2,10 @@ import DrowsyDockCore
 import Foundation
 import IOKit.ps
 
-enum IOKitPowerSource {
-  static var isLowPowerModeOn: Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }
+struct IOKitPowerSource: PowerSource {
+  var isLowPowerModeOn: Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }
 
-  static func readBattery() -> BatteryReading? {
+  func readBattery() -> BatteryReading? {
     guard
       let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
       let list = IOPSCopyPowerSourcesList(info)?.takeRetainedValue()
@@ -17,9 +17,15 @@ enum IOKitPowerSource {
     return PowerSourceParser.reading(from: descriptions)
   }
 
+  func subscribe(
+    onChange: @escaping @MainActor @Sendable () -> Void
+  ) throws -> any PowerSourceSubscription {
+    try Subscription(onChange: onChange)
+  }
+
   /// `Subscription` is not main-actor isolated, so its `deinit` may read these non-Sendable
   /// handles. A main-actor class could not, because its `deinit` is nonisolated in Swift 6.0.
-  final class Subscription {
+  final class Subscription: PowerSourceSubscription {
     enum SubscriptionError: Error {
       case runLoopSourceUnavailable
     }
