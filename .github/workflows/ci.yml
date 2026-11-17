@@ -16,13 +16,13 @@ concurrency:
 
 jobs:
   check:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 45
     defaults:
       run:
         shell: bash
     env:
-      XCODE_VERSION: "26.6"
+      XCODE_VERSION: "27.2"
       GITLEAKS_VERSION: "8.30.1"
       GITLEAKS_SHA256: b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5
       CHECK_BASE: origin/main
