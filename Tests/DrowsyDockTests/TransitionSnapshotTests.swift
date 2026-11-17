@@ -12,7 +12,7 @@ final class TransitionSnapshotTests: XCTestCase {
   private let firstFrame = 1.0 / Double(MascotScene.oneShotFramesPerSecond)
 
   override func setUpWithError() throws {
-    try Snapshot.skipUnlessReferenceArchitecture()
+    try Snapshot.skipUnlessComparable()
   }
 
   private func assertFrame(
