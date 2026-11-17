@@ -7,7 +7,7 @@ import XCTest
 @MainActor
 final class PoseSnapshotTests: XCTestCase {
   override func setUpWithError() throws {
-    try Snapshot.skipUnlessReferenceArchitecture()
+    try Snapshot.skipUnlessComparable()
   }
 
   private func pose(_ state: DrowsinessState, facing: DockPerch.Facing) -> Bitmap {

@@ -25,14 +25,31 @@ enum Snapshot {
     return "macOS \(os), \(gpu)"
   }
 
+  static var recordedOn: String {
+    (try? String(contentsOf: environmentFile, encoding: .utf8))?
+      .trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
+  }
+
   static var isRecording: Bool {
     ProcessInfo.processInfo.environment["RECORD_SNAPSHOTS"] == "1"
   }
 
-  static func skipUnlessReferenceArchitecture() throws {
+  // CI sets the variable: its runner draws on another GPU and macOS than `recordedOn`, so every
+  // snapshot would differ there. Only the exact value 1 skips, so a stray value never hides them.
+  static func skipsSnapshots(in environment: [String: String]) -> Bool {
+    environment["DROWSYDOCK_SKIP_SNAPSHOTS"] == "1"
+  }
+
+  static func skipUnlessComparable(
+    in environment: [String: String] = ProcessInfo.processInfo.environment
+  ) throws {
     #if !arch(arm64)
       throw XCTSkip("Snapshot references were recorded on Apple silicon (arm64)")
     #endif
+    if skipsSnapshots(in: environment) {
+      throw XCTSkip(
+        "DROWSYDOCK_SKIP_SNAPSHOTS=1: snapshot references were recorded on \(recordedOn)")
+    }
   }
 
   static func assert(
@@ -80,9 +97,6 @@ enum Snapshot {
       ? "Size \(image.width)×\(image.height) differs from \(expected.width)×\(expected.height)"
       : "\(comparison.differingPixels) pixels differ by more than \(tolerance.channel) "
         + "(at most \(tolerance.differingPixels) may)"
-    let recordedOn =
-      (try? String(contentsOf: environmentFile, encoding: .utf8))?
-      .trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
     XCTFail(
       "\(name): \(what). Actual: \(actualURL?.path ?? "not written"). "
         + "Diff: \(diffURL?.path ?? "not written"). References recorded on \(recordedOn); "

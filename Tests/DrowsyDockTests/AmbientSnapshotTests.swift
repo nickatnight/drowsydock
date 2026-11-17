@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class AmbientSnapshotTests: XCTestCase {
   override func setUpWithError() throws {
-    try Snapshot.skipUnlessReferenceArchitecture()
+    try Snapshot.skipUnlessComparable()
   }
 
   func testAnAwakeCatBlinksAfterAPauseAndIsStillOtherwise() throws {

@@ -7,7 +7,7 @@ import XCTest
 @MainActor
 final class CrowdWaveSnapshotTests: XCTestCase {
   override func setUpWithError() throws {
-    try Snapshot.skipUnlessReferenceArchitecture()
+    try Snapshot.skipUnlessComparable()
   }
 
   private func wave(on dock: DockGeometry) -> OverlayFilm {
