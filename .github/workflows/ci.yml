@@ -1,0 +1,71 @@
+# Runs the commit gate, scripts/check.sh task, on every push to main and every pull request
+# against main. check.sh is the one definition of green; this file only prepares the runner.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A new push to a pull request cancels its older run. Every other run gets a group of its own
+  # (its run id), so a main run is never cancelled, running or pending.
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check
+    # The newest generally available arm64 image. Xcode is chosen by exact version below, so an
+    # image update never changes the toolchain; bump XCODE_VERSION to move it.
+    runs-on: macos-26
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      XCODE_VERSION: "26.6"
+      GITLEAKS_VERSION: "8.30.1"
+      # From gitleaks_8.30.1_checksums.txt, for gitleaks_8.30.1_darwin_arm64.tar.gz.
+      GITLEAKS_SHA256: b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5
+      # gitleaks reads every commit and the coverage gate diffs against the merge base with main.
+      CHECK_BASE: origin/main
+      # The snapshot references were drawn on another GPU and macOS than the runner's.
+      DROWSYDOCK_SKIP_SNAPSHOTS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Select Xcode
+        run: sudo xcode-select --switch "/Applications/Xcode_${XCODE_VERSION}.app"
+
+      - name: Show the toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Install gitleaks
+        run: |
+          scripts/ci/install-gitleaks.sh "$GITLEAKS_VERSION" "$GITLEAKS_SHA256" "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >>"$GITHUB_PATH"
+
+      - name: scripts/check.sh task
+        run: scripts/check.sh task
+
+      - name: Upload snapshot failures
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: snapshot-failures
+          path: .build/snapshot-failures/
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 7
