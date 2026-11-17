@@ -17,3 +17,6 @@ xcuserdata/
 *.provisionprofile
 .env*
 !.env.example
+docs/*
+!docs/manual-qa.md
+!docs/qa-rows.txt

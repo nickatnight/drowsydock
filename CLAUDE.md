@@ -39,6 +39,10 @@ Restore: scripts/qa-live.sh --restore [--yes]   # puts back the Dock preferences
 - A snapshot mismatch writes the actual and a diff image under `.build/snapshot-failures/` and names them in the failure. The references were recorded on Apple silicon; elsewhere the snapshot tests skip. Record new references only for a deliberate visual change, and look at the diff.
 - `scripts/qa-live.sh` drives the real app and the real Dock. It changes the Dock's preferences through System Events and restores them from `build/qa/dock-backup.plist` on exit, deleting the backup only once the restore verifies; after a kill -9, run the restore command it printed or `--restore`, which shows what it would change and asks first (`--yes` skips the question, and it refuses while a run still owns the backup). Screenshots and samples are deleted when their checks pass; `--keep-captures` keeps them. Never run it for real as an agent: no Dock settings changes, synthetic events or menu driving.
 
+## Git
+
+- Name branches `nickatnight/<short_description>`, e.g. `nickatnight/untrack-docs`.
+
 ## Swift style
 
 Follow the [Google Swift Style Guide](https://google.github.io/swift/). It includes Apple's [API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/) by reference. `swift format` implements the formatting rules and is the arbiter: run `swift format lint --strict --recursive Sources scripts/qa/Sources Tests`. Where CONSTRAINTS.md is stricter, CONSTRAINTS.md wins.
