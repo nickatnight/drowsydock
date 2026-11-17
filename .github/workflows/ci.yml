@@ -16,7 +16,6 @@ concurrency:
 
 jobs:
   check:
-    name: check
     runs-on: macos-26
     timeout-minutes: 45
     defaults:
@@ -48,8 +47,7 @@ jobs:
           scripts/ci/install-gitleaks.sh "$GITLEAKS_VERSION" "$GITLEAKS_SHA256" "$RUNNER_TEMP/bin"
           echo "$RUNNER_TEMP/bin" >>"$GITHUB_PATH"
 
-      - name: scripts/check.sh task
-        run: scripts/check.sh task
+      - run: scripts/check.sh task
 
       - name: Upload snapshot failures
         if: failure()
