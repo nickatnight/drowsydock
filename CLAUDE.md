@@ -29,7 +29,6 @@ Quit:    pkill -x DrowsyDock
 Logs:    open build/DrowsyDock.app --args --qa-log && tail -F ~/Library/Logs/DrowsyDock/qa.log
          log stream --level debug --predicate 'subsystem == "com.drowsydock.DrowsyDock"'   # admin only
 Checks:  scripts/check.sh fast | task
-CI:      .github/workflows/ci.yml   # GitHub Actions runs check.sh task on pushes to and PRs against main
 Live QA: scripts/qa-live.sh [--only a,b] [--dry-run] [--list] [--keep-captures]   # the owner runs it; agents only --dry-run
 Restore: scripts/qa-live.sh --restore [--yes]   # puts back the Dock preferences a killed run left changed
 ```

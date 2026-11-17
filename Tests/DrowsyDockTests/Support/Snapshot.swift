@@ -41,13 +41,13 @@ enum Snapshot {
   static func skipUnlessComparable(
     in environment: [String: String] = ProcessInfo.processInfo.environment
   ) throws {
-    #if !arch(arm64)
-      throw XCTSkip("Snapshot references were recorded on Apple silicon (arm64)")
-    #endif
     if skipsSnapshots(in: environment) {
       throw XCTSkip(
         "DROWSYDOCK_SKIP_SNAPSHOTS=1: snapshot references were recorded on \(recordedOn)")
     }
+    #if !arch(arm64)
+      throw XCTSkip("Snapshot references were recorded on Apple silicon (arm64)")
+    #endif
   }
 
   static func assert(
