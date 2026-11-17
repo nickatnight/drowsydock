@@ -17,7 +17,7 @@ concurrency:
 jobs:
   check:
     runs-on: xcode-27
-    timeout-minutes: 45
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash
