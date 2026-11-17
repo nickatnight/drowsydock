@@ -206,9 +206,22 @@ coverage_gate() {
     return 0
   fi
 
+  # The native build system links every test target into one DrowsyDockPackageTests bundle;
+  # Swift Build (the default from Swift 6.4) builds a bundle per test target. Take them all.
+  local bundle objects=()
+  for bundle in "$bin_path"/*.xctest; do
+    [[ -d $bundle ]] || continue
+    if ((${#objects[@]} > 0)); then objects+=(-object); fi
+    objects+=("$bundle/Contents/MacOS/$(basename "$bundle" .xctest)")
+  done
+  if ((${#objects[@]} == 0)); then
+    echo "Coverage gate: no test bundle under $bin_path."
+    return 1
+  fi
+
   xcrun llvm-cov export -format=lcov \
     -instr-profile "$bin_path/codecov/default.profdata" \
-    "$bin_path/DrowsyDockPackageTests.xctest/Contents/MacOS/DrowsyDockPackageTests" \
+    "${objects[@]}" \
     >"$lcov"
   changed_lines "$merge_base" <"$gated" >"$changed"
 

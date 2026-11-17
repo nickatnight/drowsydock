@@ -16,8 +16,8 @@ public struct MirroredLogger {
   }
 
   /// A destination for a line besides the unified log.
-  public typealias Mirror = @MainActor (_ level: Level, _ category: String, _ message: String) ->
-    Void
+  public typealias Mirror =
+    @MainActor (_ level: Level, _ category: String, _ message: String) -> Void
 
   package typealias UnifiedLog = @MainActor (Logger, Level, String) -> Void
 
