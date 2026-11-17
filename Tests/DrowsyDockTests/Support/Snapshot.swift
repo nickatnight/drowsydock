@@ -34,8 +34,6 @@ enum Snapshot {
     ProcessInfo.processInfo.environment["RECORD_SNAPSHOTS"] == "1"
   }
 
-  // CI sets the variable: its runner draws on another GPU and macOS than `recordedOn`, so every
-  // snapshot would differ there. Only the exact value 1 skips, so a stray value never hides them.
   static func skipsSnapshots(in environment: [String: String]) -> Bool {
     environment["DROWSYDOCK_SKIP_SNAPSHOTS"] == "1"
   }

@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# Installs a pinned gitleaks release for CI, verified before it is unpacked.
-#
-#   scripts/ci/install-gitleaks.sh VERSION SHA256 DEST
-#
-# Downloads gitleaks_VERSION_darwin_arm64.tar.gz from the gitleaks GitHub release, checks its
-# SHA-256 against SHA256 (from the release's gitleaks_VERSION_checksums.txt), and only then puts
-# the gitleaks binary in DEST. On a mismatch it stops before extracting and leaves DEST untouched.
 set -euo pipefail
 
 if (($# != 3)); then
@@ -16,7 +9,6 @@ version="$1"
 expected="$2"
 dest="$3"
 
-# Both go into the URL and the comparison, so take only their exact shapes.
 if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "install-gitleaks: VERSION must look like 8.30.1, got '$version'" >&2
   exit 2
