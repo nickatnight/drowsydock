@@ -17,6 +17,26 @@ final class SnapshotSkipTests: XCTestCase {
     XCTAssertFalse(Snapshot.skipsSnapshots(in: ["DROWSYDOCK_SKIP_SNAPSHOTS": ""]))
   }
 
+  #if arch(arm64)
+    func testAnUnsetVariableLetsTheSnapshotsRun() {
+      XCTAssertNoThrow(try Snapshot.skipUnlessComparable(in: [:]))
+    }
+
+    func testTheVariableSetToZeroLetsTheSnapshotsRun() {
+      XCTAssertNoThrow(
+        try Snapshot.skipUnlessComparable(in: ["DROWSYDOCK_SKIP_SNAPSHOTS": "0"]))
+    }
+
+    func testAnEmptyVariableLetsTheSnapshotsRun() {
+      XCTAssertNoThrow(try Snapshot.skipUnlessComparable(in: ["DROWSYDOCK_SKIP_SNAPSHOTS": ""]))
+    }
+
+    func testTheVariableSetToTrueLetsTheSnapshotsRun() {
+      XCTAssertNoThrow(
+        try Snapshot.skipUnlessComparable(in: ["DROWSYDOCK_SKIP_SNAPSHOTS": "true"]))
+    }
+  #endif
+
   func testTheSkipNamesTheVariableAndTheMacTheReferencesWereRecordedOn() throws {
     let recordedOn = try String(contentsOf: Snapshot.environmentFile, encoding: .utf8)
       .trimmingCharacters(in: .whitespacesAndNewlines)
