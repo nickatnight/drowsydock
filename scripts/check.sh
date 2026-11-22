@@ -290,9 +290,8 @@ coverage_gate() {
       printf "Changed-line coverage: %d/%d = %.1f%% (minimum %d%%)\n", hit, total, percent, minimum
       for (f in missed) print "  uncovered " f ":" missed[f]
       exit (percent < minimum)
-    }' "$changed" "$lcov"
+    }' "$changed" "$lcov" || return
 
-  # A failing gate has already stopped the run (set -e), so this never hides the gate's messages.
   if ! found grep -q '^SF:' "$coverage_report"; then
     echo "Coverage gate: $coverage_report holds no gated file, so CI would upload an empty report."
     return 2
