@@ -126,6 +126,9 @@ expect_source_edit "a changed app value" fails "differs from" \
 expect_source_edit "a changed veil fade" fails "differs from" \
   Sources/DockOverlayKit/OverlayWindow.swift \
   's/fadeDuration: TimeInterval = 0\.2/fadeDuration: TimeInterval = 0.3/'
+expect_source_edit "a veil fade that isn't a number" fails "has no time in seconds" \
+  Sources/DockOverlayKit/OverlayWindow.swift \
+  's/fadeDuration: TimeInterval = 0\.2/fadeDuration: TimeInterval = 0.2./'
 expect_source_edit "a threshold that leaves a banner level outside its pose" \
   fails "Thresholds.swift makes that band" Sources/DrowsyDockCore/Thresholds.swift \
   's/asleepBelow: 10/asleepBelow: 4/'
