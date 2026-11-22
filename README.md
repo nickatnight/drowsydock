@@ -35,7 +35,7 @@ To quit, choose Quit DrowsyDock (⌘Q) from the menu, or run `pkill -x DrowsyDoc
 DrowsyDock reads the Dock's position and size through Accessibility, to put the cat on it. Without the grant it draws nothing, and the menu still shows the battery line.
 
 1. Choose **Grant Accessibility…** from the menu. macOS shows its alert and opens System Settings ▸ Privacy & Security ▸ Accessibility with DrowsyDock in the list.
-2. Turn DrowsyDock on. You don't need to relaunch it: the menu item changes to **Accessibility: Granted** and the cat appears within a second.
+2. Turn DrowsyDock on, then open the menu again. You don't need to relaunch: the item reads **Accessibility: Granted** and the cat appears within a second.
 
 Turning it off hides the cat again.
 
@@ -55,7 +55,7 @@ While the Mac runs on battery, the cat follows the percentage:
 
 - During one discharge the cat only gets sleepier. If the percentage goes back up, it stays as sleepy as it was.
 - Plug in the charger and it wakes up with a stretch and a sparkle, then stays awake at any percentage while the Mac is on power. Unplug and it takes the state of the current percentage.
-- The first time the cat falls asleep in a discharge, the whole Dock nods off: a wave runs along the Dock, and each icon dims for 0.3 s and puffs a "z". The wave takes at most 4 s. It plays once per discharge, charging arms it again, and it doesn't play when the app starts below 10%.
+- The first time the cat falls asleep in a discharge, the whole Dock nods off: a wave runs along the Dock, and each icon dims for 0.3 s and puffs a "z". The wave takes at most 4 s. It plays once per discharge and can play again after the charger has been plugged in. It doesn't play when the app starts below 10%.
 - On a bottom Dock the cat sits on the last icon. On a left or right Dock it sits at the top end, facing into the screen. It hides while an auto-hidden Dock is off screen, and fades out while the Dock magnifies or the pointer is on the icon under it, so you can read that icon's label. Clicks go through it to the Dock.
 - On a Mac without a battery there is no cat, and the menu says No battery detected.
 
