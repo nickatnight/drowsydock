@@ -211,8 +211,7 @@ write_coverage_report() {
       next
     }
     keep { print }
-    /^end_of_record$/ { keep = 0 }' "$work/gated-list" "$lcov" >"$coverage_report.tmp"
-  mv "$coverage_report.tmp" "$coverage_report"
+    /^end_of_record$/ { keep = 0 }' "$work/gated-list" "$lcov" >"$coverage_report"
 }
 
 coverage_gate() {
