@@ -12,7 +12,7 @@ final class MascotOverlay {
   private static let canvasMargin: CGFloat = 48
 
   private static let logger = MirroredLogger(
-    subsystem: "com.drowsydock.DrowsyDock",
+    subsystem: LogSubsystem.app,
     category: "mascot"
   )
 

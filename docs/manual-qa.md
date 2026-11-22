@@ -229,4 +229,5 @@ These files import AppKit, SpriteKit, IOKit, SwiftUI or the Accessibility API, o
 | `DockTracker`, `DockReader` | `DockTrackerTests` and `DockGeometryTests` for their decisions; live `position`, `size`, `autohide`, `hover`, `magnification`, `relaunch`; manual 7.13, 7.14 |
 | `AccessibilityPermission` | manual 4.1 to 4.5 |
 | `QALogFile` | `QALogFileTests`: no file without `--qa-log`, the folder's and the file's permissions, refused links, the size limit, each line's time as the script reads it, the same path as the script's `qa_log_path`, and every line reaching both the unified log and the file. `QALogMessageTests`: every `log_` pattern in `live-functions.sh` matches a line the app logs. Every live scenario reads the file |
+| `LogSubsystem` | `LogSubsystemTests`: the subsystem equals `CFBundleIdentifier` in `Resources/Info.plist` |
 | `QAHelper` | `LiveQAKitTests` for its checks (`LiveQAKit`); `scripts/qa/check-dry-run.sh` for the script's dry run |

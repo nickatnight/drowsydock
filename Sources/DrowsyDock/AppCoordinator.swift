@@ -12,17 +12,17 @@ protocol DockTracking: AnyObject {
 @Observable
 final class AppCoordinator {
   private static let logger = MirroredLogger(
-    subsystem: "com.drowsydock.DrowsyDock",
+    subsystem: LogSubsystem.app,
     category: "accessibility"
   )
 
   private static let dockLogger = MirroredLogger(
-    subsystem: "com.drowsydock.DrowsyDock",
+    subsystem: LogSubsystem.app,
     category: "dock"
   )
 
   private static let mascotLogger = MirroredLogger(
-    subsystem: "com.drowsydock.DrowsyDock",
+    subsystem: LogSubsystem.app,
     category: "mascot"
   )
 
