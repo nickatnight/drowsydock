@@ -40,15 +40,25 @@ calc() {
   awk "BEGIN { printf \"%.6g\", $1 }"
 }
 
-swift_value() {
-  local file="$1" pattern="$2" after="${3:-}" address="" values
-  if [[ -n $after ]]; then address="/$after/,/$pattern/ "; fi
+# swift_value_in FILE SED_ADDRESS PATTERN: prints PATTERN's group on the one line of FILE, within
+# SED_ADDRESS, that matches it.
+swift_value_in() {
+  local file="$1" address="$2" pattern="$3" values
   values="$(sed -nE "${address}s/.*$pattern.*/\\1/p" "$file")"
   if [[ -z $values || $values == *$'\n'* ]]; then
     echo "banner.sh: /$pattern/ must match one line of $file" >&2
     exit 1
   fi
   printf '%s' "$values"
+}
+
+swift_value() {
+  swift_value_in "$1" "" "$2"
+}
+
+# swift_value_after FILE AFTER PATTERN: the first match of PATTERN after the line matching AFTER.
+swift_value_after() {
+  swift_value_in "$1" "/$2/,/$3/ " "$3"
 }
 
 swift_seconds() {
@@ -89,8 +99,10 @@ puff_hold="$(swift_value "$crowd_node_swift" 'wait\(forDuration: life \* ([0-9.]
 puff_fade_out="$(swift_value "$crowd_node_swift" 'fadeOut\(withDuration: life \* ([0-9.]+)\)')"
 z_start_scale="$(swift_value "$crowd_node_swift" 'z\.setScale\(([0-9.]+)\)')"
 z_end_scale="$(swift_value "$crowd_node_swift" 'scale\(to: ([0-9.]+), duration: life\)')"
-drift_dx="$(swift_value "$crowd_node_swift" 'drift = CGVector\(dx: ([0-9.]+),' 'case \.bottom:')"
-drift_dy="$(swift_value "$crowd_node_swift" 'drift = CGVector\(.*dy: ([0-9.]+)\)' 'case \.bottom:')"
+drift_dx="$(swift_value_after "$crowd_node_swift" 'case \.bottom:' \
+  'drift = CGVector\(dx: ([0-9.]+),')"
+drift_dy="$(swift_value_after "$crowd_node_swift" 'case \.bottom:' \
+  'drift = CGVector\(.*dy: ([0-9.]+)\)')"
 
 units_per_point=1.6
 
