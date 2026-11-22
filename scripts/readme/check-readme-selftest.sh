@@ -69,6 +69,12 @@ expect_banner_edit() {
   run_plant "$1" "${@:2:$#-2}"
 }
 
+expect_icon_edit() {
+  new_plant
+  edit_copy "$1" "${!#}" "$copy/assets/icon.svg" docs/readme/icon.svg || return
+  run_plant "$1" "${@:2:$#-2}"
+}
+
 expect_asset_flip() {
   new_plant
   perl -0pi -e 's/(.)\z/chr(ord($1) ^ 1)/se' "$copy/assets/$2"
@@ -77,13 +83,13 @@ expect_asset_flip() {
 
 # expect_source_edit NAME MODE [MESSAGE] FILE PERL_EDIT
 expect_source_edit() {
-  local file="${@: -2:1}" swift
+  local file="${@: -2:1}" source
   new_plant
-  for swift in Sources/DrowsyDockCore/Thresholds.swift Sources/DrowsyDockCore/MascotPose.swift \
+  for source in Sources/DrowsyDockCore/Thresholds.swift Sources/DrowsyDockCore/MascotPose.swift \
     Sources/DrowsyDockCore/CrowdWave.swift Sources/DrowsyDock/CrowdEffectNode.swift \
-    Sources/DockOverlayKit/OverlayWindow.swift; do
-    mkdir -p "$copy/sources/${swift%/*}"
-    cp "$swift" "$copy/sources/$swift"
+    Sources/DockOverlayKit/OverlayWindow.swift Resources/AppIcon.svg; do
+    mkdir -p "$copy/sources/${source%/*}"
+    cp "$source" "$copy/sources/$source"
   done
   edit_copy "$1" "${!#}" "$copy/sources/$file" "$file" || return
   run_plant "$1" "${@:2:$#-3}" README_SOURCES="$copy/sources"
@@ -105,9 +111,9 @@ expect_readme_edit "a link from the repo root" pass 's{\(CLAUDE\.md\)}{(/CLAUDE.
 expect_readme_edit "a link to a missing file" fails "names no file" \
   's{\(docs/manual-qa\.md\)}{(docs/no-such-file.md)}'
 expect_readme_edit "a missing image" fails "names no file" \
-  's{src="docs/readme/cat\.png"}{src="docs/readme/no-such-image.png"}'
+  's{src="docs/readme/icon\.svg"}{src="docs/readme/no-such-image.png"}'
 expect_readme_edit "a missing image in single quotes" fails "names no file" \
-  "s{src=\"docs/readme/cat\\.png\"}{src='docs/readme/no-such-image.png'}"
+  "s{src=\"docs/readme/icon\\.svg\"}{src='docs/readme/no-such-image.png'}"
 expect_readme_edit "a missing reference-style target" fails "names no file" \
   's/\z/\n[ref]: docs\/no-such-file.md\n/'
 expect_readme_edit "an anchor with no heading" fails "names no heading" \
@@ -119,7 +125,9 @@ expect_readme_edit "a link that leaves the repo" fails "isn't in git's index" \
 expect_readme_edit "a link in the wrong case" fails "isn't in git's index" \
   's{\(CLAUDE\.md\)}{(claude.md)}'
 expect_asset_flip "a changed banner" banner.svg
-expect_asset_flip "a changed header image" cat.png
+expect_asset_flip "a changed header image" icon.svg
+expect_source_edit "a changed app icon" fails "differs from" Resources/AppIcon.svg \
+  's/#3A4C80/#3A4C81/'
 expect_source_edit "a changed app value" fails "differs from" \
   Sources/DrowsyDock/CrowdEffectNode.swift \
   's/dimOpacity: CGFloat = 0\.35/dimOpacity: CGFloat = 0.4/'
@@ -226,13 +234,18 @@ expect_banner_edit "a banner with a url() into itself" lacks "must not hold a sc
   's{<style>}{<style>.x { fill: url(#g) }}'
 expect_banner_edit "a banner over 1,000,000 bytes" fails "must stay under 1,000,000 bytes" \
   's{</svg>}{"<!--" . ("x" x 1000000) . "-->\n</svg>"}e'
+expect_icon_edit "an icon with a script" fails "icon.svg must not hold a script" \
+  's{</svg>}{<script>alert(1)</script></svg>}'
+expect_icon_edit "an icon with an https reference" fails "icon.svg must not hold a script" \
+  's{</svg>}{<image href="https://example.com/x.png"/></svg>}'
 new_plant
 copy_references
 perl -0pi -e 's/(.)\z/chr(ord($1) ^ 1)/se' "$copy/references/pose-asleep-left.png"
 run_plant "a changed pose reference" fails "differs from" README_REFERENCES="$copy/references"
 new_plant
 copy_references
-ln -sf "$PWD/docs/readme/cat.png" "$copy/references/pose-yawning-left.png"
+ln -sf "$PWD/Tests/DrowsyDockTests/Snapshots/pose-awake-left.png" \
+  "$copy/references/pose-yawning-left.png"
 run_plant "a reference that is a symlink to a PNG" fails "must be a regular PNG file" \
   README_REFERENCES="$copy/references"
 new_plant
@@ -241,7 +254,7 @@ printf 'not a png\n' >"$copy/references/pose-yawning-left.png"
 run_plant "a reference that isn't a PNG" fails "must be a regular PNG file" \
   README_REFERENCES="$copy/references"
 expect_readme_edit "a link with a control character" fails "x?::error::hi names no file" \
-  's{src="docs/readme/cat\.png"}{src="x\r::error::hi"}'
+  's{src="docs/readme/icon\.svg"}{src="x\r::error::hi"}'
 wait
 
 checked=0

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#   scripts/readme/banner.sh          write docs/readme/banner.svg and docs/readme/cat.png
+#   scripts/readme/banner.sh          write docs/readme/banner.svg and docs/readme/icon.svg
 #   scripts/readme/banner.sh --check  exit 1 if either is out of date
 #
 # banner.svg uses CSS animation only and embeds the PNGs, so GitHub can show it through <img>.
@@ -430,7 +430,7 @@ EOF
 
 generate() {
   banner_svg >"$1/banner.svg"
-  cp "$references/pose-awake-left.png" "$1/cat.png"
+  cp "$sources/Resources/AppIcon.svg" "$1/icon.svg"
 }
 
 scratch="$(mktemp -d)"
