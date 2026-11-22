@@ -45,29 +45,28 @@ run_plant() {
   ) &
 }
 
+# edit_copy NAME PERL_EDIT COPY ORIGINAL: applies PERL_EDIT to COPY, and fails the self-test and
+# returns 1 if COPY is still the same as ORIGINAL.
+edit_copy() {
+  perl -0pi -e "$2" "$3"
+  if cmp -s "$3" "$4"; then
+    echo "check-readme-selftest: the plant '$1' changed nothing" >&2
+    failed=1
+    return 1
+  fi
+}
+
 # expect_readme_edit NAME MODE [MESSAGE] PERL_EDIT, with MODE and MESSAGE as run_plant takes them.
 expect_readme_edit() {
-  local name="$1" perl_edit="${!#}"
   new_plant
-  perl -0pi -e "$perl_edit" "$copy/README.md"
-  if cmp -s "$copy/README.md" README.md; then
-    echo "check-readme-selftest: the plant '$name' changed nothing" >&2
-    failed=1
-    return
-  fi
-  run_plant "$name" "${@:2:$#-2}"
+  edit_copy "$1" "${!#}" "$copy/README.md" README.md || return
+  run_plant "$1" "${@:2:$#-2}"
 }
 
 expect_banner_edit() {
-  local name="$1" perl_edit="${!#}"
   new_plant
-  perl -0pi -e "$perl_edit" "$copy/assets/banner.svg"
-  if cmp -s "$copy/assets/banner.svg" docs/readme/banner.svg; then
-    echo "check-readme-selftest: the plant '$name' changed nothing" >&2
-    failed=1
-    return
-  fi
-  run_plant "$name" "${@:2:$#-2}"
+  edit_copy "$1" "${!#}" "$copy/assets/banner.svg" docs/readme/banner.svg || return
+  run_plant "$1" "${@:2:$#-2}"
 }
 
 expect_asset_flip() {
@@ -78,7 +77,7 @@ expect_asset_flip() {
 
 # expect_source_edit NAME MODE [MESSAGE] FILE PERL_EDIT
 expect_source_edit() {
-  local name="$1" file="${@: -2:1}" perl_edit="${!#}" swift
+  local file="${@: -2:1}" swift
   new_plant
   for swift in Sources/DrowsyDockCore/Thresholds.swift Sources/DrowsyDockCore/MascotPose.swift \
     Sources/DrowsyDockCore/CrowdWave.swift Sources/DrowsyDock/CrowdEffectNode.swift \
@@ -86,13 +85,8 @@ expect_source_edit() {
     mkdir -p "$copy/sources/${swift%/*}"
     cp "$swift" "$copy/sources/$swift"
   done
-  perl -0pi -e "$perl_edit" "$copy/sources/$file"
-  if cmp -s "$copy/sources/$file" "$file"; then
-    echo "check-readme-selftest: the plant '$name' changed nothing" >&2
-    failed=1
-    return
-  fi
-  run_plant "$name" "${@:2:$#-3}" README_SOURCES="$copy/sources"
+  edit_copy "$1" "${!#}" "$copy/sources/$file" "$file" || return
+  run_plant "$1" "${@:2:$#-3}" README_SOURCES="$copy/sources"
 }
 
 export repo_folder_name="${PWD##*/}"
