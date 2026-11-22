@@ -11,8 +11,8 @@
 # HTML ids, non-ASCII letters in anchors, links in indented code blocks, %-encoded paths.
 # Not read at all, so they pass unchecked: srcset, unquoted or line-split attributes, a fence
 # closed by a longer fence, and a code span that crosses a line break.
-# The banner and the icon (GitHub serves both through <img>) must each stay under 1,000,000 bytes
-# and hold none of these, in any letter case: <script
+# The banner and the icon must each stay under 1,000,000 bytes and hold none of these, in any
+# letter case: <script
 # or <foreignObject, bare or after ASCII letters and a colon (svg:); javascript:; @import; an
 # on...= attribute (on, ASCII letters, optional whitespace, =, at a line's start or after
 # whitespace); <!DOCTYPE; <!ENTITY; an image with nothing between base64, and its quote; url(

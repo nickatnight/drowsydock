@@ -3,7 +3,6 @@
 #   scripts/readme/banner.sh --check  exit 1 if either is out of date
 #
 # banner.svg uses CSS animation only and embeds the PNGs, so GitHub can show it through <img>.
-# icon.svg is a byte-for-byte copy of Resources/AppIcon.svg, the app icon.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 export LC_ALL=C
