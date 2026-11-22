@@ -2,10 +2,10 @@
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 scratch="$(mktemp -d)"
-ignored="build/readme-selftest-$$.md"
-trap 'rm -rf "$scratch"; rm -f "$ignored"' EXIT
+git_ignored_file="build/readme-selftest-$$.md"
+trap 'rm -rf "$scratch"; rm -f "$git_ignored_file"' EXIT
 mkdir -p build
-: >"$ignored"
+: >"$git_ignored_file"
 
 failed=0
 index=0
@@ -43,7 +43,7 @@ check "a broken link inside a code block" pass 's/\n```sh\n/\n```sh\n[x](no-such
 check "a link to a missing file" fail 's{\(docs/manual-qa\.md\)}{(docs/no-such-file.md)}'
 check "a missing image" fail 's{src="docs/readme/cat\.png"}{src="docs/readme/no-such-image.png"}'
 check "an anchor with no heading" fail 's{href="#requirements"}{href="#no-such-heading"}'
-check "a link to a file git ignores" fail "s{\\(CLAUDE\\.md\\)}{($ignored)}"
+check "a link to a file git ignores" fail "s{\\(CLAUDE\\.md\\)}{($git_ignored_file)}"
 check "a changed banner" fail "" banner.svg
 check "a changed header image" fail "" cat.png
 exit "$failed"
