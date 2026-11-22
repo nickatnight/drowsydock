@@ -84,7 +84,7 @@ DrowsyDock keeps no settings and writes no files in normal use. macOS keeps the 
 | `RECORD_SNAPSHOTS=1 swift test` | Rewrites the snapshot references, then fails on purpose |
 | `swift format lint --strict --recursive Sources scripts/qa/Sources Tests` | The format lint. `swift format --in-place --recursive Sources scripts/qa/Sources Tests` fixes most findings. |
 | `scripts/bundle.sh` | `build/DrowsyDock.app`, universal, signed with `$SIGN_IDENTITY` (default `-`, ad hoc) and the hardened runtime |
-| `scripts/check.sh fast` | Compile, format lint, the live QA script's checks, the floor rules from CONSTRAINTS.md, the QA row mapping, the README's links and banner, and the secret scan. Run it after every edit. |
+| `scripts/check.sh fast` | Compile, format lint, the live QA script's checks, the floor rules from CONSTRAINTS.md, the QA row mapping, the README's links, banner and icon, and the secret scan. Run it after every edit. |
 | `scripts/check.sh task` | `fast`, then the tests with coverage, the changed-line coverage gate against `$CHECK_BASE` (default `main`) and the signed bundle. Run it before every commit. |
 | `scripts/readme/banner.sh` | Rebuilds `docs/readme/` (this page's banner and icon) from the snapshot references, `Resources/AppIcon.svg` and the values it reads from the app's Swift sources |
 
