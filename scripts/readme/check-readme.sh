@@ -10,7 +10,9 @@
 # HTML ids, non-ASCII letters in anchors, links in indented code blocks, %-encoded paths.
 # Not read at all, so they pass unchecked: srcset, unquoted or line-split attributes, a fence
 # closed by a longer fence, and a code span that crosses a line break.
-# The banner must stay under 1 MB, with no script, no external reference and no empty image.
+# The banner must stay under 1 MB. It must hold no <script, javascript:, @import, on...= handler,
+# <foreignObject or empty image, no url() but url(#id), no href or src but a #id or a base64 PNG,
+# and no http(s) URL but the SVG namespace.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -84,13 +86,16 @@ if (($(wc -c <"$banner") >= 1000000)); then
   failed=1
 fi
 # Captured before matching, so no early exit in a pipeline can read as "clean". A url() may point
-# into the SVG (url(#id)); base64 data never holds ':', '(', '<', '@' or a quote.
+# into the SVG (url(#id)); base64 data never holds ':', '(', '<', '@', a space or a quote.
 forbidden_pattern="<script|javascript:|@import|base64,[\"']|url\\([[:space:]]*[\"']?[^#\"'[:space:]]"
-forbidden_pattern+="|(href|src)[[:space:]]*=[[:space:]]*[\"']//"
+forbidden_pattern+="|[[:space:]]on[a-z]+[[:space:]]*=|<foreignObject"
 forbidden="$(grep -oiE -- "$forbidden_pattern" "$banner" || true)"
+# An href or src may only point into the SVG (#id) or hold a base64 PNG.
+hrefs="$(grep -oiE -- "(href|src)[[:space:]]*=[[:space:]]*[\"'][^\"']*" "$banner" || true)"
+foreign_hrefs="$(grep -viE -- "[\"'](#|data:image/png;base64,)" <<<"$hrefs" || true)"
 urls="$(grep -oiE -- "https?://[^\"' )<>]+" "$banner" || true)"
 foreign_urls="$(grep -vxF -- 'http://www.w3.org/2000/svg' <<<"$urls" || true)"
-if [[ -n $forbidden || -n $foreign_urls ]]; then
+if [[ -n $forbidden || -n $foreign_hrefs || -n $foreign_urls ]]; then
   echo "README: $banner must not hold a script, an external reference or an empty image" >&2
   failed=1
 fi

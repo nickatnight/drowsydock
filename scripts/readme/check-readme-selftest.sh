@@ -153,8 +153,11 @@ expect_readme_edit "an anchor to a heading only inside a code block" "names no h
   's/\n## Docs\n/\n```\n## Fake\n```\n\n[x](#fake)\n\n## Docs\n/'
 expect_banner_edit "a banner with a script" "must not hold a script" \
   's{<style>}{<style><script>alert(1)</script>}'
-expect_banner_edit "a banner with a javascript: link" "must not hold a script" \
-  's{</svg>}{<a href="javascript:void(0)"/></svg>}'
+# Two plants set an href by animation, where the href rule doesn't look.
+expect_banner_edit "a banner that animates an href to javascript:" "must not hold a script" \
+  's{</svg>}{<set attributeName="href" to="javascript:void(0)"/></svg>}'
+expect_banner_edit "a banner that animates an href to a w3.org file" "must not hold a script" \
+  's{</svg>}{<set attributeName="href" to="http://www.w3.org/x.png"/></svg>}'
 expect_banner_edit "a banner with an @import" "must not hold a script" \
   's{<style>}{<style>\@import "x.css";}'
 expect_banner_edit "a banner with an empty image" "must not hold a script" \
@@ -167,6 +170,22 @@ expect_banner_edit "a banner with an uppercase HTTPS reference" "must not hold a
   's{</svg>}{<image href="HTTPS://EXAMPLE.COM/X.PNG"/></svg>}'
 expect_banner_edit "a banner with a protocol-relative reference" "must not hold a script" \
   's{</svg>}{<image href="//example.com/x.png"/></svg>}'
+expect_banner_edit "a banner with an event handler" "must not hold a script" \
+  's{<svg }{<svg onload="alert(1)" }'
+expect_banner_edit "a banner with a foreignObject" "must not hold a script" \
+  's{</svg>}{<foreignObject><p>x</p></foreignObject></svg>}'
+expect_banner_edit "a banner with a relative image" "must not hold a script" \
+  's{</svg>}{<image href="x.png"/></svg>}'
+expect_banner_edit "a banner with a relative xlink:href" "must not hold a script" \
+  's{</svg>}{<image xlink:href="../x.png"/></svg>}'
+expect_banner_edit "a banner using a shape in another file" "must not hold a script" \
+  's{</svg>}{<use href="other.svg#x"/></svg>}'
+expect_banner_edit "a banner with a relative file name that starts with data" \
+  "must not hold a script" 's{</svg>}{<image href="data.png"/></svg>}'
+expect_banner_edit "a banner with an SVG data image" "must not hold a script" \
+  's{</svg>}{<image href="data:image/svg+xml;base64,PHN2Zz4="/></svg>}'
+expect_banner_edit "a banner with an empty href" "must not hold a script" \
+  's{</svg>}{<use href=""/></svg>}'
 expect_banner_edit "a banner with a url() into itself" "not:must not hold a script" \
   's{<style>}{<style>.x { fill: url(#g) }}'
 expect_banner_edit "a banner over 1 MB" "must stay under 1 MB" \
