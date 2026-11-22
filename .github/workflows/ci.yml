@@ -61,6 +61,7 @@ jobs:
           fail_ci_if_error: true
           plugins: noop
           disable_telem: true
+          cleanup: true
 
       - name: Upload snapshot failures
         if: failure()
