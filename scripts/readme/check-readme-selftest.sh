@@ -69,6 +69,12 @@ expect_banner_edit() {
   run_plant "$1" "${@:2:$#-2}"
 }
 
+expect_icon_edit() {
+  new_plant
+  edit_copy "$1" "${!#}" "$copy/assets/icon.svg" docs/readme/icon.svg || return
+  run_plant "$1" "${@:2:$#-2}"
+}
+
 expect_asset_flip() {
   new_plant
   perl -0pi -e 's/(.)\z/chr(ord($1) ^ 1)/se' "$copy/assets/$2"
@@ -228,6 +234,10 @@ expect_banner_edit "a banner with a url() into itself" lacks "must not hold a sc
   's{<style>}{<style>.x { fill: url(#g) }}'
 expect_banner_edit "a banner over 1,000,000 bytes" fails "must stay under 1,000,000 bytes" \
   's{</svg>}{"<!--" . ("x" x 1000000) . "-->\n</svg>"}e'
+expect_icon_edit "an icon with a script" fails "icon.svg must not hold a script" \
+  's{</svg>}{<script>alert(1)</script></svg>}'
+expect_icon_edit "an icon with an https reference" fails "icon.svg must not hold a script" \
+  's{</svg>}{<image href="https://example.com/x.png"/></svg>}'
 new_plant
 copy_references
 perl -0pi -e 's/(.)\z/chr(ord($1) ^ 1)/se' "$copy/references/pose-asleep-left.png"

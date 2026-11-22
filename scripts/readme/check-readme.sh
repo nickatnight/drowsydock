@@ -11,7 +11,8 @@
 # HTML ids, non-ASCII letters in anchors, links in indented code blocks, %-encoded paths.
 # Not read at all, so they pass unchecked: srcset, unquoted or line-split attributes, a fence
 # closed by a longer fence, and a code span that crosses a line break.
-# The banner must stay under 1,000,000 bytes and hold none of these, in any letter case: <script
+# The banner and the icon (GitHub serves both through <img>) must each stay under 1,000,000 bytes
+# and hold none of these, in any letter case: <script
 # or <foreignObject, bare or after ASCII letters and a colon (svg:); javascript:; @import; an
 # on...= attribute (on, ASCII letters, optional whitespace, =, at a line's start or after
 # whitespace); <!DOCTYPE; <!ENTITY; an image with nothing between base64, and its quote; url(
@@ -22,8 +23,8 @@
 # <animate values=), a CSS image-set() string, an attribute or url( split from its = or value by a
 # line break, a non-ASCII namespace prefix, and a keyword written with a CSS escape (\75rl(), an
 # XML character reference (u&#114;l() or a CDATA, comment or processing-instruction break.
-# banner.sh --check, which compares the banner byte for byte with what banner.sh writes, is what
-# stops a hand-edited banner.
+# banner.sh --check, which compares both byte for byte with what banner.sh writes, is what stops
+# a hand-edited banner or icon.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -84,11 +85,6 @@ while IFS= read -r link <&3; do
   esac
 done 3< <(links)
 
-banner="${README_ASSETS:-docs/readme}/banner.svg"
-if (($(wc -c <"$banner") >= 1000000)); then
-  echo "README: $banner must stay under 1,000,000 bytes" >&2
-  failed=1
-fi
 letters_prefix='([a-z]+:)?'
 script="<${letters_prefix}script"
 javascript='javascript:'
@@ -100,15 +96,22 @@ foreign_object="<${letters_prefix}foreignObject"
 document_type='<!(DOCTYPE|ENTITY)'
 forbidden_pattern="$script|$javascript|$import|$empty_image|$foreign_url_function"
 forbidden_pattern+="|$event_handler|$foreign_object|$document_type"
-forbidden="$(grep -oiE -- "$forbidden_pattern" "$banner" || true)"
-hrefs="$(grep -oiE -- "(href|src)[[:space:]]*=[[:space:]]*[\"'][^\"']*" "$banner" || true)"
-foreign_hrefs="$(grep -viE -- "[\"'](#|data:image/png;base64,)" <<<"$hrefs" || true)"
-urls="$(grep -oiE -- "https?://[^\"' )<>]+" "$banner" || true)"
-foreign_urls="$(grep -vxF -- 'http://www.w3.org/2000/svg' <<<"$urls" || true)"
-if [[ -n $forbidden || -n $foreign_hrefs || -n $foreign_urls ]]; then
-  echo "README: $banner must not hold a script, an external reference or an empty image" >&2
-  failed=1
-fi
+for svg in banner.svg icon.svg; do
+  svg="${README_ASSETS:-docs/readme}/$svg"
+  if (($(wc -c <"$svg") >= 1000000)); then
+    echo "README: $svg must stay under 1,000,000 bytes" >&2
+    failed=1
+  fi
+  forbidden="$(grep -oiE -- "$forbidden_pattern" "$svg" || true)"
+  hrefs="$(grep -oiE -- "(href|src)[[:space:]]*=[[:space:]]*[\"'][^\"']*" "$svg" || true)"
+  foreign_hrefs="$(grep -viE -- "[\"'](#|data:image/png;base64,)" <<<"$hrefs" || true)"
+  urls="$(grep -oiE -- "https?://[^\"' )<>]+" "$svg" || true)"
+  foreign_urls="$(grep -vxF -- 'http://www.w3.org/2000/svg' <<<"$urls" || true)"
+  if [[ -n $forbidden || -n $foreign_hrefs || -n $foreign_urls ]]; then
+    echo "README: $svg must not hold a script, an external reference or an empty image" >&2
+    failed=1
+  fi
+done
 
 if ! scripts/readme/banner.sh --check </dev/null; then
   failed=1
