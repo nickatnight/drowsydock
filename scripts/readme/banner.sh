@@ -104,7 +104,9 @@ drift_dx="$(swift_value_after "$crowd_node_swift" 'case \.bottom:' \
 drift_dy="$(swift_value_after "$crowd_node_swift" 'case \.bottom:' \
   'drift = CGVector\(.*dy: ([0-9.]+)\)')"
 
-units_per_point=1.6
+reference_pixels_per_point=2
+pose_scale=0.8
+units_per_point="$(calc "$reference_pixels_per_point * $pose_scale")"
 
 awake_level=80
 drowsy_level=40
