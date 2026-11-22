@@ -72,7 +72,8 @@ expect_source_edit() {
   local name="$1" expected="$2" file="$3" perl_edit="$4" swift
   new_plant
   for swift in Sources/DrowsyDockCore/Thresholds.swift Sources/DrowsyDockCore/MascotPose.swift \
-    Sources/DrowsyDockCore/CrowdWave.swift Sources/DrowsyDock/CrowdEffectNode.swift; do
+    Sources/DrowsyDockCore/CrowdWave.swift Sources/DrowsyDock/CrowdEffectNode.swift \
+    Sources/DockOverlayKit/OverlayWindow.swift; do
     mkdir -p "$copy/sources/${swift%/*}"
     cp "$swift" "$copy/sources/$swift"
   done
@@ -118,6 +119,8 @@ expect_asset_flip "a changed banner" banner.svg
 expect_asset_flip "a changed header image" cat.png
 expect_source_edit "a changed app value" "differs from" Sources/DrowsyDock/CrowdEffectNode.swift \
   's/dimOpacity: CGFloat = 0\.35/dimOpacity: CGFloat = 0.4/'
+expect_source_edit "a changed veil fade" "differs from" Sources/DockOverlayKit/OverlayWindow.swift \
+  's/fadeDuration: TimeInterval = 0\.2/fadeDuration: TimeInterval = 0.3/'
 expect_source_edit "a threshold that leaves a banner level outside its pose" \
   "Thresholds.swift makes that band" Sources/DrowsyDockCore/Thresholds.swift \
   's/asleepBelow: 10/asleepBelow: 4/'

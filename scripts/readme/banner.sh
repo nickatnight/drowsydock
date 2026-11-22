@@ -71,6 +71,8 @@ yawning_below="$(swift_value "$thresholds_swift" 'yawningBelow: ([0-9]+)')"
 drowsy_below="$(swift_value "$thresholds_swift" 'validatedDrowsyBelow: ([0-9]+)')"
 mascot_pose_swift="$sources/Sources/DrowsyDockCore/MascotPose.swift"
 veil_opacity="$(swift_value "$mascot_pose_swift" 'veilOpacity: ([0-9.]+)')"
+overlay_window_swift="$sources/Sources/DockOverlayKit/OverlayWindow.swift"
+veil_fade_seconds="$(swift_value "$overlay_window_swift" 'fadeDuration: TimeInterval = ([0-9.]+)')"
 
 crowd_wave_swift="$sources/Sources/DrowsyDockCore/CrowdWave.swift"
 icon_seconds="$(swift_seconds "$crowd_wave_swift" iconEffectDuration)"
@@ -126,7 +128,6 @@ charged_status_at=15.5
 drain_seconds=0.5
 pose_fade_seconds=0.25
 plug_slide_seconds=0.5
-veil_fade_seconds=0.2
 step_seconds=0.01
 
 keyframes() {
