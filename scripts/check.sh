@@ -340,7 +340,6 @@ if [[ $mode == fast ]]; then
 fi
 
 step "Tests (with coverage)"
-rm -f "$coverage_report"
 swift test --enable-code-coverage
 
 step "Coverage of changed lines"
