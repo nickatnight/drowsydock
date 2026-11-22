@@ -176,12 +176,11 @@ fill_length=210
 thresholds=("$asleep_below" "$nodding_off_below" "$yawning_below" "$drowsy_below")
 
 fill_dashoffset() {
-  awk -v p="$1" -v span="$fill_length" 'BEGIN { printf "%.6gpx", span * (100 - p) / 100 }'
+  printf '%spx' "$(calc "$fill_length * (100 - $1) / 100")"
 }
 
 fill_x() {
-  awk -v p="$1" -v start="$fill_start" -v span="$fill_length" \
-    'BEGIN { printf "%.6g", start + span * p / 100 }'
+  calc "$fill_start + $fill_length * $1 / 100"
 }
 
 threshold_labels() {
