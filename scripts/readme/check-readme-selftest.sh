@@ -164,15 +164,16 @@ expect_banner_edit "a banner with an @import" fails "must not hold a script" \
 expect_banner_edit "a banner with an empty image" fails "must not hold a script" \
   's{base64,[^"]*"}{base64,"}'
 expect_banner_edit "a banner with an external url()" fails "must not hold a script" \
-  's{<style>}{<style>.x { fill: url(x.svg#g) }}'
+  's{<style>}{<style>.x { fill: url("x.svg#g") }}'
 expect_banner_edit "a banner with an https reference" fails "must not hold a script" \
   's{</svg>}{<image href="https://example.com/x.png"/></svg>}'
-expect_banner_edit "a banner with an uppercase HTTPS reference" fails "must not hold a script" \
-  's{</svg>}{<image href="HTTPS://EXAMPLE.COM/X.PNG"/></svg>}'
+expect_banner_edit "a banner that animates an href to an uppercase HTTPS URL" fails \
+  "must not hold a script" \
+  's{</svg>}{<set attributeName="href" to="HTTPS://EXAMPLE.COM/X.PNG"/></svg>}'
 expect_banner_edit "a banner with a protocol-relative reference" fails "must not hold a script" \
   's{</svg>}{<image href="//example.com/x.png"/></svg>}'
 expect_banner_edit "a banner with an event handler" fails "must not hold a script" \
-  's{<svg }{<svg onload="alert(1)" }'
+  's{</svg>}{<set attributeName="opacity" to="1" onbegin = "alert(1)"/></svg>}'
 expect_banner_edit "a banner with an event handler that starts a line" fails \
   "must not hold a script" 's{<svg }{<svg\nonload="alert(1)" }'
 expect_banner_edit "a banner with a foreignObject" fails "must not hold a script" \
@@ -188,11 +189,13 @@ expect_banner_edit "a banner with a space before a quoted url()" fails "must not
 expect_banner_edit "a banner with a relative image" fails "must not hold a script" \
   's{</svg>}{<image href="x.png"/></svg>}'
 expect_banner_edit "a banner with a relative xlink:href" fails "must not hold a script" \
-  's{</svg>}{<image xlink:href="../x.png"/></svg>}'
+  's{</svg>}{<image xlink:href = \x27../x.png\x27/></svg>}'
 expect_banner_edit "a banner using a shape in another file" fails "must not hold a script" \
   's{</svg>}{<use href="other.svg#x"/></svg>}'
 expect_banner_edit "a banner with a relative file name that starts with data" \
   fails "must not hold a script" 's{</svg>}{<image href="data.png"/></svg>}'
+expect_banner_edit "a banner with a relative src" fails "must not hold a script" \
+  's{</svg>}{<image src="x.png"/></svg>}'
 expect_banner_edit "a banner with an SVG data image" fails "must not hold a script" \
   's{</svg>}{<image href="data:image/svg+xml;base64,PHN2Zz4="/></svg>}'
 expect_banner_edit "a banner with an empty href" fails "must not hold a script" \
