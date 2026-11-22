@@ -259,9 +259,7 @@ coverage_gate() {
   # NR == FNR.
   LOGICAL="$PWD/" PHYSICAL="$(pwd -P)/" MINIMUM="$coverage_minimum" \
     awk -F '\t' "$repo_relative_path"'
-    BEGIN {
-      logical = ENVIRON["LOGICAL"]; physical = ENVIRON["PHYSICAL"]; minimum = ENVIRON["MINIMUM"]
-    }
+    BEGIN { logical = ENVIRON["LOGICAL"]; physical = ENVIRON["PHYSICAL"]; minimum = ENVIRON["MINIMUM"] }
     FILENAME == ARGV[1] { changed[$1 SUBSEP $2] = 1; changed_files[$1] = 1; next }
     /^SF:/ {
       file = repo_relative(substr($0, 4), logical, physical)
