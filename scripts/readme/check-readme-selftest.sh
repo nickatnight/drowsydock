@@ -208,6 +208,10 @@ expect_banner_edit "a banner with an SVG data image" fails "must not hold a scri
   's{</svg>}{<image href="data:image/svg+xml;base64,PHN2Zz4="/></svg>}'
 expect_banner_edit "a banner with an empty href" fails "must not hold a script" \
   's{</svg>}{<use href=""/></svg>}'
+expect_banner_edit "a banner with a lowercase doctype" fails "must not hold a script" \
+  's{<svg }{<!doctype svg SYSTEM "x.dtd">\n<svg }'
+expect_banner_edit "a banner with an uppercase HREF" fails "must not hold a script" \
+  's{</svg>}{<image HREF="x.png"/></svg>}'
 expect_banner_edit "a banner with a url() into itself" lacks "must not hold a script" \
   's{<style>}{<style>.x { fill: url(#g) }}'
 expect_banner_edit "a banner over 1 MB" fails "must stay under 1 MB" \
