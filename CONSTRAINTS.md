@@ -1,48 +1,58 @@
 # Constraints
 
-Last reviewed: 2026-11-16 (emgee job 007-github-actions-ci: CI runs `check.sh task`, noted in the Runs at column; emgee job 004-test-automation docs step after round 6: Measured coverage and binary size after rework 2; emgee job 004-test-automation: Measured coverage and binary size at the end of the job; the live QA helper's sources in the Format and Coverage rows; the harness CPU at 12 fps and E1's path, ADR 0017; emgee job 003-mascot Gate 2: exception E1 for the asleep-loop CPU; emgee job 003-mascot docs step after round 4: the Measured coverage and binary size; job 003-mascot rework 1: the Measured binary size and mascot CPU; job 003-mascot: the Bundle row bans every entitlement, ADR 0007; the Measured binary size; job 002-dock-overlay: hardened-runtime Bundle row, the floor rule's comment forms, the Measured binary size; drafted in job 001-foundation from the skill defaults)
+The project's quality bar. `scripts/check.sh` enforces most of it. Never weaken this file to make a change pass.
+
+Last reviewed: 2026-11-16. Earlier measurements and the reasons behind each change are in git history.
 
 ## Floor (always enforced)
 
-- No new suppressions: `// swift-format-ignore`, `@preconcurrency` imports, `nonisolated(unsafe)` or `@unchecked Sendable` unless a one-line comment explains why the type is safe. The comment is a plain `//` line directly above, or a `//` comment after the code on the same line. For `// swift-format-ignore` only the line above counts. A `///` doc comment or a `// MARK:` line is not an explanation.
-- No unimplemented stubs: `fatalError("TODO")` or `fatalError("not implemented")`, an empty `catch {}`, or `try!` outside tests.
-- No skipped or deleted tests without a reason in the commit message.
-- No secrets in source: no certificates, `.p12` files, notarytool credentials or Apple IDs.
-- No third-party dependencies (empty `dependencies:` in `Package.swift`) without asking first.
-- This file is not weakened to make a change pass.
+- **No new suppressions** (`// swift-format-ignore`, `@preconcurrency` imports, `nonisolated(unsafe)`, `@unchecked Sendable`) unless a one-line comment explains why the code is safe. The comment must be a plain `//` line directly above, or a `//` comment at the end of the same line. For `// swift-format-ignore`, only the line above counts. A `///` doc comment or a `// MARK:` line doesn't count as an explanation.
+- **No stubs**: no `fatalError("TODO")`, `fatalError("not implemented")` or empty `catch {}`, and no `try!` outside tests.
+- **No skipped or deleted tests** without a reason in the commit message.
+- **No secrets** in source: certificates, `.p12` files, notarytool credentials or Apple IDs.
+- **No third-party dependencies** (`dependencies:` in `Package.swift` stays empty) unless the owner agrees first.
 
-## Enforced with numbers
+## Enforced
 
-| Dimension | Rule | Checked by | Runs at |
-|---|---|---|---|
-| Compile | Zero errors and zero warnings, Swift 6 language mode | `swift build -Xswiftc -warnings-as-errors` | every edit (`check.sh fast`), CI (`check.sh task` in `.github/workflows/ci.yml`) |
-| Format | Zero findings | `swift format lint --strict --recursive Sources scripts/qa/Sources Tests` | every edit, CI |
-| Secrets | No findings | `gitleaks detect --redact --no-banner` | every edit, CI |
-| Tests | All pass | `swift test` | task end (`check.sh task`), CI with the snapshot tests skipped (`DROWSYDOCK_SKIP_SNAPSHOTS=1`) |
-| Coverage | Changed lines in `Sources/DrowsyDockCore/**`, `scripts/qa/Sources/LiveQAKit/**` and the pure files of `Sources/DockOverlayKit/**` ≥ 80% covered. Why 80%: it forces a test for every rule without forcing tests for trivial initialisers. | `swift test --enable-code-coverage` → `xcrun llvm-cov export -format=lcov` intersected with `git diff` | task end, CI |
-| Bundle | The app assembles, the signature verifies with the hardened runtime, and the plist is valid. The signature carries no entitlements at all (ADR 0007). | `scripts/bundle.sh && codesign --verify --strict build/DrowsyDock.app && codesign -dv build/DrowsyDock.app` (flags include `runtime`) `&& codesign -d --entitlements - --xml build/DrowsyDock.app` (prints nothing) `&& plutil -lint Resources/Info.plist` | task end, CI |
-| Idle CPU (external) | Average ≤ 1.0% in `awake`, ≤ 3.0% in `noddingOff`/`asleep`, over 60 s. Why: a novelty app must never show up in Activity Monitor. 1% is below the noise of a typical menu-bar utility. Looping states get 3× that for a 30 fps loop. | `top -l 61 -s 1 -stats cpu -pid $(pgrep -x DrowsyDock) \| awk 'NR>1 && /^[0-9.]+[[:space:]]*$/ {s+=$1; n++} END {print s/n}'` | manual QA (needs the Accessibility grant) |
+| Check | Rule | When it runs |
+|---|---|---|
+| Compile | Zero errors and zero warnings, Swift 6 language mode | every edit, CI |
+| Format | Zero `swift format lint --strict` findings | every edit, CI |
+| Secrets | Zero `gitleaks detect` findings | every edit, CI |
+| Tests | All pass | before commit, CI (without snapshots) |
+| Coverage | At least 80% of changed lines covered in the gated targets (below) | before commit, CI |
+| Bundle | The app builds; the signature verifies with the hardened runtime and carries **no entitlements** (ADR 0007); `Info.plist` lints | before commit, CI |
+| Idle CPU | 60 s average: ≤ 1.0% in `awake`, ≤ 3.0% in `noddingOff`/`asleep` | manual QA (`scripts/qa-live.sh --only cpu`) |
 
-Exempt from coverage: thin adapters over IOKit, AX, AppKit, SpriteKit and ServiceManagement. Each of these must have an entry in `docs/manual-qa.md` instead.
+"Every edit" means `scripts/check.sh fast`. "Before commit" and CI mean `scripts/check.sh task`. The exact commands are in `scripts/check.sh`.
 
-`gated_targets` in `scripts/check.sh` lists the gated targets, today `Sources/DrowsyDockCore`, `Sources/DockOverlayKit` and `scripts/qa/Sources/LiveQAKit` (the live QA helper's pure checks). The gate covers their files that import none of those frameworks, and treats every other file under `Sources` and `scripts/qa/Sources` as exempt. So a job that adds a pure library target adds it to `gated_targets` and to the Coverage row above in the same change.
+**Why 80% coverage:** it forces a test for every rule without forcing tests for trivial initializers.
+**Why 1% CPU:** a novelty app should never show up in Activity Monitor. Looping states get 3× for the animation.
+
+### Coverage gate
+
+- **Gated**: the files in `gated_targets` in `scripts/check.sh` (today `DrowsyDockCore`, `DockOverlayKit` and `LiveQAKit`) that import no AppKit, SpriteKit, IOKit, AX, SwiftUI or ServiceManagement.
+- **Exempt**: thin adapters over those frameworks. Each needs an entry in `docs/manual-qa.md` instead.
+- When you add a pure library target, add it to `gated_targets` in the same change.
 
 ## Measured, not yet enforced
 
-| Metric | Today | Direction |
+| Metric | Current baseline (`cea7bcd`, 448 tests) | Rule |
 |---|---|---|
-| Project coverage of `DrowsyDockCore` | At the end of job 001 (`f08892b`): lines 194/194 (100%), regions 97/98 (98.98%), functions 29/29, from 67 tests (`xcrun llvm-cov report` over `Sources/DrowsyDockCore/*.swift` after `swift test --enable-code-coverage`). After slice 3 it was lines 183/183 from 57 tests. The round-1 review fixes brought it to lines 190/190 and regions 96/97 at `2443161`, and the parser refactor in polish pass 2 (`0b58d10`, the `roundedPercentage` helper) added the rest. The missed region is the `.noBattery` label in `StatusLine`. It can't be reached, because a `nil` reading returns "No battery detected" first. At the end of job 003 (round-1 review fixes): lines 382/382 (100%), regions 194/195, functions 60/60, from 252 tests in both targets. Job 003 added `MascotPose`, `MascotMood`, `AmbientSchedule`, `AnimationDirector`, `MascotAnimation`, `MascotTimeline`, `CrowdEffectRule`, `CrowdWave` and `Duration.inSeconds`, all fully covered. The one missed region is still the `StatusLine` label. After rework 1, the polish pass and review rounds 3 and 4 (`166135c`): lines 382/382, regions 194/195, functions 60/60 in `DrowsyDockCore`, from 286 tests in both targets; the new `MascotTimeline` values are constants with no executable lines. At the end of job 004: lines 382/382 in `DrowsyDockCore` unchanged, and `LiveQAKit` (newly gated) 332/335 lines, 63/66 functions; 402 tests in all five targets. After job 004's rework 2 and review round 5 (`cea7bcd`), from 448 tests: `DrowsyDockCore` lines 393/393, regions 197/198, functions 63/63, with the new `QALogLine` fully covered and the one missed region still `StatusLine`'s; `LiveQAKit` lines 395/399, functions 82/86; DockOverlayKit's new `MirroredLogger` (gated, it imports only `os`) lines 26/27, functions 8/9. | must not fall |
-| Release binary size | 112,176 bytes after slice 1 (universal arm64 + x86_64, `stat -f %z build/DrowsyDock.app/Contents/MacOS/DrowsyDock`). `lipo -detailed_info`: the arm64 slice is 63,024 bytes and the x86_64 slice 30,608. The other 18,544 bytes are fat-file alignment padding. The arm64 slice is larger because its segments round up to 16 KB pages. SwiftUI, AppKit and the Swift runtime link dynamically, so the binary holds only the app's own code. After slice 3: 397,168 bytes (arm64 200,560, x86_64 165,168), 3.5× slice 1. Reason: the first real code. In the arm64 slice, `__text` grew from 5,880 to 36,328 bytes (the statically linked core, the monitor, the menu and the IOKit adapter). `__LINKEDIT` grew from 48 KB to 112 KB, because the release binary keeps its symbol table (852 symbols, up from 342). Stripping local symbols in `scripts/bundle.sh` would shrink `__LINKEDIT` if size ever matters. After the round-1 review fixes (`2443161`): 404,976 bytes (arm64 208,368, x86_64 173,056), +2.0% over slice 3. At the end of job 001 (`f08892b`): 406,272 bytes (arm64 209,664, x86_64 178,528), +0.3% over `2443161`, from the rename and polish pass 2. In job 002 (round-1 fixes): 833,808 bytes (arm64 407,824, x86_64 394,720), +105% over job 001. Reason: the first DockOverlayKit code (AX reader, tracker, overlay window, geometry), statically linked, plus its symbols. Unsigned and built the same way, `main` gives 409,064 bytes and this job 819,656. In the arm64 slice `__text` grew from 35,624 to 101,116 bytes, `__LINKEDIT` from 112 KB to 240 KB, and the symbol count from 931 to 1,915. In job 003 slice 8: 1,033,584 bytes (arm64 492,912, x86_64 509,472), +24% over job 002. Reason: the code-drawn cat (`CatRenderer` builds about 30 shape paths in code), the two SpriteKit scenes and `MascotOverlay`, plus the pose types. In the arm64 slice `__text` grew from 101,116 to 138,548 bytes, `__LINKEDIT` from 240 KB to 288 KB, and the symbol count from 1,915 to 2,356. SpriteKit itself links dynamically. After job 003 slice 11: 1,265,920 bytes (arm64 610,560, x86_64 623,424), +22% over slice 8 and +52% over job 002. Reason: the animation code (`CatRenderer+Animations` builds `SKAction` trees for nine animations), `MascotScene`'s scheduling, the crowd effect, and the new core types (`AnimationDirector`, `AmbientSchedule`, `CrowdEffectRule`, `CrowdWave`). In the arm64 slice `__text` grew from 138,548 to 190,796 bytes, `__LINKEDIT` from 288 KB to 336 KB, and the symbol count from 2,356 to 2,774. With `SceneHostView` (end of the build): 1,306,176 bytes (arm64 634,432, x86_64 643,344), +3% over slice 11; `__text` 196,688 bytes, 2,843 symbols. At the end of job 003, after the polish pass and the round-1 review fixes: 1,316,256 bytes, +0.8%. After rework 1 (veil and perch geometry, the icon artwork square, the loop ease-out): 1,336,128 bytes, +1.5%. After the polish pass and review rounds 3 and 4 (`166135c`): 1,361,776 bytes, +1.9%: `HostedScene`, the wake-up beats in the core, the slide cap and `CGRect.isUsableWindowFrame`. Job 004, both built on the same Mac and toolchain: `main` (`5626a38`) 1,384,048 bytes, this job 1,390,048, +0.4%, from the test seams (`PowerSource`, `DockTracking`, the injected clocks, `OverlayWindow.visibility`). The live QA helper is a separate product and isn't in the bundle. At the end of job 004 (`cea7bcd`), against `main` (`5626a38`) bundled with the same toolchain on the same Mac on 2026-11-11: 1,482,336 bytes (arm64 728,672, x86_64 730,320) against 1,383,632 (arm64 679,120, x86_64 676,432), +7.1%. Reason: rework 2's `MirroredLogger`, `QALogLine` and `QALogFile`, and the message constants and functions the live script's patterns are checked against, on top of the test seams above. | must not grow by more than 20% without a reason |
-| Mascot CPU, harness | Job 003, on screen with the display awake: the real `MascotScene` in a real `OverlayWindow` (cat only), drawn by `SceneHostView` at 15 fps for loops and 30 fps for one-shots; one 60 s run per state, `top -l 61 -s 1` (55 to 61 samples). End of the build: awake 0.16%, drowsy 0.27%, yawning 0.19%, nodding off 1.94%, asleep 1.94%. After the polish pass: awake 0.15%, nodding off 1.93%, asleep 2.00%. After the round-1 review fixes, on a busier machine (load average about 3): awake 0.20%, nodding off 2.44%, asleep 2.42%; run side by side for asleep, the polish-pass build gave 2.57% and 2.58% and the round-1 build 2.60% and 2.64%. The builds differ by 0.03 to 0.06 points, inside the run-to-run spread (about 0.4 points), so the rise is the machine; that rests on two runs per build. Rework 1, 2026-11-08, on battery, load average 1.2 to 1.9: awake 0.24%; asleep, alternating 60 s runs, 3.06% and 3.12% for the pre-rework build (`3d7c56e`) against 3.06% and 2.84% for the rework, plus a first rework run of 3.07%. The loop code didn't change, and both builds measured the same, but both sit about 0.6 points above round 1 and at the 3.0% budget. The loop ran at 14.9 fps, and the main thread's `drawFrame` is about 1% of a core; the rest is Metal and Core Animation work off the main thread. The cause of the shift since round 1 isn't known: the OS build and the power source (battery) were the same. QA 9.7 decides. With `SKView` the asleep loop measured 4.27% at 20 fps and 2.63% at 10 (ADR 0011). Job 004 (H16, ADR 0017), on battery, load average 1.2 to 2.3, alternating 60 s runs of release builds, asleep: 15 fps 2.97%, 3.00%, 2.99% and 2.88%; 12 fps 2.51% and 2.55%, at 12.0 frames a second. A request for 13 fps drew 15.0 frames a second on the 120 Hz built-in display and measured 2.96% and 3.01%, so the loop now asks for 12. The harness leaves out the menu-bar app (0.05% idle in job 002) and the Dock window, which is paused while static. The Idle CPU row above is the real check. | must not grow |
+| Coverage, `DrowsyDockCore` | Lines 393/393, regions 197/198, functions 63/63. The one missed region (`StatusLine`'s `.noBattery` label) can't be reached. | must not fall |
+| Coverage, `LiveQAKit` | Lines 395/399, functions 82/86 | must not fall |
+| Coverage, `MirroredLogger` | Lines 26/27, functions 8/9 | must not fall |
+| Release binary size | 1,482,336 bytes, universal (arm64 728,672, x86_64 730,320). The binary keeps its symbol table; stripping it in `bundle.sh` would shrink it if size ever matters. | ≤ 20% growth without a stated reason |
+| Mascot CPU, test harness | `asleep` loop at 12 fps: 2.51–2.55% (on battery). `awake`: about 0.2%. Leaves out the menu-bar app and the Dock window; the Idle CPU row is the real check. | must not grow |
 
 ## Not applicable
 
-- Lighthouse and axe: this is a native app with no URL.
-- osv-scanner: the project has zero dependencies. Add it if a dependency is ever approved.
-- Semgrep: not installed. There is no user input or network surface in v1.
+- **Lighthouse, axe**: native app, no URL.
+- **osv-scanner**: zero dependencies. Add it if a dependency is ever approved.
+- **Semgrep**: no user input or network surface in v1.
 
 ## Exceptions
 
-| ID | Rule | Path | Reason | Owner | Expires |
-|---|---|---|---|---|---|
-| E1 | Idle CPU ≤ 3.0% in `noddingOff`/`asleep` | `Sources/DrowsyDock/MascotScene.swift` (`loopFramesPerSecond`, 15 when measured, 12 since job 004) | On the real app at job 003's Gate 2 (2026-11-09, QA 9.7, hands off) the loop measured 3.16% at 15% and 3.23% at 5%. The owner accepted the overage for the merge. Job 004 lowered `loopFramesPerSecond` to 12 (ADR 0017; 13 drew 15 frames a second on a 120 Hz display). Remove this row when the owner's QA 9.7 run (`scripts/qa-live.sh --only cpu`) passes. | project owner (accepted at job 003 Gate 2) | 2027-02-07 |
+| ID | Rule | Where | Why | Expires |
+|---|---|---|---|---|
+| E1 | Idle CPU ≤ 3.0% in `noddingOff`/`asleep` | `MascotScene.loopFramesPerSecond` | At job 003 the loop measured 3.16–3.23% at 15 fps, and the owner accepted the overage. Job 004 lowered it to 12 fps (ADR 0017). Remove this row once `scripts/qa-live.sh --only cpu` passes on the owner's Mac. | 2027-02-07 |
