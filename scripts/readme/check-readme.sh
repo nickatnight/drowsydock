@@ -13,7 +13,8 @@
 # closed by a longer fence, and a code span that crosses a line break.
 # The banner must stay under 1 MB. It must hold no <script, javascript:, @import, on...= handler,
 # <foreignObject or empty image, no url() but url(#id), no href or src but a #id or a base64 PNG,
-# and no http(s) URL but the SVG namespace.
+# and no http(s) URL but the SVG namespace. Not read, so a relative file there passes: an href set
+# by animation (<set to=, <animate values=) and a CSS image-set() string.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
