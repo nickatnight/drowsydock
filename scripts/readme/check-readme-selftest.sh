@@ -224,7 +224,7 @@ expect_banner_edit "a banner with an event handler after tabs" fails "must not h
   's{</svg>}{<set attributeName="opacity" to="1"\tonbegin\t="alert(1)"/></svg>}'
 expect_banner_edit "a banner with a url() into itself" lacks "must not hold a script" \
   's{<style>}{<style>.x { fill: url(#g) }}'
-expect_banner_edit "a banner over 1 MB" fails "must stay under 1 MB" \
+expect_banner_edit "a banner over 1,000,000 bytes" fails "must stay under 1,000,000 bytes" \
   's{</svg>}{"<!--" . ("x" x 1000000) . "-->\n</svg>"}e'
 new_plant
 copy_references
