@@ -3,9 +3,10 @@
 #
 # A relative link or image must name a file or folder in git's index, spelled exactly as git has
 # it, because that is what GitHub serves: a new file needs `git add` first. A #anchor must name one
-# of the README's # headings, as GitHub spells its anchor (lowercase, punctuation dropped, spaces as
-# hyphens, -1, -2 for repeats). Links in fenced code, inline code and HTML comments don't count,
-# http(s) and mailto links aren't followed, and a fragment on a link to another file isn't checked.
+# of the README's # headings, as GitHub spells its anchor (lowercase, punctuation and trailing
+# spaces dropped, other spaces as hyphens, -1, -2 for repeats). Links in fenced code, inline code
+# and HTML comments don't count, http(s) and mailto links aren't followed, and a fragment on a link
+# to another file isn't checked.
 # Not understood, so a link written as GitHub spells it fails the check: setext headings, explicit
 # HTML ids, non-ASCII letters in anchors, links in indented code blocks, %-encoded paths.
 # Not read at all, so they pass unchecked: srcset, unquoted or line-split attributes, a fence
@@ -35,9 +36,10 @@ links() {
   '
 }
 
-# GitHub's anchor for each heading, without its closing #s and with a link reduced to its text.
+# GitHub's anchor for each heading, without its closing #s or trailing space and with a link
+# reduced to its text.
 anchors="$(readme_without_fences_or_comments | sed -nE 's/^ {0,3}#{1,6}[[:space:]]+//p' |
-  sed -E 's/[[:space:]]+#+[[:space:]]*$//; s/\[([^]]*)\]\([^)]*\)/\1/g' |
+  sed -E 's/([[:space:]]+#+)?[[:space:]]*$//; s/\[([^]]*)\]\([^)]*\)/\1/g' |
   tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9 _-]//g; s/ /-/g' |
   awk '{ repeat = seen[$0]++; print (repeat ? $0 "-" repeat : $0) }')"
 

@@ -140,6 +140,10 @@ expect_readme_edit "a broken link inside a plain fence" pass \
   's/\n## Docs\n/\n```\n[x](no-such-file.md)\n```\n\n## Docs\n/'
 expect_readme_edit "headings GitHub slugs specially, a fragment on another file and a folder" pass \
   's/\n## Docs\n/\n## Debug ▸ Simulate (beta)\n\n## Requirements\n\n## See [docs](CLAUDE.md)\n\n## The `--qa-log` flag\n\n### DROWSYDOCK_SKIP_SNAPSHOTS\n\n## Docs ##\n\n[a](#debug--simulate-beta) [b](#requirements-1) [c](#see-docs) [d](#docs)\n[g](#the---qa-log-flag) [h](#drowsydock_skip_snapshots) [e](docs\/manual-qa.md#anything) [f](docs\/readme\/)\n/'
+expect_readme_edit "headings with trailing spaces or a tab" pass \
+  's/\n## Docs\n/\n## Spaced   \n\n## Tabbed\t\n\n[a](#spaced) [b](#tabbed)\n\n## Docs\n/'
+expect_readme_edit "an anchor that keeps a heading's trailing spaces" "names no heading" \
+  's/\n## Docs\n/\n## Spaced   \n\n[a](#spaced---)\n\n## Docs\n/'
 expect_readme_edit "a footnote" pass \
   's/\n## Docs\n/\nA fact.[^1]\n\n[^1]: From Thresholds.swift.\n\n## Docs\n/'
 new_plant
