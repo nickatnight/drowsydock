@@ -1,6 +1,6 @@
 # Constraints
 
-Last reviewed: 2026-11-11 (emgee job 004-test-automation docs step after round 6: Measured coverage and binary size after rework 2; emgee job 004-test-automation: Measured coverage and binary size at the end of the job; the live QA helper's sources in the Format and Coverage rows; the harness CPU at 12 fps and E1's path, ADR 0017; emgee job 003-mascot Gate 2: exception E1 for the asleep-loop CPU; emgee job 003-mascot docs step after round 4: the Measured coverage and binary size; job 003-mascot rework 1: the Measured binary size and mascot CPU; job 003-mascot: the Bundle row bans every entitlement, ADR 0007; the Measured binary size; job 002-dock-overlay: hardened-runtime Bundle row, the floor rule's comment forms, the Measured binary size; drafted in job 001-foundation from the skill defaults)
+Last reviewed: 2026-11-16 (emgee job 007-github-actions-ci: CI runs `check.sh task`, noted in the Runs at column; emgee job 004-test-automation docs step after round 6: Measured coverage and binary size after rework 2; emgee job 004-test-automation: Measured coverage and binary size at the end of the job; the live QA helper's sources in the Format and Coverage rows; the harness CPU at 12 fps and E1's path, ADR 0017; emgee job 003-mascot Gate 2: exception E1 for the asleep-loop CPU; emgee job 003-mascot docs step after round 4: the Measured coverage and binary size; job 003-mascot rework 1: the Measured binary size and mascot CPU; job 003-mascot: the Bundle row bans every entitlement, ADR 0007; the Measured binary size; job 002-dock-overlay: hardened-runtime Bundle row, the floor rule's comment forms, the Measured binary size; drafted in job 001-foundation from the skill defaults)
 
 ## Floor (always enforced)
 
@@ -15,12 +15,12 @@ Last reviewed: 2026-11-11 (emgee job 004-test-automation docs step after round 6
 
 | Dimension | Rule | Checked by | Runs at |
 |---|---|---|---|
-| Compile | Zero errors and zero warnings, Swift 6 language mode | `swift build -Xswiftc -warnings-as-errors` | every edit (`check.sh fast`) |
-| Format | Zero findings | `swift format lint --strict --recursive Sources scripts/qa/Sources Tests` | every edit |
-| Secrets | No findings | `gitleaks detect --redact --no-banner` | every edit |
-| Tests | All pass | `swift test` | task end (`check.sh task`) |
-| Coverage | Changed lines in `Sources/DrowsyDockCore/**`, `scripts/qa/Sources/LiveQAKit/**` and the pure files of `Sources/DockOverlayKit/**` ≥ 80% covered. Why 80%: it forces a test for every rule without forcing tests for trivial initialisers. | `swift test --enable-code-coverage` → `xcrun llvm-cov export -format=lcov` intersected with `git diff` | task end |
-| Bundle | The app assembles, the signature verifies with the hardened runtime, and the plist is valid. The signature carries no entitlements at all (ADR 0007). | `scripts/bundle.sh && codesign --verify --strict build/DrowsyDock.app && codesign -dv build/DrowsyDock.app` (flags include `runtime`) `&& codesign -d --entitlements - --xml build/DrowsyDock.app` (prints nothing) `&& plutil -lint Resources/Info.plist` | task end |
+| Compile | Zero errors and zero warnings, Swift 6 language mode | `swift build -Xswiftc -warnings-as-errors` | every edit (`check.sh fast`), CI (`check.sh task` in `.github/workflows/ci.yml`) |
+| Format | Zero findings | `swift format lint --strict --recursive Sources scripts/qa/Sources Tests` | every edit, CI |
+| Secrets | No findings | `gitleaks detect --redact --no-banner` | every edit, CI |
+| Tests | All pass | `swift test` | task end (`check.sh task`), CI with the snapshot tests skipped (`DROWSYDOCK_SKIP_SNAPSHOTS=1`) |
+| Coverage | Changed lines in `Sources/DrowsyDockCore/**`, `scripts/qa/Sources/LiveQAKit/**` and the pure files of `Sources/DockOverlayKit/**` ≥ 80% covered. Why 80%: it forces a test for every rule without forcing tests for trivial initialisers. | `swift test --enable-code-coverage` → `xcrun llvm-cov export -format=lcov` intersected with `git diff` | task end, CI |
+| Bundle | The app assembles, the signature verifies with the hardened runtime, and the plist is valid. The signature carries no entitlements at all (ADR 0007). | `scripts/bundle.sh && codesign --verify --strict build/DrowsyDock.app && codesign -dv build/DrowsyDock.app` (flags include `runtime`) `&& codesign -d --entitlements - --xml build/DrowsyDock.app` (prints nothing) `&& plutil -lint Resources/Info.plist` | task end, CI |
 | Idle CPU (external) | Average ≤ 1.0% in `awake`, ≤ 3.0% in `noddingOff`/`asleep`, over 60 s. Why: a novelty app must never show up in Activity Monitor. 1% is below the noise of a typical menu-bar utility. Looping states get 3× that for a 30 fps loop. | `top -l 61 -s 1 -stats cpu -pid $(pgrep -x DrowsyDock) \| awk 'NR>1 && /^[0-9.]+[[:space:]]*$/ {s+=$1; n++} END {print s/n}'` | manual QA (needs the Accessibility grant) |
 
 Exempt from coverage: thin adapters over IOKit, AX, AppKit, SpriteKit and ServiceManagement. Each of these must have an entry in `docs/manual-qa.md` instead.
