@@ -1,21 +1,53 @@
 # drowsydock
 
-DrowsyDock: a macOS menu-bar app (Swift 6, macOS 14+, Apple frameworks only). An original cat perches on the Dock and gets drowsier as the battery drains. It is drawn in a click-through overlay window and tracks the Dock through the Accessibility API.
+DrowsyDock is a macOS menu-bar app (Swift 6, macOS 14+, Apple frameworks only). An original cat sits on the Dock and gets drowsier as the battery drains. It is drawn in a click-through overlay window that follows the Dock through the Accessibility API.
 
-Read CONSTRAINTS.md before writing code. Do not weaken it to make a change pass.
+Read [CONSTRAINTS.md](CONSTRAINTS.md) before writing code. Never weaken it to make a change pass.
 
 ## Layout
 
-- `Sources/DockOverlayKit/`: Dock geometry (AX), overlay window, Accessibility permission, and `MirroredLogger`, which every log line goes through (ADR 0020). Every message is public in the unified log and the QA log, so log no user data. Shared with future Dock apps, so keep it free of battery or mascot knowledge.
-- `Sources/DrowsyDockCore/`: pure logic and value types. No AppKit, SpriteKit, IOKit or AX imports. Everything here is unit-tested.
-- `Sources/DrowsyDock/`: the executable. SwiftUI menu bar and settings, the IOKit adapter, the SpriteKit scene, wiring.
-- `Resources/`: `Info.plist` and `AppIcon.svg`, the app icon's source. `scripts/bundle.sh` renders the SVG into the bundle's `AppIcon.icns` with `scripts/icon/render-icon.swift` and `iconutil`. `MenuBarGlyph.swift` draws the same mark in one colour for the menu bar, on the SVG's canvas, so a shape that moves in one moves in both.
-- `Tests/`: XCTest, one target per library, plus `DrowsyDockTests` for the app (`@testable import DrowsyDock`, snapshot references under `Snapshots/`, ADR 0016) and `LiveQAKitTests` for the live QA helper. `DockOverlayKitTestSupport` is a library both overlay test targets import: `FadeRecorder`, through `OverlayWindow`'s `package` fade seam.
-- `scripts/qa/`: the live QA helper (`qa-helper`, its pure checks in `LiveQAKit`), `dock-preferences.sh` (the Dock backup and restore that `qa-live.sh` sources), `live-functions.sh` (every function `qa-live.sh` runs, sourced so the checks can call them; it names every app log line it waits for as a `log_…` pattern, which `QALogMessageTests` checks against the app's messages, so a scenario reads the log only through those names), and the checks `check.sh fast` runs on them: `check-dry-run.sh`, `check-dock-restore.sh` (the restore against a scratch defaults domain, never `com.apple.dock`), `check-restore-selftest.sh` (`qa-live.sh`'s restore self-test and exit cleanup on a scratch domain, needs the built `qa-helper`), `check-app-log.sh` (`qa-live.sh`'s log reads over `Tests/LiveQAKitTests/Fixtures/qa.log`, needs the built `qa-helper`), `check-qa-mapping.sh` and its `check-qa-mapping-selftest.sh`. The app bundle never includes any of it.
-- `.github/workflows/ci.yml` and `scripts/ci/`: the CI workflow and `install-gitleaks.sh`, which it runs to install a pinned gitleaks release once the download's SHA-256 matches.
-- `docs/manual-qa.md`: every QA row, mapped to the test or `scripts/qa-live.sh` scenario that covers it, with a short manual checklist for what needs hardware, a permission dialog or an eye.
-- `README.md` and `docs/readme/`: the README and its images. `scripts/readme/banner.sh` builds `docs/readme/banner.svg` (the animated banner, CSS only, so GitHub shows it through `<img>`) and `docs/readme/cat.png` from the pose snapshot references and the app values it reads from the Swift sources (the thresholds, the veil's opacity and fade, and the crowd wave's timing, dimming, scales and drift); the status line's words (`StatusLine.swift`), the "z" size (`CrowdEffectNode.zSize`), the "z" and sparkle shapes, their stroke widths and the colours are copied by hand. Never edit `banner.svg` or `cat.png` by hand. `scripts/readme/check-readme.sh` checks the README's links and that the images are current, and `check-readme-selftest.sh` checks it with planted faults. Put only images the README shows in `docs/readme/`: `.gitignore` re-includes the whole folder, so `git add -A` tracks anything else left there.
-- `docs/adr/`: architecture decision records, kept only on the owner's machine: git ignores `docs/` except `docs/manual-qa.md`, `docs/qa-rows.txt` and `docs/readme/`, so a fresh clone has no ADRs. The "ADR NNNN" citations in code and docs name these files. Where they exist, read them before changing the build setup (0001), the target split (0002), the drowsiness tracker's phases (0003), the Dock tracker's phases and triggers (0004), signing (0005, 0007), the Accessibility coordinate handling (0006) the mascot's windows and renderer (0008), how it animates within the CPU budget (0009, 0011, 0015, 0017), how `waking` ends (0010), where animation timing lives (0012, 0014) how the veil and the perch fit the Dock's drawn background (0013) how the app is tested (0016), how the live QA script drives the app and the Dock (0018) and reads the app's QA log (0020), how test helpers reach a module's seams (0019), how CI runs the checks: its runner, the Xcode pin and the snapshot skip (0021), or how the README banner is generated from the snapshot references and the Swift sources and pinned byte for byte by `check.sh fast` (0022). Supersede an ADR with a new one; don't edit its decision.
+| Path | Contents |
+|---|---|
+| `Sources/DrowsyDockCore/` | Pure logic and value types, all unit-tested. No AppKit, SpriteKit, IOKit or AX imports. |
+| `Sources/DockOverlayKit/` | Dock geometry (AX), the overlay window, the Accessibility permission, and `MirroredLogger`. Other Dock apps will reuse it, so it knows nothing about batteries or the cat. |
+| `Sources/DrowsyDock/` | The app: SwiftUI menu bar and settings, the IOKit adapter, the SpriteKit scene, wiring. |
+| `Resources/` | `Info.plist` and `AppIcon.svg`, the icon source. |
+| `Tests/` | One XCTest target per library, plus `DrowsyDockTests` for the app (snapshot references in `Snapshots/`) and `LiveQAKitTests`. `DockOverlayKitTestSupport` holds helpers both overlay test targets share. |
+| `scripts/` | `check.sh`, `bundle.sh` and `qa-live.sh`, plus `qa/` (the live QA helper and its checks), `readme/` (the banner generator and README check), `icon/` and `ci/`. None of it goes into the app bundle. |
+| `docs/manual-qa.md` | Every QA row, mapped to the test or live scenario that covers it. |
+| `docs/adr/` | Decision records. They exist only on the owner's machine: git ignores `docs/` except `manual-qa.md`, `qa-rows.txt` and `readme/`. |
+
+### Things that are easy to miss
+
+- **Logging.** Every log line goes through `MirroredLogger`, the only file allowed to import `os`. Every message is public, so never log user data.
+- **Icon.** `scripts/bundle.sh` renders `AppIcon.svg` into the app icon. `MenuBarGlyph.swift` draws the same shape on the same canvas for the menu bar, so if you change one, change the other.
+- **QA rows.** A new QA row goes into both `docs/manual-qa.md` and `docs/qa-rows.txt`. Every coverage-exempt source file has to be named in `docs/manual-qa.md`.
+- **Live QA log patterns.** `scripts/qa/live-functions.sh` names each app log line it waits for as a `log_…` pattern, and `QALogMessageTests` checks those patterns against the app's messages. Scenarios read the log only through these names.
+- **README images.** `docs/readme/banner.svg` and `cat.png` are generated by `scripts/readme/banner.sh`, so never edit them by hand. Rerun it after you change a pose snapshot or any value it reads from the Swift sources (the script lists them). A few values are copied into it by hand: the status line words, `CrowdEffectNode.zSize`, the "z" and sparkle shapes, their stroke widths and the colours. Keep only images the README shows in `docs/readme/`, and `git add` a new one before running `check.sh fast`.
+- **Thresholds.** If you change a drowsiness threshold, also check the README's table, tagline and alt text by hand.
+
+### ADRs
+
+Read the relevant ADR before changing the area it covers. To change a decision, write a new ADR that supersedes it; don't edit the old one.
+
+| ADR | Topic |
+|---|---|
+| 0001 | Build setup |
+| 0002 | Target split |
+| 0003 | Drowsiness tracker phases |
+| 0004 | Dock tracker phases and triggers |
+| 0005, 0007 | Signing, hardened runtime, no entitlements |
+| 0006 | Accessibility coordinates |
+| 0008 | Mascot windows and renderer |
+| 0009, 0011, 0015, 0017 | Animation within the CPU budget |
+| 0010 | How `waking` ends |
+| 0012, 0014 | Where animation timing lives |
+| 0013 | Veil and perch vs. the Dock's background |
+| 0016 | How the app is tested (snapshots) |
+| 0018, 0020 | Live QA: driving the app and Dock, reading the QA log |
+| 0019 | How test helpers reach a module's seams |
+| 0021 | CI: runner, Xcode pin, snapshot skip |
+| 0022 | README banner generation |
 
 ## Commands
 
@@ -23,139 +55,57 @@ Read CONSTRAINTS.md before writing code. Do not weaken it to make a change pass.
 Build:   swift build -Xswiftc -warnings-as-errors
 Test:    swift test
 Cover:   swift test --enable-code-coverage
-Record:  RECORD_SNAPSHOTS=1 swift test      # rewrites the snapshot references, then fails on purpose
-Banner:  scripts/readme/banner.sh          # → docs/readme/ from the pose references and the app; --check compares
+Record:  RECORD_SNAPSHOTS=1 swift test     # rewrites snapshot references, then fails on purpose
+Banner:  scripts/readme/banner.sh          # regenerates docs/readme/; --check compares
 Format:  swift format lint --strict --recursive Sources scripts/qa/Sources Tests
+Fix fmt: swift format --in-place --recursive Sources scripts/qa/Sources Tests
 Bundle:  scripts/bundle.sh                 # → build/DrowsyDock.app, universal, ad-hoc signed
 Run:     open build/DrowsyDock.app
 Quit:    pkill -x DrowsyDock
 Logs:    open build/DrowsyDock.app --args --qa-log && tail -F ~/Library/Logs/DrowsyDock/qa.log
-         log stream --level debug --predicate 'subsystem == "com.drowsydock.DrowsyDock"'   # admin only
 Checks:  scripts/check.sh fast | task
-Live QA: scripts/qa-live.sh [--only a,b] [--dry-run] [--list] [--keep-captures]   # the owner runs it; agents only --dry-run
-Restore: scripts/qa-live.sh --restore [--yes]   # puts back the Dock preferences a killed run left changed
+Live QA: scripts/qa-live.sh --dry-run      # agents: dry run only
+Restore: scripts/qa-live.sh --restore      # puts back Dock preferences after a killed run
 ```
 
-- `scripts/check.sh fast` runs after every edit. It compiles with warnings as errors and runs the format lint. It checks `scripts/qa-live.sh` with `bash -n`, a dry run that must call no Dock, app, pointer, screen or log command and write nothing (`scripts/qa/check-dry-run.sh`), the Dock restore and the restore self-test on a scratch domain (`scripts/qa/check-dock-restore.sh`, `scripts/qa/check-restore-selftest.sh`), and the script's log reads over a fixture QA log (`scripts/qa/check-app-log.sh`). It checks the CONSTRAINTS floor rules, keeps `DrowsyDockCore` free of UI and hardware imports, and lets only `MirroredLogger` import `os` (ADR 0020). It requires every coverage-exempt file under `Sources` and `scripts/qa/Sources` to be named in `docs/manual-qa.md`, and every test and live scenario that file cites to exist and each cited scenario to list the row, with each automated row citing at least one and the row numbers equal to `docs/qa-rows.txt` (`scripts/qa/check-qa-mapping.sh`, which `check-qa-mapping-selftest.sh` checks with planted errors). A new QA row goes into both files. It checks that every relative link and image in `README.md` (inline, reference-style, and `href`/`src` attributes) names a file or folder in git's index, spelled exactly as git has it (so a new image needs `git add` before `fast` passes), every `#anchor` a `#` heading as GitHub slugs it, and that the banner stays under 1,000,000 bytes and holds none of the forms `check-readme.sh`'s header lists, spelled as it gives them, such as scripts and `<foreignObject`, event-handler attributes, `<!DOCTYPE` and `<!ENTITY`, an empty base64 image, `url(`, `href` and `src` targets outside the SVG, and http(s) URLs but the SVG namespace. The guard reads one line at a time and decodes nothing, so an href set by animation, a CSS `image-set()` string, an attribute or `url(` split from its `=` or value by a line break, and a keyword written with a CSS escape, an XML character reference or a CDATA, comment or processing-instruction break can pass, among other forms; `banner.sh --check`, which compares the banner byte for byte with what `banner.sh` writes, is what stops a hand-edited banner. For README links, the header also lists what the check doesn't understand (setext headings, explicit ids, non-ASCII anchors, links in indented code, %-encoded paths: a link written as GitHub spells it fails) and what it doesn't read at all (`srcset`, unquoted or line-split attributes, a fence closed by a longer fence, a code span across a line break: these pass unchecked). It also checks that `docs/readme/` matches what `scripts/readme/banner.sh` makes from the snapshot references and the Swift sources (`scripts/readme/check-readme.sh` and its self-test, whose plants run in parallel). Last comes the secret scan (commits, uncommitted files and signing-material file types).
-- `scripts/check.sh task` runs before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate and the signed bundle. The bundle must carry the hardened runtime (ADR 0005) and no entitlements (ADR 0007). The gate diffs against the merge base with `$CHECK_BASE` (default `main`).
-- CI (`.github/workflows/ci.yml`, ADR 0021) runs `scripts/check.sh task` on every push to `main`, every pull request against `main` and on manual dispatch. It runs on the `xcode-27` runner with the Xcode that `XCODE_VERSION` names. GitHub marks that label as a preview, so an image change can break CI without notice. If GitHub retires the label, the job doesn't go red; it waits in the queue and never starts, and `timeout-minutes` doesn't count queue time. The fix is to bump `XCODE_VERSION` when the Xcode changes, and `runs-on` when the label or image changes, even if the Xcode stays the same. The job installs gitleaks with `scripts/ci/install-gitleaks.sh` at a pinned version and SHA-256, sets `CHECK_BASE=origin/main` and `DROWSYDOCK_SKIP_SNAPSHOTS=1`, and uploads `.build/snapshot-failures/` when it fails. Checkout fetches every branch and tag, and `gitleaks detect` reads `git log --all`, so a secret on any branch of `origin` fails every CI run. Actions are pinned to commit SHAs, with the release tag in a comment. Live QA never runs in CI.
-- `scripts/bundle.sh` signs with `$SIGN_IDENTITY`, default `-` (ad hoc), always with `--options runtime`. No signing identity exists yet. Scripts never create certificates or touch the keychain.
-- `swift format --in-place --recursive Sources scripts/qa/Sources Tests` fixes most format findings.
-- A snapshot mismatch writes the actual and a diff image under `.build/snapshot-failures/` and names them in the failure. The references were recorded on Apple silicon; elsewhere the snapshot tests skip. `DROWSYDOCK_SKIP_SNAPSHOTS=1` (exactly `1`) also skips them, naming the Mac in `RECORDED_ON`; CI sets it, because its runner is a VM that draws on a paravirtual GPU. Local runs leave it unset. Record new references only for a deliberate visual change, and look at the diff. New pose references, or a change to a value the banner reads from the Swift sources (`scripts/readme/banner.sh` names each file), make the README banner stale: run `scripts/readme/banner.sh`, or `check.sh fast` fails. A threshold change also needs the README's table, tagline and alt text checked by hand; `banner.sh` stops if a battery level it shows falls outside its pose's band.
-- `scripts/qa-live.sh` drives the real app and the real Dock. It changes the Dock's preferences through System Events and restores them from `build/qa/dock-backup.plist` on exit, deleting the backup only once the restore verifies; after a kill -9, run the restore command it printed or `--restore`, which shows what it would change and asks first (`--yes` skips the question, and it refuses while a run still owns the backup). Screenshots and samples are deleted when their checks pass; `--keep-captures` keeps them. Never run it for real as an agent: no Dock settings changes, synthetic events or menu driving.
+## Checks
+
+- **`scripts/check.sh fast`**: run it after every edit. It covers compile, format, the CONSTRAINTS floor rules, import rules, the QA row mapping, the live QA script's own checks, the README links and banner, and the secret scan. The header of each script says exactly what it checks and what it can't catch.
+- **`scripts/check.sh task`**: run it before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate (against `$CHECK_BASE`, default `main`) and the signed bundle.
+- **CI** (`.github/workflows/ci.yml`) runs `check.sh task` on pushes and PRs to `main`, with snapshots skipped.
+  - The `xcode-27` runner label is a preview. If GitHub retires it, the job sits in the queue forever instead of failing. Bump `XCODE_VERSION` when Xcode changes, and `runs-on` when the label or image changes.
+  - gitleaks scans every branch on `origin`, so a secret on any branch fails every run.
+  - Actions are pinned to commit SHAs, with the tag in a comment.
+
+## Snapshots
+
+- The references were recorded on Apple silicon, and the tests skip on other Macs. `DROWSYDOCK_SKIP_SNAPSHOTS=1` also skips them; CI sets it, local runs don't.
+- When a snapshot doesn't match, the actual image and a diff are saved under `.build/snapshot-failures/`.
+- Re-record only for an intended visual change, and look at the diff first. New pose references make the README banner stale, so rerun `banner.sh`.
+
+## Signing and live QA
+
+- `scripts/bundle.sh` signs with `$SIGN_IDENTITY` (default `-`, ad hoc), always with the hardened runtime. Scripts never create certificates or touch the keychain.
+- `scripts/qa-live.sh` drives the real app and changes the real Dock's settings. **Agents run it only with `--dry-run`**: no Dock changes, synthetic events or menu clicks. Its header explains backup and restore.
 
 ## Git
 
-- Name branches `nickatnight/<short_description>`, e.g. `nickatnight/untrack-docs`.
+Name branches `nickatnight/<short_description>`, for example `nickatnight/untrack-docs`.
 
 ## Swift style
 
-Follow the [Google Swift Style Guide](https://google.github.io/swift/). It includes Apple's [API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/) by reference. `swift format` implements the formatting rules and is the arbiter: run `swift format lint --strict --recursive Sources scripts/qa/Sources Tests`. Where CONSTRAINTS.md is stricter, CONSTRAINTS.md wins.
+Follow the [Google Swift Style Guide](https://google.github.io/swift/), which includes Apple's [API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/). `swift format lint --strict` settles formatting questions: 100 columns, 2-space indent, K&R braces, trailing commas in multi-line literals. Where CONSTRAINTS.md is stricter, it wins.
 
-### Files and imports
+Points that the formatter doesn't enforce, or where this project differs:
 
-- One primary type per file, with the file named after it. Extensions adding a conformance go in `Type+Protocol.swift`, and grab-bag extensions in `Type+Additions.swift`. A type may share a file with its delegate protocol or small helper types.
-- Encoding is UTF-8. Indent with spaces only (no tabs). Use `\n`, `\t` and similar escapes rather than `\u{…}`; use `\u{…}` for invisible characters. Never mix literal non-ASCII and `\u{…}` in one string literal.
-- Import exactly the modules you use, with no transitive reliance. Use whole-module imports. Imports are never wrapped. Put them in three groups separated by one blank line, each sorted: modules, then individual declarations, then `@testable` (tests only).
-- Order members logically (not "append to the end"). Use `// MARK: -` for groups. Overloads (inits, subscripts, same-name functions) must be contiguous.
-
-### Formatting
-
-- **100-column limit.** Allowed exceptions: unbreakable units such as URLs, imports, and generated code. **2-space indent**; continuation lines are +2.
-- **K&R braces.** No newline before `{`. Write `} else {` on one line. Empty blocks may be `{}`.
-- **No semicolons.** One statement per line. One-liners are OK only for a block of zero or one statements, e.g. `guard x else { return }` or `defer { close() }`.
-- **Wrapping:**
-  - If it fits on one line, keep it on one line.
-  - Lay out comma lists either all horizontal or all vertical. Vertical means a break before the first element and after each element, at +2.
-  - Never align to the opening paren.
-  - Wrapped function declarations put each parameter at +2, with `)` on its own line followed by `-> Result`.
-  - Wrapped calls put each argument at +2.
-  - In wrapped `if`/`guard`, continuation lines align after the keyword.
-  - If the last continuation line sits at +2, `{` goes on its own line.
-- **Spaces:**
-  - Write `if (a || b) && c`, never `if(`.
-  - Put spaces around binary and ternary operators, `=`, `->` and `&` in compositions.
-  - No spaces around `.`, `...` or `..<`.
-  - Space after `,` and `:`, never before.
-  - Two spaces before an end-of-line `//`.
-  - No spaces inside `[ ]` or `( )`.
-- **No horizontal alignment** of declarations or comments. The only exception is truly tabular data.
-- One blank line between type members. It may be omitted between related one-line stored properties or enum cases. Blank lines inside functions only to separate logical steps.
-- No parentheses around `if`/`guard`/`while`/`switch` conditions. Add grouping parens when precedence might be misread.
-
-### Constructs
-
-- Comments use `//` only, never `/* */`. Doc comments use `///` only.
-- Declare one variable per `let` or `var`. Tuple destructuring is the exception. Declare locals near first use.
-- `case` labels sit at the same indent as `switch`.
-- One enum case per line. The comma form is OK only for simple cases with no values that fit on one line.
-  - Never write `case foo()`.
-  - Mark the whole enum `indirect` when every case is.
-  - Order cases logically, or alphabetically when no order is obvious.
-- **Trailing closures:**
-  - Pass a single final closure argument as a trailing closure, and drop `()` when it is the only argument: `map { $0 * 2 }`.
-  - When there are several closure arguments, label all of them and use no trailing closure.
-  - Inside `if`/`guard` conditions, use a labeled closure.
-  - Don't overload functions that differ only by closure label.
-- Use trailing commas in multi-line array and dictionary literals.
-- Long numeric literals may use `_` grouping: 3 digits for decimal, 4 for hex.
-- Parameterized attributes (`@available(…)`) go on their own line above the declaration, sorted. Bare attributes may share the line if it fits.
-
-### Naming
-
-- Follow the API Design Guidelines: clarity at the point of use, lowerCamelCase for values, UpperCamelCase for types.
-- Use access control, not underscores, to hide things.
-- Identifiers are ASCII. No emoji identifiers.
-- Global constants are lowerCamelCase (`let secondsPerMinute = 60`). No `k` prefix and no SCREAMING_CASE.
-- Static members returning their own type have no type suffix: `.default`, `.shared`, `.red`.
-- Initializer parameters keep the property name: `self.name = name`.
-- **Delegate methods** take the source object first, unlabeled:
-  - With no other arguments: `scrollViewDidScroll(_:)`, `scrollViewShouldScrollToTop(_:) -> Bool`, `numberOfSections(in:)`.
-  - With more arguments, the base name is the source type: `tableView(_:didSelectRowAt:)`.
-
-### Practices
-
-- **No compiler warnings.** CONSTRAINTS.md enforces this with `-warnings-as-errors`.
-- **Initializers:**
-  - Rely on the synthesized memberwise init.
-  - Never call `ExpressibleBy…Literal` inits directly: write `let x: Kilometers = 10` or `10 as Kilometers`.
-  - Call `MyType(…)`, not `MyType.init(…)`. The only exception is a metatype variable: `type.init(…)`.
-- Read-only computed properties omit `get {}`.
-- **Type spelling:**
-  - Use shorthand types: `[T]`, `[K: V]`, `T?`.
-  - Function types return `Void`, as in `() -> Void`. Empty parameter lists are `()`.
-  - Functions with no return value omit `-> Void`.
-- **Optionals and errors:**
-  - Use optionals instead of sentinel values such as `-1`.
-  - A failable `init?` is OK for a single obvious failure.
-  - Use `throws` with a nested `enum …Error: Error` when there are several failure modes.
-  - Test presence with `x != nil`, not `if let _ = x`.
-- **Forced operations:**
-  - No `try!`. This project is stricter than Google here (see CONSTRAINTS.md); tests are exempt.
-  - Avoid force-unwraps and force-casts. When one is unavoidable, add a comment stating the invariant that makes it safe. Tests are exempt.
-  - Avoid implicitly unwrapped optionals, except for lifecycle-set UI properties, unannotated Objective-C APIs and test fixtures set in `setUp()`.
-- **Access and nesting:**
-  - Access modifiers go on members, never on the `extension` itself.
-  - Nest types that belong to another type (`Parser.Error`).
-  - Use a caseless `enum` as a namespace for constants and helpers.
-- **Control flow:**
-  - Use `guard` for early exits and keep the main path flush left.
-  - Write `for x in xs where cond` instead of a body that is a single `if`.
-  - No case whose only body is `fallthrough`: combine the patterns instead.
-- **Patterns:**
-  - Write `let` per binding: `case .pair(let a, let b)`, not `case let .pair(a, b)`. Omit labels that match the binding name.
-  - Destructured tuples are unlabeled on the left: `let (a, b) = …`.
-- **Literals:**
-  - Give a literal a non-default type by annotation or `as` (`let x: Int32 = 5`, `"a" as Character`), not by `Int32(5)` or `Character("a")`.
-  - No playground literals (`#colorLiteral`).
-- **Arithmetic and operators:**
-  - Use trapping arithmetic. `&+` and friends are only for hashing or crypto, or for proven hot paths with a comment explaining why.
-  - No custom operators unless the domain meaning is unmistakable.
-  - Overload existing operators only with their standard meaning.
-
-### Documentation comments
-
-- Every `public`/`open` declaration gets a `///` comment. Not needed for: self-evident enum cases, overrides and protocol implementations, test code, and extension declarations themselves.
-- Start with a one-sentence summary ending in a period. Methods take a verb phrase ("Returns the…", not "This method…"); properties take a noun phrase. Put details in further paragraphs after a blank `///` line.
-- Tags go in order: `- Parameter x:` for a single parameter, or `- Parameters:` with a nested list for several; then `- Returns:`; then `- Throws:`. Never leave a tag empty. End each with a period. Indent wrapped lines 2 spaces past the hyphen. Omit tags the summary already covers.
-- Don't restate the code ("A representation of…"). Do define terms a reader needs.
+- **Files**: one primary type per file, named after it. Conformances go in `Type+Protocol.swift` and grab-bag extensions in `Type+Additions.swift`. Group members with `// MARK: -`, and keep overloads next to each other.
+- **Imports**: import exactly the modules you use, without relying on transitive imports. Use three sorted groups: modules, then single declarations, then `@testable`.
+- **Comments**: use `//` and `///` only. Every `public` declaration gets a `///` summary sentence that ends in a period, then `- Parameter`/`- Returns`/`- Throws` tags in that order, never left empty.
+- **Safety**: no `try!` outside tests. A force-unwrap or force-cast needs a comment stating why it is safe. Use optionals instead of sentinel values like `-1`, and trapping arithmetic (`&+` only for hashing or a commented hot path).
+- **Errors**: use `init?` for one obvious failure. With several failure modes, `throws` with a nested `enum …Error`.
+- **Declarations**: one variable per `let`/`var`. Write `case .pair(let a, let b)`. Give literals types by annotation (`let x: Int32 = 5`), not `Int32(5)`. Call `Type(…)`, not `Type.init(…)`.
+- **Closures**: pass a single final closure as a trailing closure. With several closures, label them all. Inside `if`/`guard` conditions, use a labeled closure.
+- **Control flow**: `guard` for early exits; `for x in xs where cond` instead of a loop body that is just one `if`.
+- **Access**: put access modifiers on members, never on `extension`. Use a caseless `enum` as a namespace. Hide things with access control, not underscores.
+- **Naming**: ASCII identifiers. Global constants are lowerCamelCase. Static members that return their own type have no suffix (`.shared`). Delegate methods take the source object first, unlabeled (`tableView(_:didSelectRowAt:)`).
+- No custom operators, `#colorLiteral` or `/* */` comments, and never align declarations horizontally.
