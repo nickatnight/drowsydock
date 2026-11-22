@@ -18,6 +18,12 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin_dir/DrowsyDock" "$app/Contents/MacOS/DrowsyDock"
 cp Resources/Info.plist "$app/Contents/Info.plist"
 
+# The app icon: Resources/AppIcon.svg, rendered at every size an .icns holds.
+icon_dir="$(mktemp -d)"
+trap 'rm -rf "$icon_dir"' EXIT
+swift scripts/icon/render-icon.swift Resources/AppIcon.svg "$icon_dir/AppIcon.iconset"
+iconutil --convert icns --output "$app/Contents/Resources/AppIcon.icns" "$icon_dir/AppIcon.iconset"
+
 # The hardened runtime makes dyld ignore DYLD_* variables, so no other process can inject code
 # into an app that holds the Accessibility grant.
 codesign --force --options runtime --sign "$sign_identity" "$app"

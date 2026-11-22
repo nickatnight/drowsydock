@@ -26,7 +26,7 @@ scripts/bundle.sh             # builds build/DrowsyDock.app, universal, ad-hoc s
 open build/DrowsyDock.app
 ```
 
-DrowsyDock has no Dock icon. It lives in the menu bar as a moon with "zzz". The cat appears once the app has Accessibility access, below.
+DrowsyDock has no Dock icon. It lives in the menu bar as a small battery with cat ears. The cat appears once the app has Accessibility access, below.
 
 To quit, choose Quit DrowsyDock (⌘Q) from the menu, or run `pkill -x DrowsyDock`.
 
