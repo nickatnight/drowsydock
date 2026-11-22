@@ -1,4 +1,3 @@
-# Codecov reports coverage and never gates it: scripts/check.sh's changed-line gate decides.
 coverage:
   status:
     project:

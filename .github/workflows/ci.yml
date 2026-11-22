@@ -49,9 +49,6 @@ jobs:
 
       - run: scripts/check.sh task
 
-      # Reporting only: check.sh decides green. Runs only after check.sh passed, and an upload
-      # error never fails the job. On fork PRs the secret is empty and Codecov takes the upload
-      # tokenless.
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
         with:

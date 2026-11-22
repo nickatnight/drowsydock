@@ -195,9 +195,6 @@ changed_lines() {
   done
 }
 
-# Keeps the gated files' lcov records, with repo-relative `SF:` paths, at $coverage_report for CI
-# to upload to Codecov. It writes a temp file and renames it, so an interrupted run leaves no
-# partial report.
 write_coverage_report() {
   local gated="$1" lcov="$2"
   mkdir -p "$(dirname "$coverage_report")"
@@ -343,7 +340,6 @@ if [[ $mode == fast ]]; then
 fi
 
 step "Tests (with coverage)"
-# The coverage gate rewrites the report only after the tests pass, so drop the last run's first.
 rm -f "$coverage_report"
 swift test --enable-code-coverage
 
