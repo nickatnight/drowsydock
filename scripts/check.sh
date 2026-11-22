@@ -195,8 +195,7 @@ changed_lines() {
   done
 }
 
-# lcov paths may use the logical or the physical (symlink-resolved) checkout path. An awk program
-# that starts with this runs with LOGICAL and PHYSICAL set; a file outside the checkout maps to "".
+# lcov paths may use the logical or the physical (symlink-resolved) checkout path.
 repo_relative_path='
   function repo_relative(file) {
     if (index(file, ENVIRON["PHYSICAL"]) == 1) return substr(file, length(ENVIRON["PHYSICAL"]) + 1)
