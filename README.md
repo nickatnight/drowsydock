@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/readme/cat.png" width="96" height="120" alt="DrowsyDock's cat, awake: an apricot cat with a cream muzzle and paws and a ginger patch on its forehead, sitting upright">
+  <img src="docs/readme/icon.svg" width="96" height="96" alt="DrowsyDock's app icon: a battery with cat ears, low on charge and asleep, on a dark-blue rounded square">
   <h1>DrowsyDock</h1>
   <p>A macOS menu-bar app with a cat that sits on your Dock and gets drowsier as the battery drains.<br>
   Below 50% it gets drowsy, and below 10% it falls asleep. Plug in the charger and it wakes up.</p>
@@ -84,9 +84,9 @@ DrowsyDock keeps no settings and writes no files in normal use. macOS keeps the 
 | `RECORD_SNAPSHOTS=1 swift test` | Rewrites the snapshot references, then fails on purpose |
 | `swift format lint --strict --recursive Sources scripts/qa/Sources Tests` | The format lint. `swift format --in-place --recursive Sources scripts/qa/Sources Tests` fixes most findings. |
 | `scripts/bundle.sh` | `build/DrowsyDock.app`, universal, signed with `$SIGN_IDENTITY` (default `-`, ad hoc) and the hardened runtime |
-| `scripts/check.sh fast` | Compile, format lint, the live QA script's checks, the floor rules from CONSTRAINTS.md, the QA row mapping, the README's links and banner, and the secret scan. Run it after every edit. |
+| `scripts/check.sh fast` | Compile, format lint, the live QA script's checks, the floor rules from CONSTRAINTS.md, the QA row mapping, the README's links, banner and icon, and the secret scan. Run it after every edit. |
 | `scripts/check.sh task` | `fast`, then the tests with coverage, the changed-line coverage gate against `$CHECK_BASE` (default `main`) and the signed bundle. Run it before every commit. |
-| `scripts/readme/banner.sh` | Rebuilds `docs/readme/` (this page's banner and cat) from the snapshot references and the values it reads from the app's Swift sources |
+| `scripts/readme/banner.sh` | Rebuilds `docs/readme/` (this page's banner and icon) from the snapshot references, `Resources/AppIcon.svg` and the values it reads from the app's Swift sources |
 
 To follow the log without an administrator account:
 
