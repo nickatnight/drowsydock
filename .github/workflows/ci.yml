@@ -59,6 +59,8 @@ jobs:
           files: .build/coverage/lcov.info
           disable_search: true
           fail_ci_if_error: true
+          plugins: noop
+          disable_telem: true
 
       - name: Upload snapshot failures
         if: failure()
