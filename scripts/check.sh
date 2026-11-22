@@ -7,7 +7,8 @@
 #                           (every edit)
 #   scripts/check.sh task   fast + tests, coverage gate, bundle (run before every commit)
 #
-# The coverage gate compares against the merge base with $CHECK_BASE (default: main).
+# The coverage gate compares against the merge base with $CHECK_BASE (default: main). It also
+# writes the gated files' coverage to .build/coverage/lcov.info, which CI uploads to Codecov.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -21,6 +22,7 @@ case "$mode" in
 esac
 
 coverage_minimum=80
+coverage_report=.build/coverage/lcov.info
 gated_targets=(Sources/DrowsyDockCore Sources/DockOverlayKit scripts/qa/Sources/LiveQAKit)
 source_roots=(Sources scripts/qa/Sources)
 # An import may carry attributes (`@preconcurrency`, `@_exported`, `@_spi(Name)`), an access level
@@ -193,6 +195,29 @@ changed_lines() {
   done
 }
 
+# Keeps the gated files' lcov records, with repo-relative `SF:` paths, at $coverage_report for CI
+# to upload to Codecov. It writes a temp file and renames it, so an interrupted run leaves no
+# partial report.
+write_coverage_report() {
+  local gated="$1" lcov="$2"
+  mkdir -p "$(dirname "$coverage_report")"
+  tr '\0' '\n' <"$gated" >"$work/gated-list"
+  LOGICAL="$PWD/" PHYSICAL="$(pwd -P)/" awk '
+    BEGIN { logical = ENVIRON["LOGICAL"]; physical = ENVIRON["PHYSICAL"] }
+    FILENAME == ARGV[1] { gated[$0] = 1; next }
+    /^SF:/ {
+      file = substr($0, 4)
+      if (index(file, physical) == 1) file = substr(file, length(physical) + 1)
+      else if (index(file, logical) == 1) file = substr(file, length(logical) + 1)
+      keep = (file in gated)
+      if (keep) print "SF:" file
+      next
+    }
+    keep { print }
+    /^end_of_record$/ { keep = 0 }' "$work/gated-list" "$lcov" >"$coverage_report.tmp"
+  mv "$coverage_report.tmp" "$coverage_report"
+}
+
 coverage_gate() {
   local merge_base bin_path lcov changed gated
   merge_base="$(git merge-base "${CHECK_BASE:-main}" HEAD)"
@@ -224,6 +249,7 @@ coverage_gate() {
     -instr-profile "$bin_path/codecov/default.profdata" \
     "${objects[@]}" \
     >"$lcov"
+  write_coverage_report "$gated" "$lcov"
   changed_lines "$merge_base" <"$gated" >"$changed"
 
   # lcov paths may use the logical or the physical (symlink-resolved) checkout path. The changed
@@ -317,6 +343,8 @@ if [[ $mode == fast ]]; then
 fi
 
 step "Tests (with coverage)"
+# The coverage gate rewrites the report only after the tests pass, so drop the last run's first.
+rm -f "$coverage_report"
 swift test --enable-code-coverage
 
 step "Coverage of changed lines"
