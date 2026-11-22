@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/readme/cat.png" width="96" height="120" alt="DrowsyDock's cat, awake: an apricot cat with a cream muzzle and paws and a ginger patch on its forehead, sitting upright">
+  <img src="docs/readme/icon.svg" width="96" height="96" alt="DrowsyDock's app icon: a battery with cat ears, low on charge and asleep, on a dark-blue rounded square">
   <h1>DrowsyDock</h1>
   <p>A macOS menu-bar app with a cat that sits on your Dock and gets drowsier as the battery drains.<br>
   Below 50% it gets drowsy, and below 10% it falls asleep. Plug in the charger and it wakes up.</p>
