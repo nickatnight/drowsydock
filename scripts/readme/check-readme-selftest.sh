@@ -95,7 +95,7 @@ expect_source_edit() {
   run_plant "$name" "${@:2:$#-3}" README_SOURCES="$copy/sources"
 }
 
-export readme_selftest_dir="${PWD##*/}"
+export repo_folder_name="${PWD##*/}"
 
 new_plant
 run_plant "the unchanged README" pass
@@ -121,7 +121,7 @@ expect_readme_edit "an anchor with no heading" fails "names no heading" \
 expect_readme_edit "a link to a file git ignores" fails "isn't in git's index" \
   "s{\\(CLAUDE\\.md\\)}{($git_ignored_file)}"
 expect_readme_edit "a link that leaves the repo" fails "isn't in git's index" \
-  's{\(CLAUDE\.md\)}{(../$ENV{readme_selftest_dir}/CLAUDE.md)}'
+  's{\(CLAUDE\.md\)}{(../$ENV{repo_folder_name}/CLAUDE.md)}'
 expect_readme_edit "a link in the wrong case" fails "isn't in git's index" \
   's{\(CLAUDE\.md\)}{(claude.md)}'
 expect_asset_flip "a changed banner" banner.svg
