@@ -212,6 +212,16 @@ expect_banner_edit "a banner with a lowercase doctype" fails "must not hold a sc
   's{<svg }{<!doctype svg SYSTEM "x.dtd">\n<svg }'
 expect_banner_edit "a banner with an uppercase HREF" fails "must not hold a script" \
   's{</svg>}{<image HREF="x.png"/></svg>}'
+expect_banner_edit "a banner with an x:-prefixed script" fails "must not hold a script" \
+  's{</svg>}{<x:script xmlns:x="http://www.w3.org/2000/svg">alert(1)</x:script></svg>}'
+expect_banner_edit "a banner with a single-quoted external url()" fails "must not hold a script" \
+  's{<style>}{<style>.x { fill: url(\x27x.svg#g\x27) }}'
+expect_banner_edit "a banner with a space before the quote of a url()" fails \
+  "must not hold a script" 's{<style>}{<style>.x { fill: url( "x.svg#g") }}'
+expect_banner_edit "a banner with an empty single-quoted image" fails "must not hold a script" \
+  's{base64,[^"]*"}{base64,\x27"}'
+expect_banner_edit "a banner with an event handler after tabs" fails "must not hold a script" \
+  's{</svg>}{<set attributeName="opacity" to="1"\tonbegin\t="alert(1)"/></svg>}'
 expect_banner_edit "a banner with a url() into itself" lacks "must not hold a script" \
   's{<style>}{<style>.x { fill: url(#g) }}'
 expect_banner_edit "a banner over 1 MB" fails "must stay under 1 MB" \
