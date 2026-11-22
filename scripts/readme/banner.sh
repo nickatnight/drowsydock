@@ -52,8 +52,32 @@ shown_across_loop_end() {
     "$(add "$from" "$fade"):1" "$loop:1"
 }
 
-level() {
-  awk -v p="$1" 'BEGIN { printf "%.6gpx", 210 * (100 - p) / 100 }'
+fill_start=630
+fill_length=210
+thresholds=(10 20 30 50)
+
+fill_dashoffset() {
+  awk -v p="$1" -v span="$fill_length" 'BEGIN { printf "%.6gpx", span * (100 - p) / 100 }'
+}
+
+fill_x() {
+  awk -v p="$1" -v start="$fill_start" -v span="$fill_length" \
+    'BEGIN { printf "%.6g", start + span * p / 100 }'
+}
+
+threshold_labels() {
+  local threshold
+  for threshold in "${thresholds[@]}"; do
+    printf '<text x="%s" y="214">%s</text>' "$(fill_x "$threshold")" "$threshold"
+  done
+}
+
+threshold_ticks() {
+  local threshold x
+  for threshold in "${thresholds[@]}"; do
+    x="$(fill_x "$threshold")"
+    printf '<line x1="%s" y1="133" x2="%s" y2="198"/>' "$x" "$x"
+  done
 }
 
 png() {
@@ -62,9 +86,11 @@ png() {
 }
 
 banner_css() {
-  keyframes level stroke-dashoffset "0:$(level 80)" "2.5:$(level 80)" "3:$(level 40)" \
-    "5:$(level 40)" "5.5:$(level 25)" "7.5:$(level 25)" "8:$(level 15)" "10:$(level 15)" \
-    "10.5:$(level 5)" "15:$(level 5)" "15.75:$(level 80)" "16:$(level 80)"
+  keyframes level stroke-dashoffset "0:$(fill_dashoffset 80)" "2.5:$(fill_dashoffset 80)" \
+    "3:$(fill_dashoffset 40)" "5:$(fill_dashoffset 40)" "5.5:$(fill_dashoffset 25)" \
+    "7.5:$(fill_dashoffset 25)" "8:$(fill_dashoffset 15)" "10:$(fill_dashoffset 15)" \
+    "10.5:$(fill_dashoffset 5)" "15:$(fill_dashoffset 5)" "15.75:$(fill_dashoffset 80)" \
+    "16:$(fill_dashoffset 80)"
   keyframes charge stroke 0:#34c759 0.5:#34c759 0.51:#6b7383 13.25:#6b7383 13.26:#34c759 \
     16:#34c759
   keyframes plug transform 0:none 0.5:translateX\(60px\) 12.75:translateX\(60px\) 13.25:none \
@@ -101,7 +127,7 @@ banner_svg() {
 .a { animation-duration: ${loop}s; animation-timing-function: linear; animation-iteration-count: infinite }
 .pose { opacity: 0 }
 #asleep, #s5 { opacity: 1 }
-#fill { stroke: #6b7383; stroke-dashoffset: $(level 5); animation-name: level, charge }
+#fill { stroke: #6b7383; stroke-dashoffset: $(fill_dashoffset 5); animation-name: level, charge }
 #plug { transform: translateX(60px); animation-name: plug }
 #bolt { opacity: 0; animation-name: bolt }
 #base { animation-name: base }
@@ -181,14 +207,14 @@ $(for i in 0 1 2 3 4; do
 <text id="s80c" class="a status" x="736" y="96">80% &#183; Charging &#183; Awake</text>
 </g>
 <g font-size="12" fill="#5b6472">
-<text x="651" y="214">10</text><text x="672" y="214">20</text><text x="693" y="214">30</text><text x="735" y="214">50</text>
+$(threshold_labels)
 </g>
 </g>
 <rect x="620" y="125" width="230" height="64" rx="14" fill="#f7f8fa" stroke="#5b6472" stroke-width="4"/>
 <rect x="852" y="144" width="9" height="26" rx="4" fill="#5b6472"/>
-<line id="fill" class="a" x1="630" y1="157" x2="840" y2="157" stroke-width="48" stroke-dasharray="210 400"/>
+<line id="fill" class="a" x1="$fill_start" y1="157" x2="$(fill_x 100)" y2="157" stroke-width="48" stroke-dasharray="$fill_length 400"/>
 <g stroke="#5b6472" stroke-opacity="0.45" stroke-dasharray="3 3">
-<line x1="651" y1="133" x2="651" y2="198"/><line x1="672" y1="133" x2="672" y2="198"/><line x1="693" y1="133" x2="693" y2="198"/><line x1="735" y1="133" x2="735" y2="198"/>
+$(threshold_ticks)
 </g>
 <path id="bolt" class="a" d="M741 135L722 161H734L729 180L749 152H737Z" fill="#fff" stroke="#2b3340" stroke-width="2.5" stroke-linejoin="round"/>
 <g id="plug" class="a" fill="#3a4150">
