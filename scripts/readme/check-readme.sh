@@ -6,8 +6,10 @@
 # of the README's # headings, as GitHub spells its anchor (lowercase, punctuation dropped, spaces as
 # hyphens, -1, -2 for repeats). Links in fenced code, inline code and HTML comments don't count,
 # http(s) and mailto links aren't followed, and a fragment on a link to another file isn't checked.
-# Setext headings, explicit HTML ids, non-ASCII letters in anchors, links in indented code blocks
-# and %-encoded paths aren't understood: each fails the check rather than passing unchecked.
+# Not understood, so a link written as GitHub spells it fails the check: setext headings, explicit
+# HTML ids, non-ASCII letters in anchors, links in indented code blocks, %-encoded paths.
+# Not read at all, so they pass unchecked: srcset, unquoted or line-split attributes, a fence
+# closed by a longer fence, and a code span that crosses a line break.
 # The banner must stay under 1 MB, with no script, no external reference and no empty image.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -15,16 +17,15 @@ cd "$(dirname "$0")/../.."
 readme="${1:-README.md}"
 failed=0
 
-# The README without what GitHub doesn't render as links: fenced code (``` or ~~~), HTML comments
-# and inline code spans.
-readme_without_code_or_comments() {
-  perl -0pe 's/^ {0,3}(`{3,}|~{3,})[^\n]*\n.*?^ {0,3}\1[ \t]*$//gms; s/<!--.*?-->//gs;
-    s/`[^`\n]*`//g' -- "$readme"
+# The README without fenced code (``` or ~~~) and HTML comments, which GitHub doesn't render.
+readme_without_fences_or_comments() {
+  perl -0pe 's/^ {0,3}(`{3,}|~{3,})[^\n]*\n.*?^ {0,3}\1[ \t]*$//gms; s/<!--.*?-->//gs' -- "$readme"
 }
 
-# Inline links and images, href and src attributes in either quotes, and reference definitions.
+# Inline links and images, href and src attributes in either quotes, and reference definitions,
+# outside inline code. Headings keep their code: GitHub builds the anchor from its text.
 links() {
-  readme_without_code_or_comments | perl -ne '
+  readme_without_fences_or_comments | perl -pe 's/`[^`\n]*`//g' | perl -ne '
     print "$1\n" while /\]\(\s*<?([^)\s>]+)/g;
     print "$2\n" while /\b(?:href|src)\s*=\s*(["\x27])(.*?)\1/g;
     print "$1\n" if /^ {0,3}\[[^\]]+\]:\s*<?([^\s>]+)/;
@@ -32,7 +33,7 @@ links() {
 }
 
 # GitHub's anchor for each heading, without its closing #s and with a link reduced to its text.
-anchors="$(readme_without_code_or_comments | sed -nE 's/^ {0,3}#{1,6}[[:space:]]+//p' |
+anchors="$(readme_without_fences_or_comments | sed -nE 's/^ {0,3}#{1,6}[[:space:]]+//p' |
   sed -E 's/[[:space:]]+#+[[:space:]]*$//; s/\[([^]]*)\]\([^)]*\)/\1/g' |
   tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9 _-]//g; s/ /-/g' |
   awk '{ repeat = seen[$0]++; print (repeat ? $0 "-" repeat : $0) }')"
@@ -62,7 +63,8 @@ while IFS= read -r link <&3; do
       then
         continue
       fi
-      if [[ -e $path ]]; then
+      # Whether a wrong-case path exists depends on the volume, so ask the index, ignoring case.
+      if [[ -e $path ]] || grep -qixF -- "$path" <<<"$tracked"$'\n'"$folders"; then
         echo "README: $link isn't in git's index as spelled: check its case, keep it inside" \
           "the repo, or git add it" >&2
       else
@@ -78,8 +80,14 @@ if (($(wc -c <"$banner") >= 1000000)); then
   echo "README: $banner must stay under 1 MB" >&2
   failed=1
 fi
-if grep -qiE '<script|javascript:|url\(|@import|base64,"' -- "$banner" ||
-  grep -oE 'https?://[^" )]+' -- "$banner" | grep -qvxF -- 'http://www.w3.org/2000/svg'; then
+# Captured before matching, so no early exit in a pipeline can read as "clean". A url() may point
+# into the SVG (url(#id)); base64 data never holds ':', '(', '<', '@' or a quote.
+forbidden_pattern="<script|javascript:|@import|base64,[\"']|url\\([[:space:]]*[\"']?[^#\"'[:space:]]"
+forbidden_pattern+="|(href|src)[[:space:]]*=[[:space:]]*[\"']//"
+forbidden="$(grep -oiE -- "$forbidden_pattern" "$banner" || true)"
+urls="$(grep -oiE -- "https?://[^\"' )<>]+" "$banner" || true)"
+foreign_urls="$(grep -vxF -- 'http://www.w3.org/2000/svg' <<<"$urls" || true)"
+if [[ -n $forbidden || -n $foreign_urls ]]; then
   echo "README: $banner must not hold a script, an external reference or an empty image" >&2
   failed=1
 fi

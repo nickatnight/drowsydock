@@ -28,7 +28,7 @@ copy_references() {
 }
 
 # run_plant NAME EXPECTED [VAR=VALUE...]: runs the check on $copy in the background. EXPECTED is
-# "pass", or the message the check must print when it fails.
+# "pass", the message the check must print when it fails, or "not:" and a message it must not print.
 run_plant() {
   local name="$1" expected="$2" dir="$copy"
   shift 2
@@ -49,6 +49,18 @@ expect_readme_edit() {
   new_plant
   perl -0pi -e "$perl_edit" "$copy/README.md"
   if cmp -s "$copy/README.md" README.md; then
+    echo "check-readme-selftest: the plant '$name' changed nothing" >&2
+    failed=1
+    return
+  fi
+  run_plant "$name" "$expected"
+}
+
+expect_banner_edit() {
+  local name="$1" expected="$2" perl_edit="$3"
+  new_plant
+  perl -0pi -e "$perl_edit" "$copy/assets/banner.svg"
+  if cmp -s "$copy/assets/banner.svg" docs/readme/banner.svg; then
     echo "check-readme-selftest: the plant '$name' changed nothing" >&2
     failed=1
     return
@@ -81,6 +93,9 @@ expect_source_edit() {
   run_plant "$name" "$expected" README_SOURCES="$copy/sources"
 }
 
+# Passed through the environment, so perl reads the folder name as data, not as code.
+export readme_selftest_dir="${PWD##*/}"
+
 new_plant
 run_plant "the unchanged README" pass
 expect_readme_edit "a broken link inside a code block" pass \
@@ -105,7 +120,7 @@ expect_readme_edit "an anchor with no heading" "names no heading" \
 expect_readme_edit "a link to a file git ignores" "isn't in git's index" \
   "s{\\(CLAUDE\\.md\\)}{($git_ignored_file)}"
 expect_readme_edit "a link that leaves the repo" "isn't in git's index" \
-  "s{\\(CLAUDE\\.md\\)}{(../${PWD##*/}/CLAUDE.md)}"
+  's{\(CLAUDE\.md\)}{(../$ENV{readme_selftest_dir}/CLAUDE.md)}'
 expect_readme_edit "a link in the wrong case" "isn't in git's index" \
   's{\(CLAUDE\.md\)}{(claude.md)}'
 expect_asset_flip "a changed banner" banner.svg
@@ -122,17 +137,31 @@ expect_readme_edit "a link path that starts with a dash" "names no file" \
 expect_readme_edit "a broken link inside a plain fence" pass \
   's/\n## Docs\n/\n```\n[x](no-such-file.md)\n```\n\n## Docs\n/'
 expect_readme_edit "headings GitHub slugs specially, a fragment on another file and a folder" pass \
-  's/\n## Docs\n/\n## Debug ▸ Simulate (beta)\n\n## Requirements\n\n## See [docs](CLAUDE.md)\n\n## Docs ##\n\n[a](#debug--simulate-beta) [b](#requirements-1) [c](#see-docs) [d](#docs)\n[e](docs\/manual-qa.md#anything) [f](docs\/readme\/)\n/'
+  's/\n## Docs\n/\n## Debug ▸ Simulate (beta)\n\n## Requirements\n\n## See [docs](CLAUDE.md)\n\n## The `--qa-log` flag\n\n## Docs ##\n\n[a](#debug--simulate-beta) [b](#requirements-1) [c](#see-docs) [d](#docs)\n[g](#the---qa-log-flag) [e](docs\/manual-qa.md#anything) [f](docs\/readme\/)\n/'
 expect_readme_edit "an anchor that is a prefix of a heading" "names no heading" \
   's{href="#requirements"}{href="#require"}'
 expect_readme_edit "an anchor to a heading only inside a code block" "names no heading" \
   's/\n## Docs\n/\n```\n## Fake\n```\n\n[x](#fake)\n\n## Docs\n/'
-new_plant
-perl -0pi -e 's{<style>}{<style><script>alert(1)</script>}' "$copy/assets/banner.svg"
-run_plant "a banner with a script" "must not hold a script"
-new_plant
-perl -0pi -e 's{</svg>}{"<!--" . ("x" x 1000000) . "-->\n</svg>"}e' "$copy/assets/banner.svg"
-run_plant "a banner over 1 MB" "must stay under 1 MB"
+expect_banner_edit "a banner with a script" "must not hold a script" \
+  's{<style>}{<style><script>alert(1)</script>}'
+expect_banner_edit "a banner with a javascript: link" "must not hold a script" \
+  's{</svg>}{<a href="javascript:void(0)"/></svg>}'
+expect_banner_edit "a banner with an @import" "must not hold a script" \
+  's{<style>}{<style>\@import "x.css";}'
+expect_banner_edit "a banner with an empty image" "must not hold a script" \
+  's{base64,[^"]*"}{base64,"}'
+expect_banner_edit "a banner with an external url()" "must not hold a script" \
+  's{<style>}{<style>.x { fill: url(x.svg#g) }}'
+expect_banner_edit "a banner with an https reference" "must not hold a script" \
+  's{</svg>}{<image href="https://example.com/x.png"/></svg>}'
+expect_banner_edit "a banner with an uppercase HTTPS reference" "must not hold a script" \
+  's{</svg>}{<image href="HTTPS://EXAMPLE.COM/X.PNG"/></svg>}'
+expect_banner_edit "a banner with a protocol-relative reference" "must not hold a script" \
+  's{</svg>}{<image href="//example.com/x.png"/></svg>}'
+expect_banner_edit "a banner with a url() into itself" "not:must not hold a script" \
+  's{<style>}{<style>.x { fill: url(#g) }}'
+expect_banner_edit "a banner over 1 MB" "must stay under 1 MB" \
+  's{</svg>}{"<!--" . ("x" x 1000000) . "-->\n</svg>"}e'
 new_plant
 copy_references
 perl -0pi -e 's/(.)\z/chr(ord($1) ^ 1)/se' "$copy/references/pose-asleep-left.png"
@@ -154,7 +183,12 @@ for dir in "$scratch"/*/; do
   name="$(cat "$dir/name")"
   expected="$(cat "$dir/expected")"
   outcome="$(cat "$dir/outcome")"
-  if [[ $expected == pass ]]; then
+  if [[ $expected == not:* ]]; then
+    if grep -qF -- "${expected#not:}" "$dir/stderr"; then
+      echo "check-readme-selftest: expected $name not to print \"${expected#not:}\"" >&2
+      failed=1
+    fi
+  elif [[ $expected == pass ]]; then
     if [[ $outcome != pass ]]; then
       echo "check-readme-selftest: expected $name to pass the check, but it failed:" >&2
       cat "$dir/stderr" >&2
