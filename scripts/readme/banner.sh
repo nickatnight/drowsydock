@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #   scripts/readme/banner.sh          write docs/readme/banner.svg and docs/readme/cat.png
-#   scripts/readme/banner.sh --check  exit 1 if either differs from what the references and the app give
+#   scripts/readme/banner.sh --check  exit 1 if either is out of date
 #
 # banner.svg uses CSS animation only and embeds the PNGs, so GitHub can show it through <img>.
 set -euo pipefail
@@ -93,22 +93,18 @@ keyframes() {
   printf ' }\n'
 }
 
-add() {
-  awk -v a="$1" -v b="$2" 'BEGIN { printf "%.6g", a + b }'
-}
-
 fade=0.15
 
 shown() {
   local name="$1" from="$2" to="$3"
-  keyframes "$name" opacity 0:0 "$from:0" "$(add "$from" "$fade"):1" "$(add "$to" -"$fade"):1" \
+  keyframes "$name" opacity 0:0 "$from:0" "$(calc "$from + $fade"):1" "$(calc "$to - $fade"):1" \
     "$to:0" "$loop:0"
 }
 
 shown_across_loop_end() {
   local name="$1" from="$2" to="$3"
-  keyframes "$name" opacity 0:1 "$(add "$to" -"$fade"):1" "$to:0" "$from:0" \
-    "$(add "$from" "$fade"):1" "$loop:1"
+  keyframes "$name" opacity 0:1 "$(calc "$to - $fade"):1" "$to:0" "$from:0" \
+    "$(calc "$from + $fade"):1" "$loop:1"
 }
 
 fill_start=630
@@ -164,7 +160,8 @@ banner_css() {
   keyframes stretch transform 0:none 13.5:none "13.75:scale(0.97, 1.06)" 14.1:none 16:none
   keyframes sparkle transform 0:scale\(0\) 13.6:scale\(0\) 13.9:scale\(1.3\) 14.5:scale\(1\) \
     14.9:scale\(0\) 16:scale\(0\)
-  keyframes veil opacity 0:0 10.3:0 "$wave_start:$veil_opacity" "13.25:$veil_opacity" 13.45:0 16:0
+  keyframes veil opacity 0:0 10.3:0 "$wave_start:$veil_opacity" "13.25:$veil_opacity" 13.45:0 \
+    16:0
   keyframes dim opacity 0:0 "$wave_start:0" \
     "$(calc "$wave_start + $dim_seconds * $dim_fade_in"):$dim_opacity" \
     "$(calc "$wave_start + $dim_seconds * ($dim_fade_in + $dim_hold)"):$dim_opacity" \
@@ -172,10 +169,12 @@ banner_css() {
   keyframes puff opacity 0:0 "$wave_start:0" \
     "$(calc "$wave_start + $icon_seconds * $puff_fade_in"):1" \
     "$(calc "$wave_start + $icon_seconds * ($puff_fade_in + $puff_hold)"):1" \
-    "$(calc "$wave_start + $icon_seconds * ($puff_fade_in + $puff_hold + $puff_fade_out)"):0" 16:0
-  local drifted
-  drifted="translate($(calc "$drift_dx * $units_per_point")px, -$(calc "$drift_dy * $units_per_point")px)"
-  drifted="$drifted scale($z_end_scale)"
+    "$(calc "$wave_start + $icon_seconds * ($puff_fade_in + $puff_hold + $puff_fade_out)"):0" \
+    16:0
+  local drift_x drift_y drifted
+  drift_x="$(calc "$drift_dx * $units_per_point")"
+  drift_y="$(calc "$drift_dy * $units_per_point")"
+  drifted="translate(${drift_x}px, -${drift_y}px) scale($z_end_scale)"
   keyframes drift transform "0:scale($z_start_scale)" "$wave_start:scale($z_start_scale)" \
     "$(calc "$wave_start + $icon_seconds"):$drifted" "16:$drifted"
   shown s80d 0.5 3
@@ -244,7 +243,7 @@ $(banner_css)
 </g>
 <g stroke-linejoin="miter">
 $(for i in 0 1 2 3 4; do
-    x="$(add 97.5 "$((101 * i))")"
+    x="$(calc "97.5 + 101 * $i")"
     delay=""
     if ((i > 0)); then delay=" i$i"; fi
     printf '<g class="a puff%s" transform="translate(%s 189.4)"><g class="a drift%s">' "$delay" "$x" "$delay"
@@ -301,16 +300,15 @@ generate "$scratch"
 
 if [[ $mode == write ]]; then
   mkdir -p "$assets"
-  for file in banner.svg cat.png; do
-    mv "$scratch/$file" "$assets/$file"
-  done
+  mv "$scratch"/* "$assets"/
   exit 0
 fi
 
 stale=0
-for file in banner.svg cat.png; do
-  if ! cmp -s "$scratch/$file" "$assets/$file"; then
-    echo "README images: $assets/$file differs from what $references and the app's values give" >&2
+for generated in "$scratch"/*; do
+  file="$assets/${generated##*/}"
+  if ! cmp -s "$generated" "$file"; then
+    echo "README images: $file differs from what $references and the app's values give" >&2
     stale=1
   fi
 done
