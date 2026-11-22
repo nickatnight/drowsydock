@@ -22,13 +22,14 @@ readme_without_fences_or_comments() {
   perl -0pe 's/^ {0,3}(`{3,}|~{3,})[^\n]*\n.*?^ {0,3}\1[ \t]*$//gms; s/<!--.*?-->//gs' -- "$readme"
 }
 
-# Inline links and images, href and src attributes in either quotes, and reference definitions,
+# Inline links and images, href and src attributes in either quotes, and reference definitions
+# (not footnotes, whose labels start with ^),
 # outside inline code. Headings keep their code: GitHub builds the anchor from its text.
 links() {
   readme_without_fences_or_comments | perl -pe 's/`[^`\n]*`//g' | perl -ne '
     print "$1\n" while /\]\(\s*<?([^)\s>]+)/g;
     print "$2\n" while /\b(?:href|src)\s*=\s*(["\x27])(.*?)\1/g;
-    print "$1\n" if /^ {0,3}\[[^\]]+\]:\s*<?([^\s>]+)/;
+    print "$1\n" if /^ {0,3}\[(?!\^)[^\]]+\]:\s*<?([^\s>]+)/;
   '
 }
 

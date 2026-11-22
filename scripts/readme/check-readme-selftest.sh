@@ -137,7 +137,14 @@ expect_readme_edit "a link path that starts with a dash" "names no file" \
 expect_readme_edit "a broken link inside a plain fence" pass \
   's/\n## Docs\n/\n```\n[x](no-such-file.md)\n```\n\n## Docs\n/'
 expect_readme_edit "headings GitHub slugs specially, a fragment on another file and a folder" pass \
-  's/\n## Docs\n/\n## Debug ▸ Simulate (beta)\n\n## Requirements\n\n## See [docs](CLAUDE.md)\n\n## The `--qa-log` flag\n\n## Docs ##\n\n[a](#debug--simulate-beta) [b](#requirements-1) [c](#see-docs) [d](#docs)\n[g](#the---qa-log-flag) [e](docs\/manual-qa.md#anything) [f](docs\/readme\/)\n/'
+  's/\n## Docs\n/\n## Debug ▸ Simulate (beta)\n\n## Requirements\n\n## See [docs](CLAUDE.md)\n\n## The `--qa-log` flag\n\n### DROWSYDOCK_SKIP_SNAPSHOTS\n\n## Docs ##\n\n[a](#debug--simulate-beta) [b](#requirements-1) [c](#see-docs) [d](#docs)\n[g](#the---qa-log-flag) [h](#drowsydock_skip_snapshots) [e](docs\/manual-qa.md#anything) [f](docs\/readme\/)\n/'
+expect_readme_edit "a footnote" pass \
+  's/\n## Docs\n/\nA fact.[^1]\n\n[^1]: From Thresholds.swift.\n\n## Docs\n/'
+new_plant
+cp "$(git rev-parse --git-path index)" "$copy/index"
+GIT_INDEX_FILE="$copy/index" git rm --cached -q -- CLAUDE.md
+run_plant "a link to a file that is on disk but not in the index" "isn't in git's index" \
+  GIT_INDEX_FILE="$copy/index"
 expect_readme_edit "an anchor that is a prefix of a heading" "names no heading" \
   's{href="#requirements"}{href="#require"}'
 expect_readme_edit "an anchor to a heading only inside a code block" "names no heading" \
@@ -196,7 +203,8 @@ for dir in "$scratch"/*/; do
     fi
   elif [[ $outcome != fail ]] || ! grep -qF -- "$expected" "$dir/stderr"; then
     echo "check-readme-selftest: expected $name to fail the check with \"$expected\";" \
-      "it ${outcome}ed" >&2
+      "it ${outcome}ed:" >&2
+    cat "$dir/stderr" >&2
     failed=1
   fi
 done
