@@ -38,15 +38,18 @@ add() {
   awk -v a="$1" -v b="$2" 'BEGIN { printf "%.6g", a + b }'
 }
 
+fade=0.15
+
 shown() {
-  local name="$1" from="$2" to="$3" fade=0.15
-  if awk -v a="$from" -v b="$to" 'BEGIN { exit !(a < b) }'; then
-    keyframes "$name" opacity 0:0 "$from:0" "$(add "$from" "$fade"):1" "$(add "$to" -"$fade"):1" \
-      "$to:0" "$loop:0"
-  else
-    keyframes "$name" opacity 0:1 "$(add "$to" -"$fade"):1" "$to:0" "$from:0" \
-      "$(add "$from" "$fade"):1" "$loop:1"
-  fi
+  local name="$1" from="$2" to="$3"
+  keyframes "$name" opacity 0:0 "$from:0" "$(add "$from" "$fade"):1" "$(add "$to" -"$fade"):1" \
+    "$to:0" "$loop:0"
+}
+
+shown_across_loop_end() {
+  local name="$1" from="$2" to="$3"
+  keyframes "$name" opacity 0:1 "$(add "$to" -"$fade"):1" "$to:0" "$from:0" \
+    "$(add "$from" "$fade"):1" "$loop:1"
 }
 
 level() {
@@ -66,7 +69,7 @@ banner_css() {
     16:#34c759
   keyframes plug transform 0:none 0.5:translateX\(60px\) 12.75:translateX\(60px\) 13.25:none \
     16:none
-  shown bolt 13.25 0.5
+  shown_across_loop_end bolt 13.25 0.5
   keyframes base opacity 0:1 3:1 3.01:0 16:0
   keyframes drowsy opacity 0:0 2.75:0 3:1 5.5:1 5.51:0 16:0
   keyframes yawning opacity 0:0 5.25:0 5.5:1 8:1 8.01:0 16:0
@@ -87,7 +90,7 @@ banner_css() {
   shown s15 8 10.5
   shown s5 10.5 13.25
   shown s5w 13.25 15.25
-  shown s80c 15.5 0.5
+  shown_across_loop_end s80c 15.5 0.5
 }
 
 banner_svg() {
