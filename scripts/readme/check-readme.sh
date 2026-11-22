@@ -79,8 +79,15 @@ if (($(wc -c <"$banner") >= 1000000)); then
   echo "README: $banner must stay under 1 MB" >&2
   failed=1
 fi
-forbidden_pattern="<script|javascript:|@import|base64,[\"']|url\\([[:space:]]*[\"']?[^#\"'[:space:]]"
-forbidden_pattern+="|[[:space:]]on[a-z]+[[:space:]]*=|<foreignObject"
+script='<script'
+javascript='javascript:'
+import='@import'
+empty_image="base64,[\"']"
+foreign_url_function="url\\([[:space:]]*[\"']?[^#\"'[:space:]]"
+event_handler='[[:space:]]on[a-z]+[[:space:]]*='
+foreign_object='<foreignObject'
+forbidden_pattern="$script|$javascript|$import|$empty_image|$foreign_url_function"
+forbidden_pattern+="|$event_handler|$foreign_object"
 forbidden="$(grep -oiE -- "$forbidden_pattern" "$banner" || true)"
 hrefs="$(grep -oiE -- "(href|src)[[:space:]]*=[[:space:]]*[\"'][^\"']*" "$banner" || true)"
 foreign_hrefs="$(grep -viE -- "[\"'](#|data:image/png;base64,)" <<<"$hrefs" || true)"
