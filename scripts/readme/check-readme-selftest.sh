@@ -4,10 +4,12 @@
 # plants run in parallel.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
-mkdir -p build
-scratch="$(mktemp -d)"
-git_ignored_file="$(mktemp build/readme-selftest-XXXXXX)"
+# Without -e, each step that the plants depend on stops the script itself.
+mkdir -p build || exit 1
+git_ignored_file=""
+scratch="$(mktemp -d)" || exit 1
 trap 'rm -rf "$scratch"; rm -f "$git_ignored_file"' EXIT
+git_ignored_file="$(mktemp build/readme-selftest-XXXXXX)" || exit 1
 
 failed=0
 plants=0
@@ -183,10 +185,14 @@ copy_references
 printf 'not a png\n' >"$copy/references/pose-yawning-left.png"
 run_plant "a reference that isn't a PNG" "must be a regular PNG file" \
   README_REFERENCES="$copy/references"
+expect_readme_edit "a link with a control character" "x?::error::hi names no file" \
+  's{src="docs/readme/cat\.png"}{src="x\r::error::hi"}'
 wait
 
+checked=0
 for dir in "$scratch"/*/; do
   [[ -e $dir/name ]] || continue
+  checked=$((checked + 1))
   name="$(cat "$dir/name")"
   expected="$(cat "$dir/expected")"
   outcome="$(cat "$dir/outcome")"
@@ -208,4 +214,8 @@ for dir in "$scratch"/*/; do
     failed=1
   fi
 done
+if ((checked != plants)); then
+  echo "check-readme-selftest: checked $checked of $plants plants" >&2
+  failed=1
+fi
 exit "$failed"

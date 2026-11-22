@@ -46,11 +46,13 @@ folders="$(awk -F/ '{ path = $1; for (i = 2; i <= NF; i++) { print path; path = 
 
 # The links arrive on fd 3, so no command in the loop can read them from stdin.
 while IFS= read -r link <&3; do
+  # Control characters are printed as ?, so a link can't pass a command to the CI log.
+  shown_link="${link//[[:cntrl:]]/?}"
   case "$link" in
     http://* | https://* | mailto:*) ;;
     '#'*)
       if ! grep -qxF -- "${link#\#}" <<<"$anchors"; then
-        echo "README: $link names no heading in $readme" >&2
+        echo "README: $shown_link names no heading in $readme" >&2
         failed=1
       fi
       ;;
@@ -66,10 +68,10 @@ while IFS= read -r link <&3; do
       fi
       # Whether a wrong-case path exists depends on the volume, so ask the index, ignoring case.
       if [[ -e $path ]] || grep -qixF -- "$path" <<<"$tracked"$'\n'"$folders"; then
-        echo "README: $link isn't in git's index as spelled: check its case, keep it inside" \
+        echo "README: $shown_link isn't in git's index as spelled: check its case, keep it inside" \
           "the repo, or git add it" >&2
       else
-        echo "README: $link names no file or folder" >&2
+        echo "README: $shown_link names no file or folder" >&2
       fi
       failed=1
       ;;
