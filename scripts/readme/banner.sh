@@ -90,6 +90,8 @@ banner_css() {
   keyframes stretch transform 0:none 13.5:none "13.75:scale(0.97, 1.06)" 14.1:none 16:none
   keyframes sparkle transform 0:scale\(0\) 13.6:scale\(0\) 13.9:scale\(1.3\) 14.5:scale\(1\) \
     14.9:scale\(0\) 16:scale\(0\)
+  # The asleep pose veils the Dock in 0.28 black (MascotPose), faded in and out over 0.2 s.
+  keyframes veil opacity 0:0 10.3:0 10.5:0.28 13.25:0.28 13.45:0 16:0
   # CrowdEffectNode: each icon dims to 0.35 black for 0.3 s and puffs a "z" that drifts up 24 pt
   # and grows from 0.5 to 1.1 over 1 s; CrowdWave starts each icon 0.15 s after the last.
   keyframes dim opacity 0:0 10.5:0 10.59:0.35 10.68:0.35 10.8:0 16:0
@@ -124,6 +126,7 @@ banner_svg() {
 #asleep { animation-name: asleep }
 #waking { animation-name: waking, stretch; transform-origin: 500.8px 150px }
 .sparkle { transform: scale(0); animation-name: sparkle }
+#veil { opacity: 0.28; animation-name: veil }
 .dim { opacity: 0; animation-name: dim }
 .puff { opacity: 0; animation-name: puff }
 .drift { transform: scale(0.5); animation-name: drift }
@@ -155,10 +158,11 @@ $(banner_css)
 <rect id="tile" width="77" height="77" rx="16"/>
 </defs>
 <rect width="900" height="300" rx="18" fill="#d6dce6"/>
-<rect x="40" y="150" width="519" height="126" rx="36" fill="#9a9fa6"/>
-<g fill="#b4b4b8" stroke="#6e737f" stroke-width="1.5">
+<rect x="40" y="150" width="519" height="126" rx="36" fill="#ebeef3" stroke="#c2c8d2" stroke-width="1.5"/>
+<g fill="#f9f9ff" stroke="#999fb0" stroke-width="1.5">
 <use href="#tile" x="59" y="175"/><use href="#tile" x="160" y="175"/><use href="#tile" x="261" y="175"/><use href="#tile" x="362" y="175"/><use href="#tile" x="463" y="175"/>
 </g>
+<rect id="veil" class="a" x="40" y="150" width="519" height="126" rx="36"/>
 <g fill="#000">
 <use class="a dim" href="#tile" x="59" y="175"/><use class="a dim i1" href="#tile" x="160" y="175"/><use class="a dim i2" href="#tile" x="261" y="175"/><use class="a dim i3" href="#tile" x="362" y="175"/><use class="a dim i4" href="#tile" x="463" y="175"/>
 </g>
