@@ -96,8 +96,8 @@ foreign_object="<${letters_prefix}foreignObject"
 document_type='<!(DOCTYPE|ENTITY)'
 forbidden_pattern="$script|$javascript|$import|$empty_image|$foreign_url_function"
 forbidden_pattern+="|$event_handler|$foreign_object|$document_type"
-for svg in banner.svg icon.svg; do
-  svg="${README_ASSETS:-docs/readme}/$svg"
+assets="${README_ASSETS:-docs/readme}"
+for svg in "$assets/banner.svg" "$assets/icon.svg"; do
   if (($(wc -c <"$svg") >= 1000000)); then
     echo "README: $svg must stay under 1,000,000 bytes" >&2
     failed=1
