@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #   scripts/readme/banner.sh          write docs/readme/banner.svg and docs/readme/cat.png
-#   scripts/readme/banner.sh --check  exit 1 if either differs from what the references give
+#   scripts/readme/banner.sh --check  exit 1 if either differs from what the references and the app give
 #
 # banner.svg uses CSS animation only and embeds the PNGs, so GitHub can show it through <img>.
 set -euo pipefail
@@ -19,6 +19,65 @@ case "$mode" in
 esac
 
 loop=16
+
+calc() {
+  awk "BEGIN { printf \"%.6g\", $1 }"
+}
+
+# The number PATTERN's group captures on its one matching line of FILE, from the first line that
+# matches AFTER if given. The banner reads the app's values this way, so it can't drift from them.
+swift_value() {
+  local file="$1" pattern="$2" after="${3:-}" address="" values
+  if [[ -n $after ]]; then address="/$after/,/$pattern/ "; fi
+  values="$(sed -nE "${address}s/.*$pattern.*/\\1/p" "$file")"
+  if [[ -z $values || $values == *$'\n'* ]]; then
+    echo "banner.sh: /$pattern/ must match one line of $file" >&2
+    exit 1
+  fi
+  printf '%s' "$values"
+}
+
+swift_seconds() {
+  local duration
+  duration="$(swift_value "$1" "$2 = Duration\.([a-z]+\([0-9]+\))")"
+  case "$duration" in
+    seconds*) calc "${duration//[^0-9]/}" ;;
+    milliseconds*) calc "${duration//[^0-9]/} / 1000" ;;
+    *)
+      echo "banner.sh: $2 in $1 is neither seconds nor milliseconds" >&2
+      exit 1
+      ;;
+  esac
+}
+
+thresholds_swift=Sources/DrowsyDockCore/Thresholds.swift
+asleep_below="$(swift_value "$thresholds_swift" 'asleepBelow: ([0-9]+)')"
+nodding_off_below="$(swift_value "$thresholds_swift" 'noddingOffBelow: ([0-9]+)')"
+yawning_below="$(swift_value "$thresholds_swift" 'yawningBelow: ([0-9]+)')"
+drowsy_below="$(swift_value "$thresholds_swift" 'validatedDrowsyBelow: ([0-9]+)')"
+veil_opacity="$(swift_value Sources/DrowsyDockCore/MascotPose.swift 'veilOpacity: ([0-9.]+)')"
+
+crowd_wave_swift=Sources/DrowsyDockCore/CrowdWave.swift
+icon_seconds="$(swift_seconds "$crowd_wave_swift" iconEffectDuration)"
+dim_seconds="$(swift_seconds "$crowd_wave_swift" dimDuration)"
+stagger_seconds="$(swift_seconds "$crowd_wave_swift" preferredStagger)"
+
+crowd_node_swift=Sources/DrowsyDock/CrowdEffectNode.swift
+dim_opacity="$(swift_value "$crowd_node_swift" 'dimOpacity: CGFloat = ([0-9.]+)')"
+dim_fade_in="$(swift_value "$crowd_node_swift" 'dimPhases = \(fadeIn: ([0-9.]+)')"
+dim_hold="$(swift_value "$crowd_node_swift" 'dimPhases = \(.*hold: ([0-9.]+)')"
+dim_fade_out="$(swift_value "$crowd_node_swift" 'dimPhases = \(.*fadeOut: ([0-9.]+)')"
+puff_fade_in="$(swift_value "$crowd_node_swift" 'fadeIn\(withDuration: life \* ([0-9.]+)\)')"
+puff_hold="$(swift_value "$crowd_node_swift" 'wait\(forDuration: life \* ([0-9.]+)\)')"
+puff_fade_out="$(swift_value "$crowd_node_swift" 'fadeOut\(withDuration: life \* ([0-9.]+)\)')"
+z_start_scale="$(swift_value "$crowd_node_swift" 'z\.setScale\(([0-9.]+)\)')"
+z_end_scale="$(swift_value "$crowd_node_swift" 'scale\(to: ([0-9.]+), duration: life\)')"
+drift_dx="$(swift_value "$crowd_node_swift" 'drift = CGVector\(dx: ([0-9.]+),' 'case \.bottom:')"
+drift_dy="$(swift_value "$crowd_node_swift" 'drift = CGVector\(.*dy: ([0-9.]+)\)' 'case \.bottom:')"
+
+# The references are 2 pixels a point, and the banner draws them at 0.8 of their size.
+units_per_point=1.6
+wave_start=10.5
 
 percent() {
   awk -v t="$1" -v loop="$loop" 'BEGIN { printf "%.6g%%", t * 100 / loop }'
@@ -54,7 +113,7 @@ shown_across_loop_end() {
 
 fill_start=630
 fill_length=210
-thresholds=(10 20 30 50)
+thresholds=("$asleep_below" "$nodding_off_below" "$yawning_below" "$drowsy_below")
 
 fill_dashoffset() {
   awk -v p="$1" -v span="$fill_length" 'BEGIN { printf "%.6gpx", span * (100 - p) / 100 }'
@@ -105,11 +164,20 @@ banner_css() {
   keyframes stretch transform 0:none 13.5:none "13.75:scale(0.97, 1.06)" 14.1:none 16:none
   keyframes sparkle transform 0:scale\(0\) 13.6:scale\(0\) 13.9:scale\(1.3\) 14.5:scale\(1\) \
     14.9:scale\(0\) 16:scale\(0\)
-  keyframes veil opacity 0:0 10.3:0 10.5:0.28 13.25:0.28 13.45:0 16:0
-  keyframes dim opacity 0:0 10.5:0 10.59:0.35 10.68:0.35 10.8:0 16:0
-  keyframes puff opacity 0:0 10.5:0 10.65:1 11.1:1 11.5:0 16:0
-  keyframes drift transform "0:scale(0.5)" "10.5:scale(0.5)" \
-    "11.5:translate(6.4px, -38.4px) scale(1.1)" "16:translate(6.4px, -38.4px) scale(1.1)"
+  keyframes veil opacity 0:0 10.3:0 "$wave_start:$veil_opacity" "13.25:$veil_opacity" 13.45:0 16:0
+  keyframes dim opacity 0:0 "$wave_start:0" \
+    "$(calc "$wave_start + $dim_seconds * $dim_fade_in"):$dim_opacity" \
+    "$(calc "$wave_start + $dim_seconds * ($dim_fade_in + $dim_hold)"):$dim_opacity" \
+    "$(calc "$wave_start + $dim_seconds * ($dim_fade_in + $dim_hold + $dim_fade_out)"):0" 16:0
+  keyframes puff opacity 0:0 "$wave_start:0" \
+    "$(calc "$wave_start + $icon_seconds * $puff_fade_in"):1" \
+    "$(calc "$wave_start + $icon_seconds * ($puff_fade_in + $puff_hold)"):1" \
+    "$(calc "$wave_start + $icon_seconds * ($puff_fade_in + $puff_hold + $puff_fade_out)"):0" 16:0
+  local drifted
+  drifted="translate($(calc "$drift_dx * $units_per_point")px, -$(calc "$drift_dy * $units_per_point")px)"
+  drifted="$drifted scale($z_end_scale)"
+  keyframes drift transform "0:scale($z_start_scale)" "$wave_start:scale($z_start_scale)" \
+    "$(calc "$wave_start + $icon_seconds"):$drifted" "16:$drifted"
   shown s80d 0.5 3
   shown s40 3 5.5
   shown s25 5.5 8
@@ -137,10 +205,10 @@ banner_svg() {
 #asleep { animation-name: asleep }
 #waking { animation-name: waking, stretch; transform-origin: 500.8px 150px }
 .sparkle { transform: scale(0); animation-name: sparkle }
-#veil { opacity: 0.28; animation-name: veil }
+#veil { opacity: $veil_opacity; animation-name: veil }
 .dim { opacity: 0; animation-name: dim }
 .puff { opacity: 0; animation-name: puff }
-.drift { transform: scale(0.5); animation-name: drift }
+.drift { transform: scale($z_start_scale); animation-name: drift }
 .status { opacity: 0 }
 #s80d { animation-name: s80d }
 #s40 { animation-name: s40 }
@@ -149,10 +217,7 @@ banner_svg() {
 #s5 { animation-name: s5 }
 #s5w { animation-name: s5w }
 #s80c { animation-name: s80c }
-.i1 { animation-delay: 0.15s }
-.i2 { animation-delay: 0.3s }
-.i3 { animation-delay: 0.45s }
-.i4 { animation-delay: 0.6s }
+$(for i in 1 2 3 4; do printf '.i%s { animation-delay: %ss }\n' "$i" "$(calc "$i * $stagger_seconds")"; done)
 .s1 { animation-delay: 0.2s }
 .s2 { animation-delay: 0.4s }
 $(banner_css)
@@ -245,7 +310,7 @@ fi
 stale=0
 for file in banner.svg cat.png; do
   if ! cmp -s "$scratch/$file" "$assets/$file"; then
-    echo "README images: $assets/$file differs from what $references gives" >&2
+    echo "README images: $assets/$file differs from what $references and the app's values give" >&2
     stale=1
   fi
 done
