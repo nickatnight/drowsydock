@@ -20,14 +20,10 @@ cd "$(dirname "$0")/../.."
 readme="${1:-README.md}"
 failed=0
 
-# The README without fenced code (``` or ~~~) and HTML comments, which GitHub doesn't render.
 readme_without_fences_or_comments() {
   perl -0pe 's/^ {0,3}(`{3,}|~{3,})[^\n]*\n.*?^ {0,3}\1[ \t]*$//gms; s/<!--.*?-->//gs' -- "$readme"
 }
 
-# Inline links and images, href and src attributes in either quotes, and reference definitions
-# (not footnotes, whose labels start with ^),
-# outside inline code. Headings keep their code: GitHub builds the anchor from its text.
 links() {
   readme_without_fences_or_comments | perl -pe 's/`[^`\n]*`//g' | perl -ne '
     print "$1\n" while /\]\(\s*<?([^)\s>]+)/g;
@@ -36,19 +32,15 @@ links() {
   '
 }
 
-# GitHub's anchor for each heading, without its closing #s or trailing space and with a link
-# reduced to its text.
 anchors="$(readme_without_fences_or_comments | sed -nE 's/^ {0,3}#{1,6}[[:space:]]+//p' |
   sed -E 's/([[:space:]]+#+)?[[:space:]]*$//; s/\[([^]]*)\]\([^)]*\)/\1/g' |
   tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9 _-]//g; s/ /-/g' |
   awk '{ repeat = seen[$0]++; print (repeat ? $0 "-" repeat : $0) }')"
 
-# Every file in git's index, and every folder that holds one.
 tracked="$(git -c core.quotePath=false ls-files --cached </dev/null)"
 folders="$(awk -F/ '{ path = $1; for (i = 2; i <= NF; i++) { print path; path = path "/" $i } }' \
   <<<"$tracked" | sort -u)"
 
-# The links arrive on fd 3, so no command in the loop can read them from stdin.
 while IFS= read -r link <&3; do
   # Control characters are printed as ?, so a link can't pass a command to the CI log.
   shown_link="${link//[[:cntrl:]]/?}"
@@ -87,12 +79,9 @@ if (($(wc -c <"$banner") >= 1000000)); then
   echo "README: $banner must stay under 1 MB" >&2
   failed=1
 fi
-# Captured before matching, so no early exit in a pipeline can read as "clean". A url() may point
-# into the SVG (url(#id)); base64 data never holds ':', '(', '<', '@', a space or a quote.
 forbidden_pattern="<script|javascript:|@import|base64,[\"']|url\\([[:space:]]*[\"']?[^#\"'[:space:]]"
 forbidden_pattern+="|[[:space:]]on[a-z]+[[:space:]]*=|<foreignObject"
 forbidden="$(grep -oiE -- "$forbidden_pattern" "$banner" || true)"
-# An href or src may only point into the SVG (#id) or hold a base64 PNG.
 hrefs="$(grep -oiE -- "(href|src)[[:space:]]*=[[:space:]]*[\"'][^\"']*" "$banner" || true)"
 foreign_hrefs="$(grep -viE -- "[\"'](#|data:image/png;base64,)" <<<"$hrefs" || true)"
 urls="$(grep -oiE -- "https?://[^\"' )<>]+" "$banner" || true)"

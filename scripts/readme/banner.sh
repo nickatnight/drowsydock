@@ -19,9 +19,6 @@ case "$mode" in
     ;;
 esac
 
-# The SVG is built in a heredoc, where a failing command doesn't stop the script, so check the
-# references first. Each must be a regular PNG file, not a symlink, so the banner can only ever
-# embed a real reference.
 png_signature=89504e470d0a1a0a
 for pose in awake drowsy yawning noddingOff asleep; do
   reference="$references/pose-$pose-left.png"
@@ -34,8 +31,6 @@ done
 
 loop=16
 
-# calc EXPRESSION: the arithmetic result. Only digits, dots, spaces and + - * / ( ) reach awk's
-# program text.
 calc_expression='^[0-9. +*/()-]+$'
 calc() {
   if [[ ! $1 =~ $calc_expression ]]; then
@@ -45,8 +40,6 @@ calc() {
   awk "BEGIN { printf \"%.6g\", $1 }"
 }
 
-# The number PATTERN's group captures on its one matching line of FILE, from the first line that
-# matches AFTER if given. The banner reads the app's values this way, so it can't drift from them.
 swift_value() {
   local file="$1" pattern="$2" after="${3:-}" address="" values
   if [[ -n $after ]]; then address="/$after/,/$pattern/ "; fi
@@ -97,18 +90,14 @@ z_end_scale="$(swift_value "$crowd_node_swift" 'scale\(to: ([0-9.]+), duration: 
 drift_dx="$(swift_value "$crowd_node_swift" 'drift = CGVector\(dx: ([0-9.]+),' 'case \.bottom:')"
 drift_dy="$(swift_value "$crowd_node_swift" 'drift = CGVector\(.*dy: ([0-9.]+)\)' 'case \.bottom:')"
 
-# The references are 2 pixels a point, and the banner draws them at 0.8 of their size.
 units_per_point=1.6
 
-# The battery levels the banner shows, one per pose.
 awake_level=80
 drowsy_level=40
 yawning_level=25
 nodding_level=15
 asleep_level=5
 
-# require_band POSE LEVEL LOW HIGH: LOW <= LEVEL < HIGH, so the banner never shows POSE at a level
-# where the app wouldn't.
 require_band() {
   if (($2 < $3 || $2 >= $4)); then
     echo "banner.sh: the banner shows $1 at $2%, but Thresholds.swift makes that band $3 to" \
@@ -123,8 +112,6 @@ require_band yawning "$yawning_level" "$nodding_off_below" "$yawning_below"
 require_band "nodding off" "$nodding_level" "$asleep_below" "$nodding_off_below"
 require_band asleep "$asleep_level" 0 "$asleep_below"
 
-# The timeline, in seconds. Each pose is fully in at its instant; the battery drains to the pose's
-# level over the drain_seconds before it, and the pose fades in over the last pose_fade_seconds.
 unplugged_at=0.5
 drowsy_at=3
 yawning_at=5.5
@@ -139,13 +126,9 @@ charged_status_at=15.5
 drain_seconds=0.5
 pose_fade_seconds=0.25
 plug_slide_seconds=0.5
-# The veil's window fades over 0.2 s (MascotAnimation.crossfade).
 veil_fade_seconds=0.2
-# A step: the next keyframe, 0.01 s later.
 step_seconds=0.01
 
-# keyframes NAME PROPERTY TIME:VALUE...: one @keyframes rule, with times in seconds. One awk per
-# rule, because starting a process per keyframe made the README check slow.
 keyframes() {
   local name="$1" property="$2"
   shift 2
@@ -206,7 +189,6 @@ png() {
   base64 <"$references/$1" | tr -d '\n'
 }
 
-# pose_shown NAME FROM TO: fades the pose in up to FROM and cuts it at TO, when the next pose is in.
 pose_shown() {
   keyframes "$1" opacity 0:0 "$(calc "$2 - $pose_fade_seconds"):0" "$2:1" "$3:1" \
     "$(calc "$3 + $step_seconds"):0" "$loop:0"
@@ -218,7 +200,6 @@ drained_to() {
 }
 
 banner_css() {
-  # drained_to prints two keyframes, so its output is left unquoted to split into two words.
   keyframes level stroke-dashoffset "0:$(fill_dashoffset "$awake_level")" \
     $(drained_to "$drowsy_at" "$awake_level" "$drowsy_level") \
     $(drained_to "$yawning_at" "$drowsy_level" "$yawning_level") \

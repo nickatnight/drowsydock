@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-# Plants faults in scratch copies of the README, docs/readme/ and the app's Swift values, and
-# expects check-readme.sh to fail on each with the right message; the clean plants must pass. The
-# plants run in parallel.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
-# Without -e, each step that the plants depend on stops the script itself.
 mkdir -p build || exit 1
 git_ignored_file=""
 scratch="$(mktemp -d)" || exit 1
@@ -14,7 +10,6 @@ git_ignored_file="$(mktemp build/readme-selftest-XXXXXX)" || exit 1
 failed=0
 plants=0
 
-# Makes the next plant's scratch copy of the README and docs/readme/, and points $copy at it.
 new_plant() {
   plants=$((plants + 1))
   copy="$scratch/$plants"
@@ -23,14 +18,11 @@ new_plant() {
   cp docs/readme/* "$copy/assets/"
 }
 
-# Copies the five pose references into the plant's $copy/references.
 copy_references() {
   mkdir -p "$copy/references"
   cp Tests/DrowsyDockTests/Snapshots/pose-*-left.png "$copy/references/"
 }
 
-# run_plant NAME EXPECTED [VAR=VALUE...]: runs the check on $copy in the background. EXPECTED is
-# "pass", the message the check must print when it fails, or "not:" and a message it must not print.
 run_plant() {
   local name="$1" expected="$2" dir="$copy"
   shift 2
@@ -76,8 +68,6 @@ expect_asset_flip() {
   run_plant "$1" "differs from"
 }
 
-# expect_source_edit NAME EXPECTED FILE PERL_EDIT: edits a scratch copy of one of the Swift files
-# banner.sh reads.
 expect_source_edit() {
   local name="$1" expected="$2" file="$3" perl_edit="$4" swift
   new_plant
@@ -95,7 +85,6 @@ expect_source_edit() {
   run_plant "$name" "$expected" README_SOURCES="$copy/sources"
 }
 
-# Passed through the environment, so perl reads the folder name as data, not as code.
 export readme_selftest_dir="${PWD##*/}"
 
 new_plant
@@ -157,7 +146,6 @@ expect_readme_edit "an anchor to a heading only inside a code block" "names no h
   's/\n## Docs\n/\n```\n## Fake\n```\n\n[x](#fake)\n\n## Docs\n/'
 expect_banner_edit "a banner with a script" "must not hold a script" \
   's{<style>}{<style><script>alert(1)</script>}'
-# Two plants set an href by animation, where the href rule doesn't look.
 expect_banner_edit "a banner that animates an href to javascript:" "must not hold a script" \
   's{</svg>}{<set attributeName="href" to="javascript:void(0)"/></svg>}'
 expect_banner_edit "a banner that animates an href to a w3.org file" "must not hold a script" \
