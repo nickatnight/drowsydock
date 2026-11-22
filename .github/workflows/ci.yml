@@ -51,11 +51,14 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
+        continue-on-error: true
+        timeout-minutes: 5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          version: v11.3.2
           files: .build/coverage/lcov.info
           disable_search: true
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
       - name: Upload snapshot failures
         if: failure()

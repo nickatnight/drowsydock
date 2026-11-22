@@ -256,7 +256,8 @@ coverage_gate() {
 
   # The changed lines come first; `FILENAME == ARGV[1]` still holds when that file is empty, unlike
   # NR == FNR.
-  LOGICAL="$PWD/" PHYSICAL="$(pwd -P)/" MINIMUM="$coverage_minimum" awk -F '\t' "$repo_relative_path"'
+  LOGICAL="$PWD/" PHYSICAL="$(pwd -P)/" MINIMUM="$coverage_minimum" \
+    awk -F '\t' "$repo_relative_path"'
     BEGIN { physical = ENVIRON["PHYSICAL"]; minimum = ENVIRON["MINIMUM"] }
     FILENAME == ARGV[1] { changed[$1 SUBSEP $2] = 1; changed_files[$1] = 1; next }
     /^SF:/ {
@@ -290,6 +291,12 @@ coverage_gate() {
       for (f in missed) print "  uncovered " f ":" missed[f]
       exit (percent < minimum)
     }' "$changed" "$lcov"
+
+  # A failing gate has already stopped the run (set -e), so this never hides the gate's messages.
+  if ! found grep -q '^SF:' "$coverage_report"; then
+    echo "Coverage gate: $coverage_report holds no gated file, so CI would upload an empty report."
+    return 2
+  fi
 }
 
 step "Compile (Swift 6, warnings are errors)"

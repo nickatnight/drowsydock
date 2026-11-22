@@ -78,7 +78,7 @@ Restore: scripts/qa-live.sh --restore      # puts back Dock preferences after a 
   - The `xcode-27` runner label is a preview. If GitHub retires it, the job sits in the queue forever instead of failing. Bump `XCODE_VERSION` when Xcode changes, and `runs-on` when the label or image changes.
   - gitleaks scans every branch on `origin`, so a secret on any branch fails every run.
   - Actions are pinned to commit SHAs, with the tag in a comment.
-  - After `check.sh task` passes, CI uploads `.build/coverage/lcov.info` to Codecov with the `CODECOV_TOKEN` secret. The coverage gate writes that file, holding only the gated files, with repo-relative paths. `codecov.yml` keeps Codecov's statuses informational and turns off its PR comment, so `check.sh` alone decides green.
+  - After `check.sh task` passes, CI uploads `.build/coverage/lcov.info` to Codecov with the `CODECOV_TOKEN` secret. The coverage gate writes that file, holding only the gated files, with repo-relative paths. The step pins the Codecov CLI with `version:`, so bump it on purpose. It runs with `fail_ci_if_error: true` and `continue-on-error: true`, so a failed upload or CLI check fails the step and leaves the job green. `codecov.yml` keeps Codecov's statuses informational and turns off its PR comment and line annotations, so `check.sh` alone decides green.
 
 ## Snapshots
 
