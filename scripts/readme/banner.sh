@@ -144,18 +144,19 @@ veil_fade_seconds=0.2
 # A step: the next keyframe, 0.01 s later.
 step_seconds=0.01
 
-percent() {
-  awk -v t="$1" -v loop="$loop" 'BEGIN { printf "%.6g%%", t * 100 / loop }'
-}
-
+# keyframes NAME PROPERTY TIME:VALUE...: one @keyframes rule, with times in seconds. One awk per
+# rule, because starting a process per keyframe made the README check slow.
 keyframes() {
-  local name="$1" property="$2" pair
+  local name="$1" property="$2"
   shift 2
-  printf '@keyframes %s {' "$name"
-  for pair in "$@"; do
-    printf ' %s { %s: %s }' "$(percent "${pair%%:*}")" "$property" "${pair#*:}"
-  done
-  printf ' }\n'
+  printf '%s\n' "$@" | awk -v name="$name" -v property="$property" -v loop="$loop" '
+    BEGIN { printf "@keyframes %s {", name }
+    {
+      split_at = index($0, ":")
+      printf " %.6g%% { %s: %s }", substr($0, 1, split_at - 1) * 100 / loop, property,
+        substr($0, split_at + 1)
+    }
+    END { printf " }\n" }'
 }
 
 fade=0.15

@@ -119,6 +119,24 @@ expect_readme_edit "an anchor that starts with a dash" "names no heading" \
   's{href="#requirements"}{href="#-vexyz"}'
 expect_readme_edit "a link path that starts with a dash" "names no file" \
   's{\(CLAUDE\.md\)}{(--stdin)}'
+expect_readme_edit "a broken link inside a plain fence" pass \
+  's/\n## Docs\n/\n```\n[x](no-such-file.md)\n```\n\n## Docs\n/'
+expect_readme_edit "headings GitHub slugs specially, a fragment on another file and a folder" pass \
+  's/\n## Docs\n/\n## Debug ▸ Simulate (beta)\n\n## Requirements\n\n## See [docs](CLAUDE.md)\n\n## Docs ##\n\n[a](#debug--simulate-beta) [b](#requirements-1) [c](#see-docs) [d](#docs)\n[e](docs\/manual-qa.md#anything) [f](docs\/readme\/)\n/'
+expect_readme_edit "an anchor that is a prefix of a heading" "names no heading" \
+  's{href="#requirements"}{href="#require"}'
+expect_readme_edit "an anchor to a heading only inside a code block" "names no heading" \
+  's/\n## Docs\n/\n```\n## Fake\n```\n\n[x](#fake)\n\n## Docs\n/'
+new_plant
+perl -0pi -e 's{<style>}{<style><script>alert(1)</script>}' "$copy/assets/banner.svg"
+run_plant "a banner with a script" "must not hold a script"
+new_plant
+perl -0pi -e 's{</svg>}{"<!--" . ("x" x 1000000) . "-->\n</svg>"}e' "$copy/assets/banner.svg"
+run_plant "a banner over 1 MB" "must stay under 1 MB"
+new_plant
+copy_references
+perl -0pi -e 's/(.)\z/chr(ord($1) ^ 1)/se' "$copy/references/pose-asleep-left.png"
+run_plant "a changed pose reference" "differs from" README_REFERENCES="$copy/references"
 new_plant
 copy_references
 ln -sf "$PWD/docs/readme/cat.png" "$copy/references/pose-yawning-left.png"
