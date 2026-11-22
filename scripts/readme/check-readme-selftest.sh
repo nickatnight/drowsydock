@@ -143,8 +143,8 @@ expect_readme_edit "headings GitHub slugs specially, a fragment on another file 
 expect_readme_edit "a footnote" pass \
   's/\n## Docs\n/\nA fact.[^1]\n\n[^1]: From Thresholds.swift.\n\n## Docs\n/'
 new_plant
-cp "$(git rev-parse --git-path index)" "$copy/index"
-GIT_INDEX_FILE="$copy/index" git rm --cached -q -- CLAUDE.md
+cp "$(git rev-parse --git-path index)" "$copy/index" || exit 1
+GIT_INDEX_FILE="$copy/index" git rm --cached -q -- CLAUDE.md || exit 1
 run_plant "a link to a file that is on disk but not in the index" "isn't in git's index" \
   GIT_INDEX_FILE="$copy/index"
 expect_readme_edit "an anchor that is a prefix of a heading" "names no heading" \
