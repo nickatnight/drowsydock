@@ -195,11 +195,12 @@ changed_lines() {
   done
 }
 
-# lcov paths may use the logical or the physical (symlink-resolved) checkout path.
+# lcov paths may use the logical or the physical (symlink-resolved) checkout path. Callers pass
+# both through the environment, because `awk -v` expands backslash escapes.
 repo_relative_path='
-  function repo_relative(file) {
-    if (index(file, ENVIRON["PHYSICAL"]) == 1) return substr(file, length(ENVIRON["PHYSICAL"]) + 1)
-    if (index(file, ENVIRON["LOGICAL"]) == 1) return substr(file, length(ENVIRON["LOGICAL"]) + 1)
+  function repo_relative(file, logical, physical) {
+    if (index(file, physical) == 1) return substr(file, length(physical) + 1)
+    if (index(file, logical) == 1) return substr(file, length(logical) + 1)
     return ""
   }'
 
@@ -208,9 +209,10 @@ write_coverage_report() {
   mkdir -p "$(dirname "$coverage_report")"
   tr '\0' '\n' <"$gated" >"$work/gated-list"
   LOGICAL="$PWD/" PHYSICAL="$(pwd -P)/" awk "$repo_relative_path"'
+    BEGIN { logical = ENVIRON["LOGICAL"]; physical = ENVIRON["PHYSICAL"] }
     FILENAME == ARGV[1] { gated[$0] = 1; next }
     /^SF:/ {
-      file = repo_relative(substr($0, 4))
+      file = repo_relative(substr($0, 4), logical, physical)
       keep = (file in gated)
       if (keep) print "SF:" file
       next
@@ -257,10 +259,12 @@ coverage_gate() {
   # NR == FNR.
   LOGICAL="$PWD/" PHYSICAL="$(pwd -P)/" MINIMUM="$coverage_minimum" \
     awk -F '\t' "$repo_relative_path"'
-    BEGIN { physical = ENVIRON["PHYSICAL"]; minimum = ENVIRON["MINIMUM"] }
+    BEGIN {
+      logical = ENVIRON["LOGICAL"]; physical = ENVIRON["PHYSICAL"]; minimum = ENVIRON["MINIMUM"]
+    }
     FILENAME == ARGV[1] { changed[$1 SUBSEP $2] = 1; changed_files[$1] = 1; next }
     /^SF:/ {
-      file = repo_relative(substr($0, 4))
+      file = repo_relative(substr($0, 4), logical, physical)
       if (file == "") next
       under_root++
       recorded[file] = 1
