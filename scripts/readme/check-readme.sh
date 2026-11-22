@@ -12,17 +12,18 @@
 # Not read at all, so they pass unchecked: srcset, unquoted or line-split attributes, a fence
 # closed by a longer fence, and a code span that crosses a line break.
 # The banner must stay under 1,000,000 bytes and hold none of these, in any letter case: <script
-# or <foreignObject, bare or after letters and a colon (svg:); javascript:; @import; an on...=
-# attribute (on, letters, optional whitespace, =, at a line's start or after whitespace);
-# <!DOCTYPE; <!ENTITY; an image with nothing between base64, and its quote; url( followed, after
-# optional whitespace, quote and whitespace, by a character other than #, a quote or whitespace; a
-# quoted href= or src= value that doesn't start with # or data:image/png;base64,; and an http:// or
-# https:// URL other than http://www.w3.org/2000/svg. The guard reads one line at a time and
-# decodes nothing, so these can pass: an href set by animation (<set to=, <animate values=), a CSS
-# image-set() string, an attribute or url( split from its = or value by a line break, and a
-# keyword written with a CSS escape (\75rl(), an XML character reference (u&#114;l() or a CDATA
-# break. banner.sh --check, which compares the banner byte for byte with what banner.sh writes, is
-# what stops a hand-edited banner.
+# or <foreignObject, bare or after ASCII letters and a colon (svg:); javascript:; @import; an
+# on...= attribute (on, ASCII letters, optional whitespace, =, at a line's start or after
+# whitespace); <!DOCTYPE; <!ENTITY; an image with nothing between base64, and its quote; url(
+# followed, after optional whitespace, quote and whitespace, by a character other than #, a quote
+# or whitespace; a quoted href= or src= value that doesn't start with # or data:image/png;base64,;
+# and an http:// or https:// URL other than http://www.w3.org/2000/svg. The guard reads one line
+# at a time and decodes nothing, so forms like these can pass: an href set by animation (<set to=,
+# <animate values=), a CSS image-set() string, an attribute or url( split from its = or value by a
+# line break, a non-ASCII namespace prefix, and a keyword written with a CSS escape (\75rl(), an
+# XML character reference (u&#114;l() or a CDATA, comment or processing-instruction break.
+# banner.sh --check, which compares the banner byte for byte with what banner.sh writes, is what
+# stops a hand-edited banner.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -49,6 +50,7 @@ anchors="$(readme_without_fences_or_comments | sed -nE 's/^ {0,3}#{1,6}[[:space:
 tracked="$(git -c core.quotePath=false ls-files --cached </dev/null)"
 folders="$(awk -F/ '{ path = $1; for (i = 2; i <= NF; i++) { print path; path = path "/" $i } }' \
   <<<"$tracked" | sort -u)"
+known_paths="$tracked"$'\n'"$folders"
 
 while IFS= read -r link <&3; do
   # Control characters are printed as ?, so a link can't pass a command to the CI log.
@@ -67,12 +69,11 @@ while IFS= read -r link <&3; do
       path="${path#/}"
       path="${path#./}"
       path="${path%/}"
-      if [[ -z $path ]] || { grep -qxF -- "$path" <<<"$tracked"$'\n'"$folders" && [[ -e $path ]]; }
-      then
+      if [[ -z $path ]] || { grep -qxF -- "$path" <<<"$known_paths" && [[ -e $path ]]; }; then
         continue
       fi
       # Whether a wrong-case path exists depends on the volume, so ask the index, ignoring case.
-      if [[ -e $path ]] || grep -qixF -- "$path" <<<"$tracked"$'\n'"$folders"; then
+      if [[ -e $path ]] || grep -qixF -- "$path" <<<"$known_paths"; then
         echo "README: $shown_link isn't in git's index as spelled: check its case, keep it inside" \
           "the repo, or git add it" >&2
       else
@@ -85,7 +86,7 @@ done 3< <(links)
 
 banner="${README_ASSETS:-docs/readme}/banner.svg"
 if (($(wc -c <"$banner") >= 1000000)); then
-  echo "README: $banner must stay under 1 MB" >&2
+  echo "README: $banner must stay under 1,000,000 bytes" >&2
   failed=1
 fi
 letters_prefix='([a-z]+:)?'

@@ -302,12 +302,13 @@ stagger_rules() {
 }
 
 puffs() {
-  local i x delay
+  local i x stagger_class
   for i in 0 1 2 3 4; do
     x="$(calc "97.5 + 101 * $i")"
-    delay=""
-    if ((i > 0)); then delay=" i$i"; fi
-    printf '<g class="a puff%s" transform="translate(%s 189.4)"><g class="a drift%s">' "$delay" "$x" "$delay"
+    stagger_class=""
+    if ((i > 0)); then stagger_class=" i$i"; fi
+    printf '<g class="a puff%s" transform="translate(%s 189.4)"><g class="a drift%s">' \
+      "$stagger_class" "$x" "$stagger_class"
     printf '<use href="#z" stroke="#2b3b66" stroke-width="6.05"/><use href="#z" stroke="#d6e6ff" stroke-width="3.17"/></g></g>\n'
   done
 }
