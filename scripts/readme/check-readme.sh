@@ -1,18 +1,11 @@
 #!/usr/bin/env bash
-# Checks the README: every relative link and image path names a file or folder that git doesn't
-# ignore (so it exists on GitHub too), every #anchor names one of its headings, and the images in
-# docs/readme/ match what scripts/readme/banner.sh makes from the snapshot references.
-#
 #   scripts/readme/check-readme.sh [README]   default README.md; paths resolve from the repo root
-#
-# Links inside fenced code blocks don't count. http(s) and mailto links aren't followed.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 readme="${1:-README.md}"
 failed=0
 
-# The README without its fenced code blocks.
 prose() {
   awk '/^[[:space:]]*```/ { fenced = !fenced; next } !fenced' "$readme"
 }

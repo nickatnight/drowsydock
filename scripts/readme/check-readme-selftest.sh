@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
-# Proves that scripts/readme/check-readme.sh catches what it is for: each plant breaks one thing
-# in a scratch copy of the README or of docs/readme/, and the check must fail on it. The unchanged
-# copies, and a broken link inside a code block, must pass.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 scratch="$(mktemp -d)"
-# A file that exists but that git ignores, as docs/adr/ is on the owner's Mac.
 ignored="build/readme-selftest-$$.md"
 trap 'rm -rf "$scratch"; rm -f "$ignored"' EXIT
 mkdir -p build
@@ -14,9 +10,6 @@ mkdir -p build
 failed=0
 index=0
 
-# check NAME EXPECTED README_EDIT [ASSET_FILE]: copies README.md and docs/readme/, applies the perl
-# README_EDIT to the README copy, flips the last byte of ASSET_FILE in the docs/readme/ copy if
-# one is given, and checks that the README check exits as EXPECTED (pass or fail).
 check() {
   local name="$1" expected="$2" edit="$3" asset="${4:-}" copy outcome=pass
   index=$((index + 1))
