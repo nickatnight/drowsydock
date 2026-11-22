@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/readme/cat.png" width="96" height="120" alt="DrowsyDock's cat, awake: an orange tabby sitting upright">
+  <img src="docs/readme/cat.png" width="96" height="120" alt="DrowsyDock's cat, awake: an apricot cat with a cream muzzle and paws and a ginger patch on its forehead, sitting upright">
   <h1>DrowsyDock</h1>
   <p>A macOS menu-bar app with a cat that sits on your Dock and gets drowsier as the battery drains.<br>
   Below 50% it gets drowsy, and below 10% it falls asleep. Plug in the charger and it wakes up.</p>
@@ -8,7 +8,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/github/license/nickatnight/drowsydock" alt="Licence: MIT"></a>
     <a href="#requirements"><img src="https://img.shields.io/badge/macOS-14%2B-DE874A" alt="Platform: macOS 14 or later"></a>
   </p>
-  <p><img src="docs/readme/banner.svg" width="900" alt="Animated illustration: DrowsyDock's orange cat sits at the right end of a Dock, next to a battery gauge with marks at 10, 20, 30 and 50. The battery drains from 80% to 40%, 25%, 15% and 5%, and the cat goes from awake to drowsy, yawning, nodding off and asleep while the menu's status line follows. As the cat falls asleep, a grey veil covers the Dock and a wave runs along it: each icon dims and puffs a 'z'. Then a charger plugs in, the battery turns green, the cat wakes with a stretch and sparkles, and the battery charges back to 80%."></p>
+  <p><img src="docs/readme/banner.svg" width="900" alt="Animated illustration: DrowsyDock's apricot cat sits at the right end of a Dock, next to a battery gauge with marks at 10, 20, 30 and 50. The battery drains from 80% to 40%, 25%, 15% and 5%, and the cat goes from awake to drowsy, yawning, nodding off and asleep while the menu's status line follows. As the cat falls asleep, a grey veil covers the Dock and a wave runs along it: each icon dims and puffs a 'z'. Then a charger plugs in, the battery turns green, the cat wakes with a stretch and sparkles, and the battery charges back to 80%."></p>
 </div>
 
 **Status:** The cat, Dock tracking and the overlay work. Settings come next, then signed and notarized releases. Until then you build it yourself, and builds are ad-hoc signed.
@@ -86,7 +86,7 @@ DrowsyDock keeps no settings and writes no files in normal use. macOS keeps the 
 | `scripts/bundle.sh` | `build/DrowsyDock.app`, universal, signed with `$SIGN_IDENTITY` (default `-`, ad hoc) and the hardened runtime |
 | `scripts/check.sh fast` | Compile, format lint, the live QA script's checks, the floor rules from CONSTRAINTS.md, the QA row mapping, the README's links and banner, and the secret scan. Run it after every edit. |
 | `scripts/check.sh task` | `fast`, then the tests with coverage, the changed-line coverage gate against `$CHECK_BASE` (default `main`) and the signed bundle. Run it before every commit. |
-| `scripts/readme/banner.sh` | Rebuilds `docs/readme/` (this page's banner and cat) from the snapshot references |
+| `scripts/readme/banner.sh` | Rebuilds `docs/readme/` (this page's banner and cat) from the snapshot references and the values it reads from the app's Swift sources |
 
 To follow the log without an administrator account:
 

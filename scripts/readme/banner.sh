@@ -8,6 +8,7 @@ cd "$(dirname "$0")/../.."
 export LC_ALL=C
 
 references="${README_REFERENCES:-Tests/DrowsyDockTests/Snapshots}"
+sources="${README_SOURCES:-.}"
 assets="${README_ASSETS:-docs/readme}"
 mode="${1:-write}"
 case "$mode" in
@@ -48,7 +49,7 @@ swift_value() {
 
 swift_seconds() {
   local duration
-  duration="$(swift_value "$1" "$2 = Duration\.([a-z]+\([0-9]+\))")"
+  duration="$(swift_value "$1" "$2 = Duration\.([a-z]+\([0-9]+\))")" || exit 1
   case "$duration" in
     seconds*) calc "${duration//[^0-9]/}" ;;
     milliseconds*) calc "${duration//[^0-9]/} / 1000" ;;
@@ -59,19 +60,20 @@ swift_seconds() {
   esac
 }
 
-thresholds_swift=Sources/DrowsyDockCore/Thresholds.swift
+thresholds_swift="$sources/Sources/DrowsyDockCore/Thresholds.swift"
 asleep_below="$(swift_value "$thresholds_swift" 'asleepBelow: ([0-9]+)')"
 nodding_off_below="$(swift_value "$thresholds_swift" 'noddingOffBelow: ([0-9]+)')"
 yawning_below="$(swift_value "$thresholds_swift" 'yawningBelow: ([0-9]+)')"
 drowsy_below="$(swift_value "$thresholds_swift" 'validatedDrowsyBelow: ([0-9]+)')"
-veil_opacity="$(swift_value Sources/DrowsyDockCore/MascotPose.swift 'veilOpacity: ([0-9.]+)')"
+mascot_pose_swift="$sources/Sources/DrowsyDockCore/MascotPose.swift"
+veil_opacity="$(swift_value "$mascot_pose_swift" 'veilOpacity: ([0-9.]+)')"
 
-crowd_wave_swift=Sources/DrowsyDockCore/CrowdWave.swift
+crowd_wave_swift="$sources/Sources/DrowsyDockCore/CrowdWave.swift"
 icon_seconds="$(swift_seconds "$crowd_wave_swift" iconEffectDuration)"
 dim_seconds="$(swift_seconds "$crowd_wave_swift" dimDuration)"
 stagger_seconds="$(swift_seconds "$crowd_wave_swift" preferredStagger)"
 
-crowd_node_swift=Sources/DrowsyDock/CrowdEffectNode.swift
+crowd_node_swift="$sources/Sources/DrowsyDock/CrowdEffectNode.swift"
 dim_opacity="$(swift_value "$crowd_node_swift" 'dimOpacity: CGFloat = ([0-9.]+)')"
 dim_fade_in="$(swift_value "$crowd_node_swift" 'dimPhases = \(fadeIn: ([0-9.]+)')"
 dim_hold="$(swift_value "$crowd_node_swift" 'dimPhases = \(.*hold: ([0-9.]+)')"
@@ -86,7 +88,50 @@ drift_dy="$(swift_value "$crowd_node_swift" 'drift = CGVector\(.*dy: ([0-9.]+)\)
 
 # The references are 2 pixels a point, and the banner draws them at 0.8 of their size.
 units_per_point=1.6
-wave_start=10.5
+
+# The battery levels the banner shows, one per pose.
+awake_level=80
+drowsy_level=40
+yawning_level=25
+nodding_level=15
+asleep_level=5
+
+# require_band POSE LEVEL LOW HIGH: LOW <= LEVEL < HIGH, so the banner never shows POSE at a level
+# where the app wouldn't.
+require_band() {
+  if (($2 < $3 || $2 >= $4)); then
+    echo "banner.sh: the banner shows $1 at $2%, but Thresholds.swift makes that band $3 to" \
+      "$(($4 - 1))%. Change the levels in banner.sh, then check the README's table, tagline and" \
+      "alt text." >&2
+    exit 1
+  fi
+}
+require_band awake "$awake_level" "$drowsy_below" 101
+require_band drowsy "$drowsy_level" "$yawning_below" "$drowsy_below"
+require_band yawning "$yawning_level" "$nodding_off_below" "$yawning_below"
+require_band "nodding off" "$nodding_level" "$asleep_below" "$nodding_off_below"
+require_band asleep "$asleep_level" 0 "$asleep_below"
+
+# The timeline, in seconds. Each pose is fully in at its instant; the battery drains to the pose's
+# level over the drain_seconds before it, and the pose fades in over the last pose_fade_seconds.
+unplugged_at=0.5
+drowsy_at=3
+yawning_at=5.5
+nodding_at=8
+asleep_at=10.5
+plugged_at=13.25
+awake_at=13.5
+waking_status_end=15.25
+refill_start=15
+refill_end=15.75
+charged_status_at=15.5
+drain_seconds=0.5
+pose_fade_seconds=0.25
+plug_slide_seconds=0.5
+# The veil's window fades over 0.2 s (MascotAnimation.crossfade).
+veil_fade_seconds=0.2
+# A step: the next keyframe, 0.01 s later.
+step_seconds=0.01
 
 percent() {
   awk -v t="$1" -v loop="$loop" 'BEGIN { printf "%.6g%%", t * 100 / loop }'
@@ -149,50 +194,69 @@ png() {
   base64 <"$references/$1" | tr -d '\n'
 }
 
+# pose_shown NAME FROM TO: fades the pose in up to FROM and cuts it at TO, when the next pose is in.
+pose_shown() {
+  keyframes "$1" opacity 0:0 "$(calc "$2 - $pose_fade_seconds"):0" "$2:1" "$3:1" \
+    "$(calc "$3 + $step_seconds"):0" "$loop:0"
+}
+
+drained_to() {
+  printf '%s:%s %s:%s' "$(calc "$1 - $drain_seconds")" "$(fill_dashoffset "$2")" "$1" \
+    "$(fill_dashoffset "$3")"
+}
+
 banner_css() {
-  keyframes level stroke-dashoffset "0:$(fill_dashoffset 80)" "2.5:$(fill_dashoffset 80)" \
-    "3:$(fill_dashoffset 40)" "5:$(fill_dashoffset 40)" "5.5:$(fill_dashoffset 25)" \
-    "7.5:$(fill_dashoffset 25)" "8:$(fill_dashoffset 15)" "10:$(fill_dashoffset 15)" \
-    "10.5:$(fill_dashoffset 5)" "15:$(fill_dashoffset 5)" "15.75:$(fill_dashoffset 80)" \
-    "16:$(fill_dashoffset 80)"
-  keyframes charge stroke 0:#34c759 0.5:#34c759 0.51:#6b7383 13.25:#6b7383 13.26:#34c759 \
-    16:#34c759
-  keyframes plug transform 0:none 0.5:translateX\(60px\) 12.75:translateX\(60px\) 13.25:none \
-    16:none
-  shown_across_loop_end bolt 13.25 0.5
-  keyframes base opacity 0:1 3:1 3.01:0 16:0
-  keyframes drowsy opacity 0:0 2.75:0 3:1 5.5:1 5.51:0 16:0
-  keyframes yawning opacity 0:0 5.25:0 5.5:1 8:1 8.01:0 16:0
-  keyframes nodding opacity 0:0 7.75:0 8:1 10.5:1 10.51:0 16:0
-  keyframes asleep opacity 0:0 10.25:0 10.5:1 13.5:1 13.51:0 16:0
-  keyframes waking opacity 0:0 13.25:0 13.5:1 16:1
-  keyframes stretch transform 0:none 13.5:none "13.75:scale(0.97, 1.06)" 14.1:none 16:none
-  keyframes sparkle transform 0:scale\(0\) 13.6:scale\(0\) 13.9:scale\(1.3\) 14.5:scale\(1\) \
-    14.9:scale\(0\) 16:scale\(0\)
-  keyframes veil opacity 0:0 10.3:0 "$wave_start:$veil_opacity" "13.25:$veil_opacity" 13.45:0 \
-    16:0
-  keyframes dim opacity 0:0 "$wave_start:0" \
-    "$(calc "$wave_start + $dim_seconds * $dim_fade_in"):$dim_opacity" \
-    "$(calc "$wave_start + $dim_seconds * ($dim_fade_in + $dim_hold)"):$dim_opacity" \
-    "$(calc "$wave_start + $dim_seconds * ($dim_fade_in + $dim_hold + $dim_fade_out)"):0" 16:0
-  keyframes puff opacity 0:0 "$wave_start:0" \
-    "$(calc "$wave_start + $icon_seconds * $puff_fade_in"):1" \
-    "$(calc "$wave_start + $icon_seconds * ($puff_fade_in + $puff_hold)"):1" \
-    "$(calc "$wave_start + $icon_seconds * ($puff_fade_in + $puff_hold + $puff_fade_out)"):0" \
-    16:0
+  # drained_to prints two keyframes, so its output is left unquoted to split into two words.
+  keyframes level stroke-dashoffset "0:$(fill_dashoffset "$awake_level")" \
+    $(drained_to "$drowsy_at" "$awake_level" "$drowsy_level") \
+    $(drained_to "$yawning_at" "$drowsy_level" "$yawning_level") \
+    $(drained_to "$nodding_at" "$yawning_level" "$nodding_level") \
+    $(drained_to "$asleep_at" "$nodding_level" "$asleep_level") \
+    "$refill_start:$(fill_dashoffset "$asleep_level")" \
+    "$refill_end:$(fill_dashoffset "$awake_level")" \
+    "$loop:$(fill_dashoffset "$awake_level")"
+  keyframes charge stroke 0:#34c759 "$unplugged_at:#34c759" \
+    "$(calc "$unplugged_at + $step_seconds"):#6b7383" "$plugged_at:#6b7383" \
+    "$(calc "$plugged_at + $step_seconds"):#34c759" "$loop:#34c759"
+  keyframes plug transform 0:none "$unplugged_at:translateX(60px)" \
+    "$(calc "$plugged_at - $plug_slide_seconds"):translateX(60px)" "$plugged_at:none" "$loop:none"
+  shown_across_loop_end bolt "$plugged_at" "$unplugged_at"
+  keyframes base opacity 0:1 "$drowsy_at:1" "$(calc "$drowsy_at + $step_seconds"):0" "$loop:0"
+  pose_shown drowsy "$drowsy_at" "$yawning_at"
+  pose_shown yawning "$yawning_at" "$nodding_at"
+  pose_shown nodding "$nodding_at" "$asleep_at"
+  pose_shown asleep "$asleep_at" "$awake_at"
+  keyframes waking opacity 0:0 "$(calc "$awake_at - $pose_fade_seconds"):0" "$awake_at:1" "$loop:1"
+  keyframes stretch transform 0:none "$awake_at:none" \
+    "$(calc "$awake_at + 0.25"):scale(0.97, 1.06)" "$(calc "$awake_at + 0.6"):none" "$loop:none"
+  keyframes sparkle transform "0:scale(0)" "$(calc "$awake_at + 0.1"):scale(0)" \
+    "$(calc "$awake_at + 0.4"):scale(1.3)" "$(calc "$awake_at + 1"):scale(1)" \
+    "$(calc "$awake_at + 1.4"):scale(0)" "$loop:scale(0)"
+  keyframes veil opacity 0:0 "$(calc "$asleep_at - $veil_fade_seconds"):0" \
+    "$asleep_at:$veil_opacity" "$plugged_at:$veil_opacity" \
+    "$(calc "$plugged_at + $veil_fade_seconds"):0" "$loop:0"
+  keyframes dim opacity 0:0 "$asleep_at:0" \
+    "$(calc "$asleep_at + $dim_seconds * $dim_fade_in"):$dim_opacity" \
+    "$(calc "$asleep_at + $dim_seconds * ($dim_fade_in + $dim_hold)"):$dim_opacity" \
+    "$(calc "$asleep_at + $dim_seconds * ($dim_fade_in + $dim_hold + $dim_fade_out)"):0" "$loop:0"
+  keyframes puff opacity 0:0 "$asleep_at:0" \
+    "$(calc "$asleep_at + $icon_seconds * $puff_fade_in"):1" \
+    "$(calc "$asleep_at + $icon_seconds * ($puff_fade_in + $puff_hold)"):1" \
+    "$(calc "$asleep_at + $icon_seconds * ($puff_fade_in + $puff_hold + $puff_fade_out)"):0" \
+    "$loop:0"
   local drift_x drift_y drifted
   drift_x="$(calc "$drift_dx * $units_per_point")"
   drift_y="$(calc "$drift_dy * $units_per_point")"
   drifted="translate(${drift_x}px, -${drift_y}px) scale($z_end_scale)"
-  keyframes drift transform "0:scale($z_start_scale)" "$wave_start:scale($z_start_scale)" \
-    "$(calc "$wave_start + $icon_seconds"):$drifted" "16:$drifted"
-  shown s80d 0.5 3
-  shown s40 3 5.5
-  shown s25 5.5 8
-  shown s15 8 10.5
-  shown s5 10.5 13.25
-  shown s5w 13.25 15.25
-  shown_across_loop_end s80c 15.5 0.5
+  keyframes drift transform "0:scale($z_start_scale)" "$asleep_at:scale($z_start_scale)" \
+    "$(calc "$asleep_at + $icon_seconds"):$drifted" "$loop:$drifted"
+  shown s80d "$unplugged_at" "$drowsy_at"
+  shown s40 "$drowsy_at" "$yawning_at"
+  shown s25 "$yawning_at" "$nodding_at"
+  shown s15 "$nodding_at" "$asleep_at"
+  shown s5 "$asleep_at" "$plugged_at"
+  shown s5w "$plugged_at" "$waking_status_end"
+  shown_across_loop_end s80c "$charged_status_at" "$unplugged_at"
 }
 
 banner_svg() {
@@ -204,7 +268,7 @@ banner_svg() {
 .a { animation-duration: ${loop}s; animation-timing-function: linear; animation-iteration-count: infinite }
 .pose { opacity: 0 }
 #asleep, #s5 { opacity: 1 }
-#fill { stroke: #6b7383; stroke-dashoffset: $(fill_dashoffset 5); animation-name: level, charge }
+#fill { stroke: #6b7383; stroke-dashoffset: $(fill_dashoffset "$asleep_level"); animation-name: level, charge }
 #plug { transform: translateX(60px); animation-name: plug }
 #bolt { opacity: 0; animation-name: bolt }
 #base { animation-name: base }
@@ -272,13 +336,13 @@ $(for i in 0 1 2 3 4; do
 <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" text-anchor="middle">
 <rect x="612" y="74" width="248" height="34" rx="17" fill="#f7f8fa" fill-opacity="0.7"/>
 <g font-size="14" fill="#2b3340">
-<text id="s80d" class="a status" x="736" y="96">80% &#183; Discharging &#183; Awake</text>
-<text id="s40" class="a status" x="736" y="96">40% &#183; Discharging &#183; Drowsy</text>
-<text id="s25" class="a status" x="736" y="96">25% &#183; Discharging &#183; Yawning</text>
-<text id="s15" class="a status" x="736" y="96">15% &#183; Discharging &#183; Nodding off</text>
-<text id="s5" class="a status" x="736" y="96">5% &#183; Discharging &#183; Asleep</text>
-<text id="s5w" class="a status" x="736" y="96">5% &#183; Charging &#183; Waking</text>
-<text id="s80c" class="a status" x="736" y="96">80% &#183; Charging &#183; Awake</text>
+<text id="s80d" class="a status" x="736" y="96">$awake_level% &#183; Discharging &#183; Awake</text>
+<text id="s40" class="a status" x="736" y="96">$drowsy_level% &#183; Discharging &#183; Drowsy</text>
+<text id="s25" class="a status" x="736" y="96">$yawning_level% &#183; Discharging &#183; Yawning</text>
+<text id="s15" class="a status" x="736" y="96">$nodding_level% &#183; Discharging &#183; Nodding off</text>
+<text id="s5" class="a status" x="736" y="96">$asleep_level% &#183; Discharging &#183; Asleep</text>
+<text id="s5w" class="a status" x="736" y="96">$asleep_level% &#183; Charging &#183; Waking</text>
+<text id="s80c" class="a status" x="736" y="96">$awake_level% &#183; Charging &#183; Awake</text>
 </g>
 <g font-size="12" fill="#5b6472">
 $(threshold_labels)
@@ -323,6 +387,7 @@ for generated in "$scratch"/*; do
   fi
 done
 if ((stale)); then
-  echo "Regenerate them with scripts/readme/banner.sh" >&2
+  echo "Regenerate them with scripts/readme/banner.sh. If Thresholds.swift changed, also check" \
+    "the README's table, tagline and alt text." >&2
 fi
 exit "$stale"
