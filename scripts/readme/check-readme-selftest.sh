@@ -4,7 +4,7 @@ cd "$(dirname "$0")/../.."
 mkdir -p build || exit 1
 git_ignored_file=""
 scratch="$(mktemp -d)" || exit 1
-trap 'rm -rf "$scratch"; rm -f "$git_ignored_file"' EXIT
+trap 'wait; rm -rf "$scratch"; rm -f "$git_ignored_file"' EXIT
 git_ignored_file="$(mktemp build/readme-selftest-XXXXXX)" || exit 1
 
 failed=0
@@ -129,6 +129,9 @@ expect_source_edit "a changed veil fade" fails "differs from" \
 expect_source_edit "a threshold that leaves a banner level outside its pose" \
   fails "Thresholds.swift makes that band" Sources/DrowsyDockCore/Thresholds.swift \
   's/asleepBelow: 10/asleepBelow: 4/'
+expect_source_edit "a threshold with a leading zero that leaves a level outside its pose" \
+  fails "Thresholds.swift makes that band" Sources/DrowsyDockCore/Thresholds.swift \
+  's/noddingOffBelow: 20/noddingOffBelow: 09/'
 expect_readme_edit "an anchor that starts with a dash" fails "names no heading" \
   's{href="#requirements"}{href="#-vexyz"}'
 expect_readme_edit "a link path that starts with a dash" fails "names no file" \

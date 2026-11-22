@@ -61,6 +61,13 @@ swift_value_after() {
   swift_value_in "$1" "/$2/,/$3/ " "$3"
 }
 
+# swift_integer FILE PATTERN: swift_value read as a base-10 integer, so 09 is 9, not bad octal.
+swift_integer() {
+  local digits
+  digits="$(swift_value "$1" "$2")" || exit 1
+  printf '%s' "$((10#$digits))"
+}
+
 swift_seconds() {
   local duration
   duration="$(swift_value "$1" "$2 = Duration\.([a-z]+\([0-9]+\))")" || exit 1
@@ -75,10 +82,10 @@ swift_seconds() {
 }
 
 thresholds_swift="$sources/Sources/DrowsyDockCore/Thresholds.swift"
-asleep_below="$(swift_value "$thresholds_swift" 'asleepBelow: ([0-9]+)')"
-nodding_off_below="$(swift_value "$thresholds_swift" 'noddingOffBelow: ([0-9]+)')"
-yawning_below="$(swift_value "$thresholds_swift" 'yawningBelow: ([0-9]+)')"
-drowsy_below="$(swift_value "$thresholds_swift" 'validatedDrowsyBelow: ([0-9]+)')"
+asleep_below="$(swift_integer "$thresholds_swift" 'asleepBelow: ([0-9]+)')"
+nodding_off_below="$(swift_integer "$thresholds_swift" 'noddingOffBelow: ([0-9]+)')"
+yawning_below="$(swift_integer "$thresholds_swift" 'yawningBelow: ([0-9]+)')"
+drowsy_below="$(swift_integer "$thresholds_swift" 'validatedDrowsyBelow: ([0-9]+)')"
 mascot_pose_swift="$sources/Sources/DrowsyDockCore/MascotPose.swift"
 veil_opacity="$(swift_value "$mascot_pose_swift" 'veilOpacity: ([0-9.]+)')"
 overlay_window_swift="$sources/Sources/DockOverlayKit/OverlayWindow.swift"
