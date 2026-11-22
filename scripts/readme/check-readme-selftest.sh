@@ -4,11 +4,10 @@
 # plants run in parallel.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
-scratch="$(mktemp -d)"
-git_ignored_file="build/readme-selftest-$$.md"
-trap 'rm -rf "$scratch"; rm -f "$git_ignored_file"' EXIT
 mkdir -p build
-: >"$git_ignored_file"
+scratch="$(mktemp -d)"
+git_ignored_file="$(mktemp build/readme-selftest-XXXXXX)"
+trap 'rm -rf "$scratch"; rm -f "$git_ignored_file"' EXIT
 
 failed=0
 plants=0
@@ -20,6 +19,12 @@ new_plant() {
   mkdir -p "$copy/assets"
   cp README.md "$copy/README.md"
   cp docs/readme/* "$copy/assets/"
+}
+
+# Copies the five pose references into the plant's $copy/references.
+copy_references() {
+  mkdir -p "$copy/references"
+  cp Tests/DrowsyDockTests/Snapshots/pose-*-left.png "$copy/references/"
 }
 
 # run_plant NAME EXPECTED [VAR=VALUE...]: runs the check on $copy in the background. EXPECTED is
@@ -110,6 +115,20 @@ expect_source_edit "a changed app value" "differs from" Sources/DrowsyDock/Crowd
 expect_source_edit "a threshold that leaves a banner level outside its pose" \
   "Thresholds.swift makes that band" Sources/DrowsyDockCore/Thresholds.swift \
   's/asleepBelow: 10/asleepBelow: 4/'
+expect_readme_edit "an anchor that starts with a dash" "names no heading" \
+  's{href="#requirements"}{href="#-vexyz"}'
+expect_readme_edit "a link path that starts with a dash" "names no file" \
+  's{\(CLAUDE\.md\)}{(--stdin)}'
+new_plant
+copy_references
+ln -sf "$PWD/docs/readme/cat.png" "$copy/references/pose-yawning-left.png"
+run_plant "a reference that is a symlink to a PNG" "must be a regular PNG file" \
+  README_REFERENCES="$copy/references"
+new_plant
+copy_references
+printf 'not a png\n' >"$copy/references/pose-yawning-left.png"
+run_plant "a reference that isn't a PNG" "must be a regular PNG file" \
+  README_REFERENCES="$copy/references"
 wait
 
 for dir in "$scratch"/*/; do

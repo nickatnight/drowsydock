@@ -20,17 +20,28 @@ case "$mode" in
 esac
 
 # The SVG is built in a heredoc, where a failing command doesn't stop the script, so check the
-# references first.
+# references first. Each must be a regular PNG file, not a symlink, so the banner can only ever
+# embed a real reference.
+png_signature=89504e470d0a1a0a
 for pose in awake drowsy yawning noddingOff asleep; do
-  if [[ ! -r $references/pose-$pose-left.png ]]; then
-    echo "banner.sh: can't read $references/pose-$pose-left.png" >&2
+  reference="$references/pose-$pose-left.png"
+  if [[ -L $reference || ! -f $reference || ! -r $reference ]] ||
+    [[ "$(head -c 8 -- "$reference" | od -An -tx1 | tr -d ' \n')" != "$png_signature" ]]; then
+    echo "banner.sh: $reference must be a regular PNG file" >&2
     exit 1
   fi
 done
 
 loop=16
 
+# calc EXPRESSION: the arithmetic result. Only digits, dots, spaces and + - * / ( ) reach awk's
+# program text.
+calc_expression='^[0-9. +*/()-]+$'
 calc() {
+  if [[ ! $1 =~ $calc_expression ]]; then
+    echo "banner.sh: calc got \"$1\", which isn't arithmetic" >&2
+    exit 1
+  fi
   awk "BEGIN { printf \"%.6g\", $1 }"
 }
 
