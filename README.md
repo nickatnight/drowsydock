@@ -5,6 +5,7 @@
   Below 50% it gets drowsy, and below 10% it falls asleep. Plug in the charger and it wakes up.</p>
   <p>
     <a href="https://github.com/nickatnight/drowsydock/actions/workflows/ci.yml"><img src="https://github.com/nickatnight/drowsydock/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+    <a href="https://codecov.io/gh/nickatnight/drowsydock"><img src="https://codecov.io/gh/nickatnight/drowsydock/graph/badge.svg?branch=main" alt="Coverage on Codecov"></a>
     <a href="LICENSE"><img src="https://img.shields.io/github/license/nickatnight/drowsydock" alt="Licence: MIT"></a>
     <a href="#requirements"><img src="https://img.shields.io/badge/macOS-14%2B-DE874A" alt="Platform: macOS 14 or later"></a>
   </p>
@@ -98,7 +99,7 @@ The snapshot tests compare the cat against PNG references in `Tests/DrowsyDockTe
 
 `scripts/qa-live.sh` checks the rows of `docs/manual-qa.md` that need the real app and the real Dock. It changes the Dock's preferences through System Events and restores them from `build/qa/dock-backup.plist` when it exits. Run it on your own Mac only. `--dry-run` prints every step and changes nothing, and `--restore` puts back the preferences of a run that was killed.
 
-[CI](.github/workflows/ci.yml) runs `scripts/check.sh task` on every pull request to `main` and every push to `main`, on the `xcode-27` runner with Xcode 27.2 and gitleaks 8.30.1. It skips the snapshot tests (`DROWSYDOCK_SKIP_SNAPSHOTS=1`) and gates coverage against `origin/main`. When a run fails, it uploads `.build/snapshot-failures/`.
+[CI](.github/workflows/ci.yml) runs `scripts/check.sh task` on every pull request to `main` and every push to `main`, on the `xcode-27` runner with Xcode 27.2 and gitleaks 8.30.1. It skips the snapshot tests (`DROWSYDOCK_SKIP_SNAPSHOTS=1`) and gates coverage against `origin/main`. When a run fails, it uploads `.build/snapshot-failures/`. When it passes, it uploads the gated files' coverage to [Codecov](https://codecov.io/gh/nickatnight/drowsydock). Codecov's statuses are informational, so only the changed-line gate in `scripts/check.sh` can fail a run.
 
 ## Docs
 

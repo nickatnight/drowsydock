@@ -34,6 +34,7 @@ Last reviewed: 2026-11-16. Earlier measurements and the reasons behind each chan
 - **Gated**: the files in `gated_targets` in `scripts/check.sh` (today `DrowsyDockCore`, `DockOverlayKit` and `LiveQAKit`) that import no AppKit, SpriteKit, IOKit, AX, SwiftUI or ServiceManagement.
 - **Exempt**: thin adapters over those frameworks. Each needs an entry in `docs/manual-qa.md` instead.
 - When you add a pure library target, add it to `gated_targets` in the same change.
+- **Codecov** only reports. CI uploads the gated files' coverage to it, `codecov.yml` keeps its statuses informational, and the changed-line gate in `scripts/check.sh` decides whether a change passes.
 
 ## Measured, not yet enforced
 
