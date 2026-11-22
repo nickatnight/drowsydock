@@ -18,6 +18,15 @@ case "$mode" in
     ;;
 esac
 
+# The SVG is built in a heredoc, where a failing command doesn't stop the script, so check the
+# references first.
+for pose in awake drowsy yawning noddingOff asleep; do
+  if [[ ! -r $references/pose-$pose-left.png ]]; then
+    echo "banner.sh: can't read $references/pose-$pose-left.png" >&2
+    exit 1
+  fi
+done
+
 loop=16
 
 calc() {
