@@ -159,7 +159,7 @@ keyframes() {
     {
       split_at = index($0, ":")
       seconds = substr($0, 1, split_at - 1)
-      if (seconds !~ /^[0-9]+(\.[0-9]+)?$/) {
+      if (seconds !~ /^([0-9]+(\.[0-9]*)?|\.[0-9]+)$/) {
         printf "banner.sh: keyframe \"%s\" of %s has no time in seconds\n", $0, name > "/dev/stderr"
         failed = 1
         exit 1
@@ -314,7 +314,7 @@ puffs() {
 
 # The template's values are computed first, so a failing step stops the script under set -e. A
 # calc that fails inside another command's arguments only leaves its value empty: keyframes stops
-# on an empty time, but an empty stagger delay, threshold label or fill offset would be written.
+# on an empty time, but an empty stagger delay or fill dash offset would still be written.
 banner_svg() {
   local asleep_fill stagger css awake_png drowsy_png yawning_png nodding_png asleep_png
   local puff_groups labels fill_end ticks

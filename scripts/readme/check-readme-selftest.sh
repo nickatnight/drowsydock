@@ -181,6 +181,8 @@ expect_banner_edit "a banner with an event handler that starts a line" fails \
   "must not hold a script" 's{<svg }{<svg\nonload="alert(1)" }'
 expect_banner_edit "a banner with a foreignObject" fails "must not hold a script" \
   's{</svg>}{<foreignObject><p>x</p></foreignObject></svg>}'
+expect_banner_edit "a banner with a namespaced foreignObject" fails "must not hold a script" \
+  's{</svg>}{<svg:foreignObject xmlns:svg="http://www.w3.org/2000/svg"/></svg>}'
 expect_banner_edit "a banner with a namespaced script" fails "must not hold a script" \
   's{</svg>}{<svg:script xmlns:svg="http://www.w3.org/2000/svg">alert(1)</svg:script></svg>}'
 expect_banner_edit "a banner with an external DTD" fails "must not hold a script" \

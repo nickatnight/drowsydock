@@ -11,12 +11,18 @@
 # HTML ids, non-ASCII letters in anchors, links in indented code blocks, %-encoded paths.
 # Not read at all, so they pass unchecked: srcset, unquoted or line-split attributes, a fence
 # closed by a longer fence, and a code span that crosses a line break.
-# The banner must stay under 1 MB. It must hold no <script (with or without a prefix such as
-# svg:), javascript:, @import, on...= handler, <foreignObject, <!DOCTYPE, <!ENTITY or empty image,
-# no url() but url(#id), no href or src but a #id or a base64 PNG, and no http(s) URL but the SVG
-# namespace. Not read, so a relative file there passes: an href set by animation (<set to=,
-# <animate values=), a CSS image-set() string, and a value split from its href= or url( by a line
-# break.
+# The banner must stay under 1,000,000 bytes and hold none of these, in any letter case: <script
+# or <foreignObject, bare or after letters and a colon (svg:); javascript:; @import; an on...=
+# attribute (on, letters, optional whitespace, =, at a line's start or after whitespace);
+# <!DOCTYPE; <!ENTITY; an image with nothing between base64, and its quote; url( followed, after
+# optional whitespace, quote and whitespace, by a character other than #, a quote or whitespace; a
+# quoted href= or src= value that doesn't start with # or data:image/png;base64,; and an http:// or
+# https:// URL other than http://www.w3.org/2000/svg. The guard reads one line at a time and
+# decodes nothing, so these can pass: an href set by animation (<set to=, <animate values=), a CSS
+# image-set() string, an attribute or url( split from its = or value by a line break, and a
+# keyword written with a CSS escape (\75rl(), an XML character reference (u&#114;l() or a CDATA
+# break. banner.sh --check, which compares the banner byte for byte with what banner.sh writes, is
+# what stops a hand-edited banner.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -82,13 +88,14 @@ if (($(wc -c <"$banner") >= 1000000)); then
   echo "README: $banner must stay under 1 MB" >&2
   failed=1
 fi
-script='<([a-z]+:)?script'
+letters_prefix='([a-z]+:)?'
+script="<${letters_prefix}script"
 javascript='javascript:'
 import='@import'
 empty_image="base64,[\"']"
 foreign_url_function="url\\([[:space:]]*[\"']?[[:space:]]*[^#\"'[:space:]]"
 event_handler='(^|[[:space:]])on[a-z]+[[:space:]]*='
-foreign_object='<foreignObject'
+foreign_object="<${letters_prefix}foreignObject"
 document_type='<!(DOCTYPE|ENTITY)'
 forbidden_pattern="$script|$javascript|$import|$empty_image|$foreign_url_function"
 forbidden_pattern+="|$event_handler|$foreign_object|$document_type"
