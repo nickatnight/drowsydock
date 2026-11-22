@@ -215,6 +215,7 @@ These files import AppKit, SpriteKit, IOKit, SwiftUI or the Accessibility API, o
 |---|---|
 | `DrowsyDockApp`, `AppDelegate` | live `launch` (1.1 to 1.3) |
 | `MenuContent` | live `levels` and `battery` drive its real menu; manual 3.17 |
+| `MenuBarGlyph` | `MenuBarGlyphTests`: a template image, its size and VoiceOver label, and a snapshot of the mark |
 | `AppCoordinator` | `AppCoordinatorTests`; manual 4.1 to 4.5 |
 | `BatteryMonitor` | `AppCoordinatorTests`; live `battery` and `levels`; manual 3.2, 3.5, 3.6 |
 | `IOKitPowerSource` | live `battery`; manual 3.2, 3.2a, 3.5, 3.8, 3.8a |
