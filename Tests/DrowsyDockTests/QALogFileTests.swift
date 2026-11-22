@@ -42,7 +42,7 @@ final class QALogFileTests: XCTestCase {
     return try XCTUnwrap(attributes[.posixPermissions] as? Int)
   }
 
-  private let battery = MirroredLogger(subsystem: "com.drowsydock.tests", category: "battery")
+  private let battery = MirroredLogger(subsystem: "app.drowsydock.tests", category: "battery")
 
   // MARK: - The argument
 

@@ -39,7 +39,7 @@ final class QALogFile {
   static let sizeLimit = 1_048_576
 
   private static let logger = MirroredLogger(
-    subsystem: "com.drowsydock.DrowsyDock",
+    subsystem: LogSubsystem.app,
     category: "qa-log"
   )
 

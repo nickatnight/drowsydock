@@ -30,7 +30,7 @@ final class MirroredLoggerTests: XCTestCase {
 
   func testEachLevelReachesTheUnifiedLogAndTheMirrorWithTheSameText() {
     recordLines()
-    let logger = MirroredLogger(subsystem: "com.drowsydock.tests", category: "dock")
+    let logger = MirroredLogger(subsystem: "app.drowsydock.tests", category: "dock")
 
     logger.debug("Overlay: hidden")
     logger.notice("The Dock relaunched")
@@ -55,7 +55,7 @@ final class MirroredLoggerTests: XCTestCase {
     recordLines()
     MirroredLogger.mirror = nil
 
-    MirroredLogger(subsystem: "com.drowsydock.tests", category: "dock").notice("Started")
+    MirroredLogger(subsystem: "app.drowsydock.tests", category: "dock").notice("Started")
 
     XCTAssertEqual(unified.map(\.message), ["Started"])
     XCTAssertEqual(mirrored, [])
@@ -63,7 +63,7 @@ final class MirroredLoggerTests: XCTestCase {
 
   func testTheRealUnifiedLogTakesEveryLevelAndTheMirrorStillGetsTheLine() {
     recordLines(inTheUnifiedLog: false)
-    let logger = MirroredLogger(subsystem: "com.drowsydock.tests", category: "battery")
+    let logger = MirroredLogger(subsystem: "app.drowsydock.tests", category: "battery")
 
     logger.debug("Power source notification")
     logger.notice("Changed: 80%")

@@ -19,7 +19,7 @@ protocol PowerSourceSubscription: AnyObject {}
 @Observable
 final class BatteryMonitor {
   private static let logger = MirroredLogger(
-    subsystem: "com.drowsydock.DrowsyDock",
+    subsystem: LogSubsystem.app,
     category: "battery"
   )
 

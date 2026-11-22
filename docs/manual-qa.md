@@ -30,7 +30,7 @@ pkill -x DrowsyDock; open build/DrowsyDock.app --args --qa-log
 tail -F ~/Library/Logs/DrowsyDock/qa.log
 ```
 
-Afterwards, quit it and open it without `--qa-log`, so it stops writing the file. On an administrator account, `log stream --level debug --predicate 'subsystem == "com.drowsydock.DrowsyDock"'` shows the same lines.
+Afterwards, quit it and open it without `--qa-log`, so it stops writing the file. On an administrator account, `log stream --level debug --predicate 'subsystem == "app.drowsydock.DrowsyDock"'` shows the same lines.
 
 The QA log has every level. `Overlay:` lines, `Frame checks started`/`stopped` and `Power source notification` are debug lines, so `log stream` needs `--level debug` for them. Each `Changed:` line is a status change. `Power source notification` comes with every IOKit callback, including ones that change nothing in the menu.
 
@@ -63,7 +63,7 @@ The app's side of these (the lines, the 3 s waking clock, a re-plug, a full batt
 
 ### The Accessibility grant dialogs
 
-Start without the grant: `tccutil reset Accessibility com.drowsydock.DrowsyDock`, then launch the app. After each rebuild, make sure the grant belongs to the build you are running: an ad-hoc signed build is a new app to macOS, and an old DrowsyDock entry in System Settings ▸ Privacy & Security ▸ Accessibility can show as on while the new build is untrusted. If the menu keeps saying `Grant Accessibility…`, remove the entry with − and grant again. Each ad-hoc signature is new, so macOS keeps the grant with the old build; a stable dev certificate avoids this (`docs/dev-signing.md`, kept locally and not in git, has the steps). `AppCoordinator` re-checks the grant when macOS posts the undocumented `com.apple.accessibility.api` distributed notification (at once and again 1 s later) and each time the menu opens; `AppCoordinatorTests` covers the menu re-check.
+Start without the grant: `tccutil reset Accessibility app.drowsydock.DrowsyDock`, then launch the app. After each rebuild, make sure the grant belongs to the build you are running: an ad-hoc signed build is a new app to macOS, and an old DrowsyDock entry in System Settings ▸ Privacy & Security ▸ Accessibility can show as on while the new build is untrusted. If the menu keeps saying `Grant Accessibility…`, remove the entry with − and grant again. Each ad-hoc signature is new, so macOS keeps the grant with the old build; a stable dev certificate avoids this (`docs/dev-signing.md`, kept locally and not in git, has the steps). `AppCoordinator` re-checks the grant when macOS posts the undocumented `com.apple.accessibility.api` distributed notification (at once and again 1 s later) and each time the menu opens; `AppCoordinatorTests` covers the menu re-check.
 
 | # | Check | Expected |
 |---|---|---|
@@ -229,4 +229,5 @@ These files import AppKit, SpriteKit, IOKit, SwiftUI or the Accessibility API, o
 | `DockTracker`, `DockReader` | `DockTrackerTests` and `DockGeometryTests` for their decisions; live `position`, `size`, `autohide`, `hover`, `magnification`, `relaunch`; manual 7.13, 7.14 |
 | `AccessibilityPermission` | manual 4.1 to 4.5 |
 | `QALogFile` | `QALogFileTests`: no file without `--qa-log`, the folder's and the file's permissions, refused links, the size limit, each line's time as the script reads it, the same path as the script's `qa_log_path`, and every line reaching both the unified log and the file. `QALogMessageTests`: every `log_` pattern in `live-functions.sh` matches a line the app logs. Every live scenario reads the file |
+| `LogSubsystem` | `LogSubsystemTests`: the subsystem equals `CFBundleIdentifier` in `Resources/Info.plist` |
 | `QAHelper` | `LiveQAKitTests` for its checks (`LiveQAKit`); `scripts/qa/check-dry-run.sh` for the script's dry run |
