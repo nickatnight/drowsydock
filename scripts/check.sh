@@ -195,17 +195,23 @@ changed_lines() {
   done
 }
 
+# lcov paths may use the logical or the physical (symlink-resolved) checkout path. An awk program
+# that starts with this runs with LOGICAL and PHYSICAL set; a file outside the checkout maps to "".
+repo_relative_path='
+  function repo_relative(file) {
+    if (index(file, ENVIRON["PHYSICAL"]) == 1) return substr(file, length(ENVIRON["PHYSICAL"]) + 1)
+    if (index(file, ENVIRON["LOGICAL"]) == 1) return substr(file, length(ENVIRON["LOGICAL"]) + 1)
+    return ""
+  }'
+
 write_coverage_report() {
   local gated="$1" lcov="$2"
   mkdir -p "$(dirname "$coverage_report")"
   tr '\0' '\n' <"$gated" >"$work/gated-list"
-  LOGICAL="$PWD/" PHYSICAL="$(pwd -P)/" awk '
-    BEGIN { logical = ENVIRON["LOGICAL"]; physical = ENVIRON["PHYSICAL"] }
+  LOGICAL="$PWD/" PHYSICAL="$(pwd -P)/" awk "$repo_relative_path"'
     FILENAME == ARGV[1] { gated[$0] = 1; next }
     /^SF:/ {
-      file = substr($0, 4)
-      if (index(file, physical) == 1) file = substr(file, length(physical) + 1)
-      else if (index(file, logical) == 1) file = substr(file, length(logical) + 1)
+      file = repo_relative(substr($0, 4))
       keep = (file in gated)
       if (keep) print "SF:" file
       next
@@ -248,16 +254,14 @@ coverage_gate() {
   write_coverage_report "$gated" "$lcov"
   changed_lines "$merge_base" <"$gated" >"$changed"
 
-  # lcov paths may use the logical or the physical (symlink-resolved) checkout path. The changed
-  # lines come first; `FILENAME == ARGV[1]` still holds when that file is empty, unlike NR == FNR.
-  LOGICAL="$PWD/" PHYSICAL="$(pwd -P)/" MINIMUM="$coverage_minimum" awk -F '\t' '
-    BEGIN { logical = ENVIRON["LOGICAL"]; physical = ENVIRON["PHYSICAL"]; minimum = ENVIRON["MINIMUM"] }
+  # The changed lines come first; `FILENAME == ARGV[1]` still holds when that file is empty, unlike
+  # NR == FNR.
+  LOGICAL="$PWD/" PHYSICAL="$(pwd -P)/" MINIMUM="$coverage_minimum" awk -F '\t' "$repo_relative_path"'
+    BEGIN { physical = ENVIRON["PHYSICAL"]; minimum = ENVIRON["MINIMUM"] }
     FILENAME == ARGV[1] { changed[$1 SUBSEP $2] = 1; changed_files[$1] = 1; next }
     /^SF:/ {
-      file = substr($0, 4)
-      if (index(file, physical) == 1) file = substr(file, length(physical) + 1)
-      else if (index(file, logical) == 1) file = substr(file, length(logical) + 1)
-      else next
+      file = repo_relative(substr($0, 4))
+      if (file == "") next
       under_root++
       recorded[file] = 1
       next
