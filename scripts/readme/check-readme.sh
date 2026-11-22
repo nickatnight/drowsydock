@@ -11,10 +11,12 @@
 # HTML ids, non-ASCII letters in anchors, links in indented code blocks, %-encoded paths.
 # Not read at all, so they pass unchecked: srcset, unquoted or line-split attributes, a fence
 # closed by a longer fence, and a code span that crosses a line break.
-# The banner must stay under 1 MB. It must hold no <script, javascript:, @import, on...= handler,
-# <foreignObject or empty image, no url() but url(#id), no href or src but a #id or a base64 PNG,
-# and no http(s) URL but the SVG namespace. Not read, so a relative file there passes: an href set
-# by animation (<set to=, <animate values=) and a CSS image-set() string.
+# The banner must stay under 1 MB. It must hold no <script (with or without a prefix such as
+# svg:), javascript:, @import, on...= handler, <foreignObject, <!DOCTYPE, <!ENTITY or empty image,
+# no url() but url(#id), no href or src but a #id or a base64 PNG, and no http(s) URL but the SVG
+# namespace. Not read, so a relative file there passes: an href set by animation (<set to=,
+# <animate values=), a CSS image-set() string, and a value split from its href= or url( by a line
+# break.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -80,15 +82,16 @@ if (($(wc -c <"$banner") >= 1000000)); then
   echo "README: $banner must stay under 1 MB" >&2
   failed=1
 fi
-script='<script'
+script='<([a-z]+:)?script'
 javascript='javascript:'
 import='@import'
 empty_image="base64,[\"']"
-foreign_url_function="url\\([[:space:]]*[\"']?[^#\"'[:space:]]"
-event_handler='[[:space:]]on[a-z]+[[:space:]]*='
+foreign_url_function="url\\([[:space:]]*[\"']?[[:space:]]*[^#\"'[:space:]]"
+event_handler='(^|[[:space:]])on[a-z]+[[:space:]]*='
 foreign_object='<foreignObject'
+document_type='<!(DOCTYPE|ENTITY)'
 forbidden_pattern="$script|$javascript|$import|$empty_image|$foreign_url_function"
-forbidden_pattern+="|$event_handler|$foreign_object"
+forbidden_pattern+="|$event_handler|$foreign_object|$document_type"
 forbidden="$(grep -oiE -- "$forbidden_pattern" "$banner" || true)"
 hrefs="$(grep -oiE -- "(href|src)[[:space:]]*=[[:space:]]*[\"'][^\"']*" "$banner" || true)"
 foreign_hrefs="$(grep -viE -- "[\"'](#|data:image/png;base64,)" <<<"$hrefs" || true)"
