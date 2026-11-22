@@ -48,6 +48,8 @@ Read the relevant ADR before changing the area it covers. To change a decision, 
 | 0019 | How test helpers reach a module's seams |
 | 0021 | CI: runner, Xcode pin, snapshot skip |
 | 0022 | README banner generation |
+| 0023 | README header icon, copied from `AppIcon.svg` |
+| 0024 | Bundle ID and log subsystem: `app.drowsydock`, typed out, pinned to the plist |
 
 ## Commands
 
