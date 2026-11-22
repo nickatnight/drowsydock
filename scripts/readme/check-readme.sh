@@ -6,18 +6,18 @@ cd "$(dirname "$0")/../.."
 readme="${1:-README.md}"
 failed=0
 
-prose() {
+readme_without_code_blocks() {
   awk '/^[[:space:]]*```/ { fenced = !fenced; next } !fenced' "$readme"
 }
 
 # GitHub's anchor for each heading: lowercase, punctuation dropped, spaces as hyphens.
 anchors() {
-  prose | sed -nE 's/^#{1,6}[[:space:]]+//p' | tr '[:upper:]' '[:lower:]' |
+  readme_without_code_blocks | sed -nE 's/^#{1,6}[[:space:]]+//p' | tr '[:upper:]' '[:lower:]' |
     sed -E 's/[^a-z0-9 _-]//g; s/ /-/g'
 }
 
 links() {
-  prose | grep -oE '\]\([^)[:space:]]+|(href|src)="[^"]*"' |
+  readme_without_code_blocks | grep -oE '\]\([^)[:space:]]+|(href|src)="[^"]*"' |
     sed -E 's/^\]\(//; s/^(href|src)="//; s/"$//' || true
 }
 
