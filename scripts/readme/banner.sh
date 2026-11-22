@@ -253,7 +253,46 @@ banner_css() {
   shown_across_loop_end s80c "$charged_status_at" "$unplugged_at"
 }
 
+# Runs a command with set -e, which bash turns off inside $(...).
+with_errexit() {
+  set -e
+  "$@"
+}
+
+stagger_rules() {
+  local i
+  for i in 1 2 3 4; do
+    printf '.i%s { animation-delay: %ss }\n' "$i" "$(calc "$i * $stagger_seconds")"
+  done
+}
+
+puffs() {
+  local i x delay
+  for i in 0 1 2 3 4; do
+    x="$(calc "97.5 + 101 * $i")"
+    delay=""
+    if ((i > 0)); then delay=" i$i"; fi
+    printf '<g class="a puff%s" transform="translate(%s 189.4)"><g class="a drift%s">' "$delay" "$x" "$delay"
+    printf '<use href="#z" stroke="#2b3b66" stroke-width="6.05"/><use href="#z" stroke="#d6e6ff" stroke-width="3.17"/></g></g>\n'
+  done
+}
+
+# Everything the template needs is computed first, so a failure stops the script under set -e.
 banner_svg() {
+  local asleep_fill stagger css awake_png drowsy_png yawning_png nodding_png asleep_png
+  local puff_groups labels fill_end ticks
+  asleep_fill="$(fill_dashoffset "$asleep_level")"
+  stagger="$(with_errexit stagger_rules)"
+  css="$(with_errexit banner_css)"
+  awake_png="$(png pose-awake-left.png)"
+  drowsy_png="$(png pose-drowsy-left.png)"
+  yawning_png="$(png pose-yawning-left.png)"
+  nodding_png="$(png pose-noddingOff-left.png)"
+  asleep_png="$(png pose-asleep-left.png)"
+  puff_groups="$(with_errexit puffs)"
+  labels="$(with_errexit threshold_labels)"
+  fill_end="$(fill_x 100)"
+  ticks="$(with_errexit threshold_ticks)"
   cat <<EOF
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" width="900" height="300" role="img">
 <title>DrowsyDock: the cat on the Dock gets drowsier as the battery drains, and wakes when a charger plugs in</title>
@@ -262,7 +301,7 @@ banner_svg() {
 .a { animation-duration: ${loop}s; animation-timing-function: linear; animation-iteration-count: infinite }
 .pose { opacity: 0 }
 #asleep, #s5 { opacity: 1 }
-#fill { stroke: #6b7383; stroke-dashoffset: $(fill_dashoffset "$asleep_level"); animation-name: level, charge }
+#fill { stroke: #6b7383; stroke-dashoffset: $asleep_fill; animation-name: level, charge }
 #plug { transform: translateX(60px); animation-name: plug }
 #bolt { opacity: 0; animation-name: bolt }
 #base { animation-name: base }
@@ -284,18 +323,18 @@ banner_svg() {
 #s5 { animation-name: s5 }
 #s5w { animation-name: s5w }
 #s80c { animation-name: s80c }
-$(for i in 1 2 3 4; do printf '.i%s { animation-delay: %ss }\n' "$i" "$(calc "$i * $stagger_seconds")"; done)
+$stagger
 .s1 { animation-delay: 0.2s }
 .s2 { animation-delay: 0.4s }
-$(banner_css)
+$css
 @media (prefers-reduced-motion: reduce) { * { animation: none !important } }
 </style>
 <defs>
-<image id="p-awake" x="449.6" y="22" width="102.4" height="128" href="$(png pose-awake-left.png)"/>
-<image id="p-drowsy" x="449.6" y="22" width="102.4" height="128" href="$(png pose-drowsy-left.png)"/>
-<image id="p-yawning" x="449.6" y="22" width="102.4" height="128" href="$(png pose-yawning-left.png)"/>
-<image id="p-noddingOff" x="449.6" y="22" width="102.4" height="128" href="$(png pose-noddingOff-left.png)"/>
-<image id="p-asleep" x="449.6" y="22" width="102.4" height="128" href="$(png pose-asleep-left.png)"/>
+<image id="p-awake" x="449.6" y="22" width="102.4" height="128" href="$awake_png"/>
+<image id="p-drowsy" x="449.6" y="22" width="102.4" height="128" href="$drowsy_png"/>
+<image id="p-yawning" x="449.6" y="22" width="102.4" height="128" href="$yawning_png"/>
+<image id="p-noddingOff" x="449.6" y="22" width="102.4" height="128" href="$nodding_png"/>
+<image id="p-asleep" x="449.6" y="22" width="102.4" height="128" href="$asleep_png"/>
 <path id="z" d="M-7.2 -7.2H7.2L-7.2 7.2H7.2" fill="none"/>
 <path id="star" d="M0 6.7L-1.49 1.49L-6.7 0L-1.49 -1.49L0 -6.7L1.49 -1.49L6.7 0L1.49 1.49Z" fill="#ffe073" stroke="#c78c26" stroke-width="1.3"/>
 <rect id="tile" width="77" height="77" rx="16"/>
@@ -310,13 +349,7 @@ $(banner_css)
 <use class="a dim" href="#tile" x="59" y="175"/><use class="a dim i1" href="#tile" x="160" y="175"/><use class="a dim i2" href="#tile" x="261" y="175"/><use class="a dim i3" href="#tile" x="362" y="175"/><use class="a dim i4" href="#tile" x="463" y="175"/>
 </g>
 <g stroke-linejoin="miter">
-$(for i in 0 1 2 3 4; do
-    x="$(calc "97.5 + 101 * $i")"
-    delay=""
-    if ((i > 0)); then delay=" i$i"; fi
-    printf '<g class="a puff%s" transform="translate(%s 189.4)"><g class="a drift%s">' "$delay" "$x" "$delay"
-    printf '<use href="#z" stroke="#2b3b66" stroke-width="6.05"/><use href="#z" stroke="#d6e6ff" stroke-width="3.17"/></g></g>\n'
-  done)
+$puff_groups
 </g>
 <use id="base" class="a" href="#p-awake"/>
 <use id="drowsy" class="a pose" href="#p-drowsy"/>
@@ -339,14 +372,14 @@ $(for i in 0 1 2 3 4; do
 <text id="s80c" class="a status" x="736" y="96">$awake_level% &#183; Charging &#183; Awake</text>
 </g>
 <g font-size="12" fill="#5b6472">
-$(threshold_labels)
+$labels
 </g>
 </g>
 <rect x="620" y="125" width="230" height="64" rx="14" fill="#f7f8fa" stroke="#5b6472" stroke-width="4"/>
 <rect x="852" y="144" width="9" height="26" rx="4" fill="#5b6472"/>
-<line id="fill" class="a" x1="$fill_start" y1="157" x2="$(fill_x 100)" y2="157" stroke-width="48" stroke-dasharray="$fill_length 400"/>
+<line id="fill" class="a" x1="$fill_start" y1="157" x2="$fill_end" y2="157" stroke-width="48" stroke-dasharray="$fill_length 400"/>
 <g stroke="#5b6472" stroke-opacity="0.45" stroke-dasharray="3 3">
-$(threshold_ticks)
+$ticks
 </g>
 <path id="bolt" class="a" d="M741 135L722 161H734L729 180L749 152H737Z" fill="#fff" stroke="#2b3340" stroke-width="2.5" stroke-linejoin="round"/>
 <g id="plug" class="a" fill="#3a4150">
