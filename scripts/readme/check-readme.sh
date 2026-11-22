@@ -49,6 +49,7 @@ anchors="$(readme_without_fences_or_comments | sed -nE 's/^ {0,3}#{1,6}[[:space:
 tracked="$(git -c core.quotePath=false ls-files --cached </dev/null)"
 folders="$(awk -F/ '{ path = $1; for (i = 2; i <= NF; i++) { print path; path = path "/" $i } }' \
   <<<"$tracked" | sort -u)"
+known_paths="$tracked"$'\n'"$folders"
 
 while IFS= read -r link <&3; do
   # Control characters are printed as ?, so a link can't pass a command to the CI log.
@@ -67,12 +68,11 @@ while IFS= read -r link <&3; do
       path="${path#/}"
       path="${path#./}"
       path="${path%/}"
-      if [[ -z $path ]] || { grep -qxF -- "$path" <<<"$tracked"$'\n'"$folders" && [[ -e $path ]]; }
-      then
+      if [[ -z $path ]] || { grep -qxF -- "$path" <<<"$known_paths" && [[ -e $path ]]; }; then
         continue
       fi
       # Whether a wrong-case path exists depends on the volume, so ask the index, ignoring case.
-      if [[ -e $path ]] || grep -qixF -- "$path" <<<"$tracked"$'\n'"$folders"; then
+      if [[ -e $path ]] || grep -qixF -- "$path" <<<"$known_paths"; then
         echo "README: $shown_link isn't in git's index as spelled: check its case, keep it inside" \
           "the repo, or git add it" >&2
       else
