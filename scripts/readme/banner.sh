@@ -195,20 +195,27 @@ pose_shown() {
     "$(calc "$3 + $step_seconds"):0" "$loop:0"
 }
 
-drained_to() {
-  printf '%s:%s %s:%s' "$(calc "$1 - $drain_seconds")" "$(fill_dashoffset "$2")" "$1" \
-    "$(fill_dashoffset "$3")"
+# add_drain AT FROM TO: appends to the caller's level_frames the two keyframes of a drain from
+# FROM% to TO% that ends at AT seconds.
+add_drain() {
+  level_frames+=(
+    "$(calc "$1 - $drain_seconds"):$(fill_dashoffset "$2")"
+    "$1:$(fill_dashoffset "$3")"
+  )
 }
 
 banner_css() {
-  keyframes level stroke-dashoffset "0:$(fill_dashoffset "$awake_level")" \
-    $(drained_to "$drowsy_at" "$awake_level" "$drowsy_level") \
-    $(drained_to "$yawning_at" "$drowsy_level" "$yawning_level") \
-    $(drained_to "$nodding_at" "$yawning_level" "$nodding_level") \
-    $(drained_to "$asleep_at" "$nodding_level" "$asleep_level") \
-    "$refill_start:$(fill_dashoffset "$asleep_level")" \
-    "$refill_end:$(fill_dashoffset "$awake_level")" \
+  local level_frames=("0:$(fill_dashoffset "$awake_level")")
+  add_drain "$drowsy_at" "$awake_level" "$drowsy_level"
+  add_drain "$yawning_at" "$drowsy_level" "$yawning_level"
+  add_drain "$nodding_at" "$yawning_level" "$nodding_level"
+  add_drain "$asleep_at" "$nodding_level" "$asleep_level"
+  level_frames+=(
+    "$refill_start:$(fill_dashoffset "$asleep_level")"
+    "$refill_end:$(fill_dashoffset "$awake_level")"
     "$loop:$(fill_dashoffset "$awake_level")"
+  )
+  keyframes level stroke-dashoffset "${level_frames[@]}"
   keyframes charge stroke 0:#34c759 "$unplugged_at:#34c759" \
     "$(calc "$unplugged_at + $step_seconds"):#6b7383" "$plugged_at:#6b7383" \
     "$(calc "$plugged_at + $step_seconds"):#34c759" "$loop:#34c759"
