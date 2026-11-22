@@ -71,7 +71,7 @@ While the Mac runs on battery, the cat follows the percentage:
 
 DrowsyDock keeps no settings and writes no files in normal use. macOS keeps the Accessibility grant.
 
-- It logs to the unified log under the subsystem `com.drowsydock.DrowsyDock`: the battery line when it changes, the Accessibility grant, the Dock's frames, when the overlay shows or hides, when the wave plays, and errors. Reading it with `log stream` needs an administrator account.
+- It logs to the unified log under the subsystem `app.drowsydock.DrowsyDock`: the battery line when it changes, the Accessibility grant, the Dock's frames, when the overlay shows or hides, when the wave plays, and errors. Reading it with `log stream` needs an administrator account.
 - Launched with `--qa-log`, it also appends every log line to `~/Library/Logs/DrowsyDock/qa.log`. Only your account can read the file, and it starts over rather than grow past 1 MiB. Delete it whenever you like.
 
 ## Development
