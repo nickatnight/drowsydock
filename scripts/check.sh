@@ -2,14 +2,16 @@
 # Runs the checks from CONSTRAINTS.md.
 #
 #   scripts/check.sh fast   compile, format, the live QA script's checks (dry run, Dock restore,
-#                           log reads), the release script's syntax, floor rules, the QA row
-#                           mapping, the README (links, images, banner), secrets (every edit)
+#                           log reads), the release script's syntax, full-path calls and
+#                           bundle.sh's refusals, floor rules, the QA row mapping, the README
+#                           (links, images, banner), secrets (every edit)
 #   scripts/check.sh task   fast + tests, coverage gate, bundle, and the release dry run with the
 #                           app in its zip checked (run before every commit)
 #
-# The release dry run runs with shims that refuse security, spctl, notarytool and stapler, and
-# `fast` fails if release.sh, bundle.sh or verify-signature.sh names a command by its full path,
-# which would get past them. Nothing runs the real release's Apple steps.
+# The release dry run runs with shims that refuse security, spctl, notarytool, stapler and altool,
+# and `fast` fails if release.sh, bundle.sh, verify-signature.sh or lib.sh names a command by its
+# full path, which would get past them. A path built at run time still would. Nothing runs the
+# real release's Apple steps.
 #
 # The coverage gate compares against the merge base with $CHECK_BASE (default: main). It also
 # writes the gated files' coverage to .build/coverage/lcov.info, which CI uploads to Codecov.
@@ -304,7 +306,7 @@ EOF
   cat >"$dir/xcrun" <<EOF
 #!/bin/sh
 for arg in "\$@"; do
-  case "\$arg" in notarytool | stapler) echo "xcrun \$*" >>"$log"; exit 1 ;; esac
+  case "\$arg" in notarytool | stapler | altool) echo "xcrun \$*" >>"$log"; exit 1 ;; esac
 done
 exec /usr/bin/xcrun "\$@"
 EOF

@@ -32,7 +32,8 @@ dry_run() {
 failed=0
 
 # A command named by its full path, such as /usr/bin/defaults, would skip both the PATH stubs and
-# the UNGUARDED functions. Only the read-only PlistBuddy may be named that way.
+# the UNGUARDED functions. Only the read-only PlistBuddy may be named that way. A path built at run
+# time isn't caught.
 if calls_by_full_path scripts/qa-live.sh scripts/qa/live-functions.sh scripts/qa/dock-preferences.sh
 then
   echo "qa-live.sh names a command by its full path; call it by name so the dry run can stub it" >&2

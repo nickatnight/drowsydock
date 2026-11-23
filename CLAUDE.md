@@ -79,7 +79,7 @@ Restore: scripts/qa-live.sh --restore      # puts back Dock preferences after a 
 
 ## Checks
 
-- **`scripts/check.sh fast`**: run it after every edit. It covers compile, format, the CONSTRAINTS floor rules, import rules, the QA row mapping, the live QA script's own checks, the release script's syntax, the README links and banner, and the secret scan. The header of each script says exactly what it checks and what it can't catch.
+- **`scripts/check.sh fast`**: run it after every edit. It covers compile, format, the CONSTRAINTS floor rules, import rules, the QA row mapping, the live QA script's own checks, the release script's syntax, full-path calls and `bundle.sh`'s refusals, the README links and banner, and the secret scan. The header of each script says exactly what it checks and what it can't catch.
 - **`scripts/check.sh task`**: run it before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate (against `$CHECK_BASE`, default `main`), the signed bundle, and `scripts/release.sh --dry-run` with `security`, `spctl`, `notarytool` and `stapler` refused and the app in its zip checked.
 - **CI** (`.github/workflows/ci.yml`) runs `check.sh task` on pushes and PRs to `main`, with snapshots skipped.
   - The `xcode-27` runner label is a preview. If GitHub retires it, the job sits in the queue forever instead of failing. Bump `XCODE_VERSION` when Xcode changes, and `runs-on` when the label or image changes.

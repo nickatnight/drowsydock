@@ -2,11 +2,19 @@
 
 step() { printf '\n==> %s\n' "$*"; }
 
-# Prints the lines of the given scripts that run a command by its full path under /bin, /sbin,
-# /usr/bin or /usr/sbin, and returns 0 if there are any. A stub or shim on PATH can't intercept
-# such a call. A #! line doesn't count.
+# Prints the lines of the given scripts that name a command by its full path under /bin, /sbin,
+# /usr/bin or /usr/sbin, bare, quoted or assigned, and returns 0 if there are any. A stub or shim on
+# PATH can't intercept such a call. A #! line doesn't count. A file it can't read exits 2. A path
+# built at run time, such as one from `xcode-select -p` or $DEVELOPER_DIR, isn't seen.
 calls_by_full_path() {
-  grep -nE '(^|[[:space:];|&(`])/(usr/)?(s)?bin/' "$@" | grep -v '^[^:]*:1:#!'
+  local matches status=0
+  matches="$(grep -HnE "(^|[[:space:];|&(\`\"'=])/(usr/)?(s)?bin/" "$@")" || status=$?
+  if ((status > 1)); then
+    echo "calls_by_full_path: grep failed with exit $status: $*" >&2
+    exit 2
+  fi
+  ((status == 0)) || return 1
+  grep -v '^[^:]*:1:#!' <<<"$matches"
 }
 
 # Runs a scan (grep, awk): 0 means it found something, 1 that it found nothing, and any other
