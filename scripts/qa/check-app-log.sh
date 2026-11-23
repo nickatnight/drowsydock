@@ -37,11 +37,13 @@ require_live_settings
 calls="$SCRATCH/calls.log"
 
 # Every case works on a scratch defaults domain. A call that still names com.apple.dock, even
-# inside a path, or tries to relaunch the Dock, is refused and fails the case, whatever the case
-# forgot to set.
+# inside a path, tries to relaunch the Dock, or runs osascript, which is how a live run changes the
+# Dock, is refused and fails the case, whatever the case forgot to set. A case that needs osascript
+# defines its own.
 dock_domain="$SCRATCH/dock"
 dock_restart() { echo "dock restart" >>"$calls"; }
 killall() { echo "killall $*" >>"$SCRATCH/refused"; exit 99; }
+osascript() { echo "osascript $*" >>"$SCRATCH/refused"; exit 99; }
 defaults() {
   case "$*" in *com.apple.dock*) echo "defaults $*" >>"$SCRATCH/refused"; exit 99 ;; esac
   if [[ -n ${FAIL_IMPORTS:-} && $1 == import && $2 == "$dock_domain" ]]; then return 1; fi
