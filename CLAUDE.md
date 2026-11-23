@@ -50,6 +50,7 @@ Read the relevant ADR before changing the area it covers. To change a decision, 
 | 0022 | README banner generation |
 | 0023 | README header icon, copied from `AppIcon.svg` |
 | 0024 | Bundle ID and log subsystem: `app.drowsydock`, typed out, pinned to the plist |
+| 0025 | Coverage to Codecov: gated files, informational, `CODECOV_TOKEN` |
 
 ## Commands
 
@@ -78,6 +79,11 @@ Restore: scripts/qa-live.sh --restore      # puts back Dock preferences after a 
   - The `xcode-27` runner label is a preview. If GitHub retires it, the job sits in the queue forever instead of failing. Bump `XCODE_VERSION` when Xcode changes, and `runs-on` when the label or image changes.
   - gitleaks scans every branch on `origin`, so a secret on any branch fails every run.
   - Actions are pinned to commit SHAs, with the tag in a comment.
+  - After `check.sh task` passes, CI uploads `.build/coverage/lcov.info` (the gated files, written by the coverage gate) to Codecov (ADR 0025).
+    - Keep the upload the last step that runs on success. The action exports the token as `CC_TOKEN` to the steps after it.
+    - Keep `fail_ci_if_error: true` with `continue-on-error: true`, and keep `codecov.yml`'s statuses informational, so `check.sh` alone decides green.
+    - The Codecov CLI is pinned with `version:`. Bump it on purpose, like the other pins.
+    - Never move the workflow to `pull_request_target` or `workflow_run`.
 
 ## Snapshots
 

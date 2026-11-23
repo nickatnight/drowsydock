@@ -49,6 +49,20 @@ jobs:
 
       - run: scripts/check.sh task
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
+        continue-on-error: true
+        timeout-minutes: 5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          version: v11.3.2
+          files: .build/coverage/lcov.info
+          disable_search: true
+          fail_ci_if_error: true
+          plugins: noop
+          disable_telem: true
+          cleanup: true
+
       - name: Upload snapshot failures
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
