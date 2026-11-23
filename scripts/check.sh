@@ -396,10 +396,10 @@ plutil -lint Resources/Info.plist
 
 step "Release dry run (scripts/release.sh --dry-run with Apple's services and the keychain refused, then the app in its zip)"
 refuse_release_only_tools "$work/refuse" "$work/refused"
-developer_id='Developer ID Application: Example (TEAMID)'
+decoy_developer_id='Developer ID Application: Example (TEAMID)'
 release_status=0
-DEVELOPER_ID="$developer_id" SIGN_IDENTITY="$developer_id" PATH="$work/refuse:$PATH" \
-  scripts/release.sh --dry-run || release_status=$?
+DEVELOPER_ID="$decoy_developer_id" SIGN_IDENTITY="$decoy_developer_id" \
+  PATH="$work/refuse:$PATH" scripts/release.sh --dry-run || release_status=$?
 if [[ -s $work/refused ]]; then
   echo "Release dry run: it called tools that only a real release may call:" >&2
   cat "$work/refused" >&2
