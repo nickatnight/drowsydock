@@ -162,7 +162,7 @@ case_overlay_in_time() {
   DOCK_PERCH=1070.4,84,64,80 expect_overlay_within shown 1 7.1 position "0.4 pt off"
 }
 
-case_overlay_late() {
+case_old_perch_on_time_dock_perch_late() {
   start_run
   mark_log
   fixture_line "$overlay_shown" | sed 's/frame: (1070.0, 84.0/frame: (900.0, 84.0/' >>"$app_log"
@@ -297,7 +297,7 @@ expect "run log after the start-over: qa-log: qa.log reached its limit of 104857
 run_case overlay_in_time
 expect "PASS QA 7.1 (position): 0.4 pt off: 0.12 s after the change returned (0.30 s after it started; budget 1 s)"
 
-run_case overlay_late
+run_case old_perch_on_time_dock_perch_late
 expect "FAIL QA 7.1 (position): the cat moves: 1.42 s after the change returned (1.60 s after it started; budget 1 s)"
 
 run_case overlay_elsewhere
