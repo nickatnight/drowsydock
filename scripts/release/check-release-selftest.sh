@@ -341,9 +341,12 @@ step_order() {
     /^spctl --assess / { print "assess" }' "$calls" | paste -sd ' ' -
 }
 
-expect_stopped_before() {
-  expect_no_artifact "$1" "$release_zip" "$3"
-  if called "$2"; then fail "$(report "$1 still reaches $2")"; fi
+expect_stopped_before_call() {
+  local name="$1" later_call_pattern="$2" text="$3"
+  expect_no_artifact "$name" "$release_zip" "$text"
+  if called "$later_call_pattern"; then
+    fail "$(report "$name still makes a call matching $later_call_pattern")"
+  fi
 }
 
 new_repo
@@ -364,27 +367,28 @@ zip_holds "$repo/$release_zip" DrowsyDock.app/Contents/CodeResources ||
 
 new_repo
 run_release "${release_env[@]}" "STUB_AUTHORITY=Apple Development: Emgee Labs LLC (TEAMID)"
-expect_stopped_before "a release signed by another authority" '^xcrun notarytool' \
+expect_stopped_before_call "a release signed by another authority" '^xcrun notarytool' \
   "Developer ID Application"
 
 new_repo
 run_release "${release_env[@]}" "STUB_TEAM=not set"
-expect_stopped_before "a release without a TeamIdentifier" '^xcrun notarytool' TeamIdentifier
+expect_stopped_before_call "a release without a TeamIdentifier" '^xcrun notarytool' TeamIdentifier
 
 new_repo
 run_release "${release_env[@]}" STUB_TIMESTAMP=none
-expect_stopped_before "a release without a secure timestamp" '^xcrun notarytool' timestamp
+expect_stopped_before_call "a release without a secure timestamp" '^xcrun notarytool' timestamp
 
 new_repo
 run_release "${release_env[@]}" "STUB_FLAGS=0x0(none)"
-expect_stopped_before "a release without the hardened runtime" '^xcrun notarytool' runtime
+expect_stopped_before_call "a release without the hardened runtime" '^xcrun notarytool' runtime
 
 submission=2efe2717-52ef-43a5-96dc-0797e4ca1041
 for submit_exit in 0 1; do
   new_repo
   leave_stale "$release_zip"
   run_release "${release_env[@]}" STUB_NOTARY_STATUS=Invalid STUB_SUBMIT_EXIT="$submit_exit"
-  expect_stopped_before "a rejected release (notarytool exit $submit_exit)" '^xcrun stapler' Invalid
+  expect_stopped_before_call "a rejected release (notarytool exit $submit_exit)" '^xcrun stapler' \
+    Invalid
   has_output "STUB LOG: The signature does not include a secure timestamp." ||
     fail "$(report "a rejected release (notarytool exit $submit_exit) doesn't print the log")"
   grep -qxF "xcrun notarytool log $submission --keychain-profile drowsydock-notary" "$calls" ||
@@ -395,24 +399,24 @@ done
 
 new_repo
 run_release "${release_env[@]}" STUB_NOTARY_STATUS=none
-expect_stopped_before "a submission that fails without a result" '^xcrun (stapler|notarytool log)' \
-  "Unable to authenticate"
+expect_stopped_before_call "a submission that fails without a result" \
+  '^xcrun (stapler|notarytool log)' "Unable to authenticate"
 
 new_repo
 run_release "${release_env[@]}" STUB_STAPLE_STATUS=1
-expect_stopped_before "a release whose staple fails" '^spctl ' staple
+expect_stopped_before_call "a release whose staple fails" '^spctl ' staple
 
 new_repo
 run_release "${release_env[@]}" STUB_VALIDATE_STATUS=65
-expect_stopped_before "a release whose stapled ticket doesn't validate" '^spctl ' validate
+expect_stopped_before_call "a release whose stapled ticket doesn't validate" '^spctl ' validate
 
 new_repo
 run_release "${release_env[@]}" STUB_SPCTL_STATUS=3
-expect_stopped_before "a release Gatekeeper rejects" '^never$' "rejected"
+expect_no_artifact "a release Gatekeeper rejects" "$release_zip" rejected
 
 new_repo
 run_release "${release_env[@]}" "STUB_SPCTL_SOURCE=Unnotarized Developer ID"
-expect_stopped_before "a release Gatekeeper accepts from another source" '^never$' \
+expect_no_artifact "a release Gatekeeper accepts from another source" "$release_zip" \
   "Notarized Developer ID"
 
 exit "$failed"
