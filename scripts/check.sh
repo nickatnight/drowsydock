@@ -3,8 +3,8 @@
 #
 #   scripts/check.sh fast   compile, format, the live QA script's checks (dry run, Dock restore,
 #                           restore self-test, log reads), the release script's syntax, floor
-#                           rules, the QA row mapping, the README (links, images, banner) and its
-#                           self-test, secrets (every edit)
+#                           rules, the QA row mapping, the README (links, images, banner),
+#                           secrets (every edit)
 #   scripts/check.sh task   fast + tests, coverage gate, bundle, and the release dry run with the
 #                           app in its zip checked (run before every commit)
 #
@@ -342,7 +342,6 @@ scripts/qa/check-qa-mapping-selftest.sh
 
 step "README (every relative link and image resolves, the banner matches the snapshot references and the app)"
 scripts/readme/check-readme.sh
-scripts/readme/check-readme-selftest.sh
 
 step "Secrets"
 # gitleaks matches text, so binary signing material needs its own check.

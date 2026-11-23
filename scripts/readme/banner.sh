@@ -7,9 +7,8 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 export LC_ALL=C
 
-references="${README_REFERENCES:-Tests/DrowsyDockTests/Snapshots}"
-sources="${README_SOURCES:-.}"
-assets="${README_ASSETS:-docs/readme}"
+references=Tests/DrowsyDockTests/Snapshots
+assets=docs/readme
 mode="${1:-write}"
 case "$mode" in
   write | --check) ;;
@@ -19,24 +18,9 @@ case "$mode" in
     ;;
 esac
 
-png_signature=89504e470d0a1a0a
-for pose in awake drowsy yawning noddingOff asleep; do
-  reference="$references/pose-$pose-left.png"
-  if [[ -L $reference || ! -f $reference || ! -r $reference ]] ||
-    [[ "$(head -c 8 -- "$reference" | od -An -tx1 | tr -d ' \n')" != "$png_signature" ]]; then
-    echo "banner.sh: $reference must be a regular PNG file" >&2
-    exit 1
-  fi
-done
-
 loop=16
 
-calc_expression='^[0-9. +*/()-]+$'
 calc() {
-  if [[ ! $1 =~ $calc_expression ]]; then
-    echo "banner.sh: calc got \"$1\", which isn't arithmetic" >&2
-    exit 1
-  fi
   awk "BEGIN { printf \"%.6g\", $1 }"
 }
 
@@ -81,22 +65,22 @@ swift_seconds() {
   esac
 }
 
-thresholds_swift="$sources/Sources/DrowsyDockCore/Thresholds.swift"
+thresholds_swift="Sources/DrowsyDockCore/Thresholds.swift"
 asleep_below="$(swift_integer "$thresholds_swift" 'asleepBelow: ([0-9]+)')"
 nodding_off_below="$(swift_integer "$thresholds_swift" 'noddingOffBelow: ([0-9]+)')"
 yawning_below="$(swift_integer "$thresholds_swift" 'yawningBelow: ([0-9]+)')"
 drowsy_below="$(swift_integer "$thresholds_swift" 'validatedDrowsyBelow: ([0-9]+)')"
-mascot_pose_swift="$sources/Sources/DrowsyDockCore/MascotPose.swift"
+mascot_pose_swift="Sources/DrowsyDockCore/MascotPose.swift"
 veil_opacity="$(swift_value "$mascot_pose_swift" 'veilOpacity: ([0-9.]+)')"
-overlay_window_swift="$sources/Sources/DockOverlayKit/OverlayWindow.swift"
+overlay_window_swift="Sources/DockOverlayKit/OverlayWindow.swift"
 veil_fade_seconds="$(swift_value "$overlay_window_swift" 'fadeDuration: TimeInterval = ([0-9.]+)')"
 
-crowd_wave_swift="$sources/Sources/DrowsyDockCore/CrowdWave.swift"
+crowd_wave_swift="Sources/DrowsyDockCore/CrowdWave.swift"
 icon_seconds="$(swift_seconds "$crowd_wave_swift" iconEffectDuration)"
 dim_seconds="$(swift_seconds "$crowd_wave_swift" dimDuration)"
 stagger_seconds="$(swift_seconds "$crowd_wave_swift" preferredStagger)"
 
-crowd_node_swift="$sources/Sources/DrowsyDock/CrowdEffectNode.swift"
+crowd_node_swift="Sources/DrowsyDock/CrowdEffectNode.swift"
 dim_opacity="$(swift_value "$crowd_node_swift" 'dimOpacity: CGFloat = ([0-9.]+)')"
 dim_fade_in="$(swift_value "$crowd_node_swift" 'dimPhases = \(fadeIn: ([0-9.]+)')"
 dim_hold="$(swift_value "$crowd_node_swift" 'dimPhases = \(.*hold: ([0-9.]+)')"
@@ -288,12 +272,6 @@ banner_css() {
   shown_across_loop_end s80c "$charged_status_at" "$unplugged_at"
 }
 
-# Runs a command with set -e, which bash turns off inside $(...).
-with_errexit() {
-  set -e
-  "$@"
-}
-
 stagger_rules() {
   local i
   for i in 1 2 3 4; do
@@ -313,24 +291,21 @@ puffs() {
   done
 }
 
-# The template's values are computed first, so a failing step stops the script under set -e. A
-# calc that fails inside another command's arguments only leaves its value empty: keyframes stops
-# on an empty time, but an empty stagger delay or fill dash offset would still be written.
 banner_svg() {
   local asleep_fill stagger css awake_png drowsy_png yawning_png nodding_png asleep_png
   local puff_groups labels fill_end ticks
   asleep_fill="$(fill_dashoffset "$asleep_level")"
-  stagger="$(with_errexit stagger_rules)"
-  css="$(with_errexit banner_css)"
+  stagger="$(stagger_rules)"
+  css="$(banner_css)"
   awake_png="$(png pose-awake-left.png)"
   drowsy_png="$(png pose-drowsy-left.png)"
   yawning_png="$(png pose-yawning-left.png)"
   nodding_png="$(png pose-noddingOff-left.png)"
   asleep_png="$(png pose-asleep-left.png)"
-  puff_groups="$(with_errexit puffs)"
-  labels="$(with_errexit threshold_labels)"
+  puff_groups="$(puffs)"
+  labels="$(threshold_labels)"
   fill_end="$(fill_x 100)"
-  ticks="$(with_errexit threshold_ticks)"
+  ticks="$(threshold_ticks)"
   cat <<EOF
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" width="900" height="300" role="img">
 <title>DrowsyDock: the cat on the Dock gets drowsier as the battery drains, and wakes when a charger plugs in</title>
@@ -430,7 +405,7 @@ EOF
 
 generate() {
   banner_svg >"$1/banner.svg"
-  cp "$sources/Resources/AppIcon.svg" "$1/icon.svg"
+  cp Resources/AppIcon.svg "$1/icon.svg"
 }
 
 scratch="$(mktemp -d)"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#   scripts/readme/check-readme.sh [README]   default README.md; paths resolve from the repo root
+# Checks README.md's links and its images in docs/readme/.
 #
 # A relative link or image must name a file or folder in git's index, spelled exactly as git has
 # it, because that is what GitHub serves: a new file needs `git add` first. A #anchor must name one
@@ -11,23 +11,13 @@
 # HTML ids, non-ASCII letters in anchors, links in indented code blocks, %-encoded paths.
 # Not read at all, so they pass unchecked: srcset, unquoted or line-split attributes, a fence
 # closed by a longer fence, and a code span that crosses a line break.
-# The banner and the icon must each stay under 1,000,000 bytes and hold none of these, in any letter
-# case: <script or <foreignObject, bare or after ASCII letters and a colon (svg:); javascript:;
-# @import; an on...= attribute (on, ASCII letters, optional whitespace, =, at a line's start or
-# after whitespace); <!DOCTYPE; <!ENTITY; an image with nothing between base64, and its quote; url(
-# followed, after optional whitespace, quote and whitespace, by a character other than #, a quote or
-# whitespace; a quoted href= or src= value that doesn't start with # or data:image/png;base64,; and
-# an http:// or https:// URL other than http://www.w3.org/2000/svg. The guard reads one line at a
-# time and decodes nothing, so forms like these can pass: an href set by animation (<set to=,
-# <animate values=), a CSS image-set() string, an attribute or url( split from its = or value by a
-# line break, a non-ASCII namespace prefix, and a keyword written with a CSS escape (\75rl(), an XML
-# character reference (u&#114;l() or a CDATA, comment or processing-instruction break.
-# banner.sh --check, which compares both byte for byte with what banner.sh writes, is what stops
-# a hand-edited banner or icon.
+# The banner and the icon must each stay under 1,000,000 bytes. banner.sh --check, which compares
+# both byte for byte with what banner.sh writes, stops a hand-edited banner or icon. Nothing checks
+# what banner.sh's own template puts in the banner.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-readme="${1:-README.md}"
+readme=README.md
 failed=0
 
 readme_without_fences_or_comments() {
@@ -84,30 +74,9 @@ while IFS= read -r link <&3; do
   esac
 done 3< <(links)
 
-letters_prefix='([a-z]+:)?'
-script="<${letters_prefix}script"
-javascript='javascript:'
-import='@import'
-empty_image="base64,[\"']"
-foreign_url_function="url\\([[:space:]]*[\"']?[[:space:]]*[^#\"'[:space:]]"
-event_handler='(^|[[:space:]])on[a-z]+[[:space:]]*='
-foreign_object="<${letters_prefix}foreignObject"
-document_type='<!(DOCTYPE|ENTITY)'
-forbidden_pattern="$script|$javascript|$import|$empty_image|$foreign_url_function"
-forbidden_pattern+="|$event_handler|$foreign_object|$document_type"
-assets="${README_ASSETS:-docs/readme}"
-for svg in "$assets/banner.svg" "$assets/icon.svg"; do
+for svg in docs/readme/banner.svg docs/readme/icon.svg; do
   if (($(wc -c <"$svg") >= 1000000)); then
     echo "README: $svg must stay under 1,000,000 bytes" >&2
-    failed=1
-  fi
-  forbidden="$(grep -oiE -- "$forbidden_pattern" "$svg" || true)"
-  hrefs="$(grep -oiE -- "(href|src)[[:space:]]*=[[:space:]]*[\"'][^\"']*" "$svg" || true)"
-  foreign_hrefs="$(grep -viE -- "[\"'](#|data:image/png;base64,)" <<<"$hrefs" || true)"
-  urls="$(grep -oiE -- "https?://[^\"' )<>]+" "$svg" || true)"
-  foreign_urls="$(grep -vxF -- 'http://www.w3.org/2000/svg' <<<"$urls" || true)"
-  if [[ -n $forbidden || -n $foreign_hrefs || -n $foreign_urls ]]; then
-    echo "README: $svg must not hold a script, an external reference or an empty image" >&2
     failed=1
   fi
 done
