@@ -36,7 +36,7 @@ Read the relevant ADR before changing the area it covers. To change a decision, 
 | ADR | Topic |
 |---|---|
 | 0001 | Build setup |
-| 0002 | Target split |
+| 0002, 0027 | Target split; every target under `Sources/`, no `path:` |
 | 0003 | Drowsiness tracker phases |
 | 0004 | Dock tracker phases and triggers |
 | 0005, 0007 | Signing, hardened runtime, no entitlements |
@@ -47,14 +47,14 @@ Read the relevant ADR before changing the area it covers. To change a decision, 
 | 0012, 0014 | Where animation timing lives |
 | 0013 | Veil and perch vs. the Dock's background |
 | 0016 | How the app is tested (snapshots) |
-| 0018, 0020 | Live QA: driving the app and Dock, reading the QA log |
-| 0019 | How test helpers reach a module's seams |
-| 0021 | CI: runner, Xcode pin, snapshot skip |
-| 0022 | README banner generation |
+| 0018, 0020, 0030 | Live QA: driving the app and Dock, reading the QA log, the Dock restore |
+| 0019, 0027 | How test helpers reach a module's seams |
+| 0021, 0027 | CI: runner, Xcode pin, snapshot skip, gitleaks install |
+| 0022, 0029 | README banner generation, pinned by `banner.sh --check` |
 | 0023 | README header icon, copied from `AppIcon.svg` |
 | 0024 | Bundle ID and log subsystem: `app.drowsydock`, typed out, pinned to the plist |
 | 0025 | Coverage to Codecov: gated files, informational, `CODECOV_TOKEN` |
-| 0026 | Release signing and notarization: `release.sh`, its dry run in `check.sh`, `build/release/` |
+| 0026, 0028 | Release signing and notarization: `release.sh`, its guarded dry run in `check.sh`, `build/release/` |
 
 ## Commands
 
@@ -80,7 +80,7 @@ Restore: scripts/qa-live.sh --restore      # puts back Dock preferences after a 
 ## Checks
 
 - **`scripts/check.sh fast`**: run it after every edit. It covers compile, format, the CONSTRAINTS floor rules, import rules, the QA row mapping, the live QA script's own checks, the release script's syntax, the README links and banner, and the secret scan. The header of each script says exactly what it checks and what it can't catch.
-- **`scripts/check.sh task`**: run it before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate (against `$CHECK_BASE`, default `main`), the signed bundle, and `scripts/release.sh --dry-run` with the app in its zip checked.
+- **`scripts/check.sh task`**: run it before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate (against `$CHECK_BASE`, default `main`), the signed bundle, and `scripts/release.sh --dry-run` with `security`, `spctl`, `notarytool` and `stapler` refused and the app in its zip checked.
 - **CI** (`.github/workflows/ci.yml`) runs `check.sh task` on pushes and PRs to `main`, with snapshots skipped.
   - The `xcode-27` runner label is a preview. If GitHub retires it, the job sits in the queue forever instead of failing. Bump `XCODE_VERSION` when Xcode changes, and `runs-on` when the label or image changes.
   - gitleaks scans every branch on `origin`, so a secret on any branch fails every run.
