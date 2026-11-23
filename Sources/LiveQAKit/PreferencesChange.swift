@@ -15,12 +15,9 @@ public enum PreferencesChange {
     }
   }
 
-  /// Reads a property list file or pipe whose root is a dictionary, or returns `nil`.
+  /// Reads a property list file whose root is a dictionary, or returns `nil`.
   public static func dictionary(at url: URL) -> [String: Any]? {
-    // `Data(contentsOf:)` can't read a pipe, such as the /dev/fd path that `<(…)` passes.
-    guard let file = try? FileHandle(forReadingFrom: url) else { return nil }
-    defer { try? file.close() }
-    guard let data = try? file.readToEnd() else { return nil }
+    guard let data = try? Data(contentsOf: url) else { return nil }
     return (try? PropertyListSerialization.propertyList(from: data, format: nil)) as? [String: Any]
   }
 }
