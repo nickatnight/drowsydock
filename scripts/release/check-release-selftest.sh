@@ -91,12 +91,19 @@ run_in_repo() {
   local script="$1" vars=() path
   local with_ditto=true with_spctl=true
   shift
-  while (($#)) && [[ $1 != -- ]]; do
-    case "$1" in
-      NO_DITTO=1) with_ditto=false ;;
-      NO_SPCTL=1) with_spctl=false ;;
-      *) vars+=("$1") ;;
+  while [[ ${1:-} == --without ]]; do
+    case "${2:-}" in
+      ditto) with_ditto=false ;;
+      spctl) with_spctl=false ;;
+      *)
+        echo "check-release-selftest: run_in_repo can't leave out '${2:-}'" >&2
+        exit 2
+        ;;
     esac
+    shift 2
+  done
+  while (($#)) && [[ $1 != -- ]]; do
+    vars+=("$1")
     shift
   done
   if (($#)); then shift; fi
@@ -236,11 +243,11 @@ run_release "${release_env[@]}" STUB_MISSING=stapler
 expect_preflight_failure "a run without stapler" stapler
 
 new_repo
-run_release "${release_env[@]}" NO_DITTO=1
+run_release --without ditto "${release_env[@]}"
 expect_preflight_failure "a run without ditto" ditto
 
 new_repo
-run_release "${release_env[@]}" NO_SPCTL=1
+run_release --without spctl "${release_env[@]}"
 expect_preflight_failure "a run without spctl" spctl
 
 new_repo
@@ -252,8 +259,8 @@ expect_preflight_failure "a run with a version that isn't numbers" CFBundleShort
 new_repo
 echo "# changed" >>"$repo/.gitignore"
 scratch_git -C "$repo" tag -d v1.2.3 >/dev/null
-run_release "DEVELOPER_ID=not an identity" STUB_MISSING="notarytool stapler" NO_SPCTL=1 -- \
-  --dry-run
+run_release --without spctl "DEVELOPER_ID=not an identity" STUB_MISSING="notarytool stapler" \
+  -- --dry-run
 if ((status != 0)) || ! has_output .gitignore || ! has_output "v1.2.3"; then
   fail "$(report "a dry run with a dirty tree, no tag, no Apple tools and a junk DEVELOPER_ID \
 doesn't pass with a warning for the tree and the tag")"
@@ -263,7 +270,7 @@ if called '^security '; then
 fi
 
 new_repo
-run_release NO_DITTO=1 -- --dry-run
+run_release --without ditto -- --dry-run
 expect_preflight_failure "a dry run without ditto" ditto
 
 new_repo
