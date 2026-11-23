@@ -32,6 +32,7 @@ dock_backup="$qa_dir/dock-backup.plist"
 run_pid_file="$SCRATCH/run.pid"
 owns_backup=false
 keep_captures=false
+assume_yes=false
 require_live_settings
 calls="$SCRATCH/calls.log"
 
@@ -161,7 +162,7 @@ case_run_log() {
   echo "run log after the start-over: $(cut -d' ' -f4- "$run_log")"
 }
 
-case_overlay_in_time() {
+case_shown_in_time_within_half_a_point() {
   start_run
   mark_log
   append "$overlay_shown"
@@ -179,7 +180,7 @@ case_old_perch_on_time_dock_perch_late() {
   expect_overlay_within shown 1 7.1 position "the cat moves"
 }
 
-case_overlay_elsewhere() {
+case_shown_just_past_half_a_point() {
   start_run
   mark_log
   append "$overlay_shown"
@@ -356,13 +357,13 @@ run_case run_log
 expect "run log: DrowsyDock[4242] DrowsyDock[999] "
 expect "run log after the start-over: qa-log: qa.log reached its limit of 1048576 bytes and started over"
 
-run_case overlay_in_time
+run_case shown_in_time_within_half_a_point
 expect "PASS QA 7.1 (position): 0.4 pt off: 0.12 s after the change returned (0.30 s after it started; budget 1 s)"
 
 run_case old_perch_on_time_dock_perch_late
 expect "FAIL QA 7.1 (position): the cat moves: 1.42 s after the change returned (1.60 s after it started; budget 1 s)"
 
-run_case overlay_elsewhere
+run_case shown_just_past_half_a_point
 expect "FAIL QA 7.1 (position): 0.6 pt off: no 'Overlay: shown' line at the Dock's perch"
 
 run_case overlay_undone

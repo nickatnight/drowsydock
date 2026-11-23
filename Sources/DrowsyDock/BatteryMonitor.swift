@@ -13,6 +13,7 @@ protocol PowerSource {
   ) throws -> PowerSourceSubscription
 }
 
+/// Power changes reach `onChange` until the subscription is released.
 typealias PowerSourceSubscription = AnyObject
 
 @MainActor

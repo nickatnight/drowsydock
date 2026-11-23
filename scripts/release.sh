@@ -51,7 +51,6 @@ warn() {
   echo "release.sh: warning: $*" >&2
 }
 
-
 identity_prefix="Developer ID Application:"
 version_pattern='^[0-9]+(\.[0-9]+){0,2}$'
 notary_timeout=2h

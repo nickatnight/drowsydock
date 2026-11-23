@@ -49,7 +49,7 @@ Read the relevant ADR before changing the area it covers. To change a decision, 
 | 0016 | How the app is tested (snapshots) |
 | 0018, 0020, 0030 | Live QA: driving the app and Dock, reading the QA log, the Dock restore |
 | 0019, 0027 | How test helpers reach a module's seams |
-| 0021, 0027 | CI: runner, Xcode pin, snapshot skip, gitleaks install |
+| 0021, 0031 | CI: runner, Xcode pin, snapshot skip, gitleaks installed inline |
 | 0022, 0029 | README banner generation, pinned by `banner.sh --check` |
 | 0023 | README header icon, copied from `AppIcon.svg` |
 | 0024 | Bundle ID and log subsystem: `app.drowsydock`, typed out, pinned to the plist |
