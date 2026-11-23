@@ -14,9 +14,9 @@ DrowsyDock is published by Emgee Labs LLC, so the LLC enrolls as an **organizati
 - **Legal authority.** The person who enrolls must be able to bind the LLC to Apple's agreements, for example as its owner. Apple may phone to confirm this. That person becomes the Account Holder.
 - Enroll at https://developer.apple.com/programs/enroll/, signed in with the Apple ID that will be the Account Holder, and choose the organization option.
 
-### Why not ship under an individual account in the meantime
+### One signing team
 
-macOS ties a user's Accessibility grant to the app's code signature, and a Developer ID signature names the team's ID. A release signed by an individual account carries that account's Team ID. When releases later move to the LLC's team, the Team ID changes, macOS treats the new build as a different app, and every user has to grant Accessibility again. So no release goes out before the LLC's enrollment, and every release is signed by the LLC's team.
+Releases are signed only with Emgee Labs LLC's Developer ID, and no release goes out before the LLC's enrollment. macOS ties a user's Accessibility grant to the app's code signature, which names the signing team's ID, so every release must come from the same team for users to keep their grant.
 
 ## 2. Create the Developer ID Application certificate
 
