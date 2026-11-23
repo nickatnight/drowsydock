@@ -10,7 +10,8 @@
 # Each stub appends its call to calls.log and refuses any call it doesn't know.
 #
 # Cases: the arguments; every preflight failure of a real run, and a dry run's warnings instead;
-# bundle.sh's SIGN_TIMESTAMP; the dry run's ad-hoc build, signature checks and zip; a real run's
+# bundle.sh's SIGN_TIMESTAMP and BUNDLE_DIR, and a dry run leaving a dev-signed build/DrowsyDock.app
+# alone; the dry run's ad-hoc build, signature checks and zip; a real run's
 # Developer ID checks, a rejected or failed submission (the log is printed and dist/ keeps no zip),
 # the staple, the Gatekeeper check, and the step order sign, verify, submit, staple, validate,
 # assess, then the zip of the stapled app.
@@ -186,12 +187,25 @@ expect_preflight_failure() {
 
 new_repo
 run_release -- --help
-((status == 0)) && has_output "--dry-run" || fail "$(report "--help doesn't print the usage")"
+((status == 0)) && has_output "scripts/release.sh --dry-run" &&
+  has_output "scripts/release.sh --help" || fail "$(report "--help doesn't print the usage")"
 
 new_repo
 run_release -- --sign-later
 ((status == 2)) && has_output "--dry-run" ||
   fail "$(report "an unknown argument isn't a usage error with exit 2")"
+
+new_repo
+status=0
+output="$(cd "$repo/scripts" && env -i PATH="$scratch/stubs:$system" ./release.sh --help 2>&1)" ||
+  status=$?
+((status == 0)) && has_output "scripts/release.sh --help" ||
+  fail "$(report "--help from scripts/ doesn't print the usage")"
+status=0
+output="$(cd "$repo/scripts" && env -i PATH="$scratch/stubs:$system" ./release.sh --later 2>&1)" ||
+  status=$?
+((status == 2)) && has_output "--dry-run" ||
+  fail "$(report "an unknown argument from scripts/ isn't a usage error with exit 2")"
 
 new_repo
 run_release NOTARY_PROFILE=drowsydock-notary
@@ -213,6 +227,11 @@ expect_preflight_failure "a run with an Apple Development identity" "Developer I
 new_repo
 run_release "${release_env[@]}" "STUB_IDENTITY=Developer ID Application: Someone Else (OTHERID)"
 expect_preflight_failure "a run whose identity isn't in the keychain" "$identity" find-identity
+
+new_repo
+run_release "${release_env[@]}" STUB_SECURITY_STATUS=51
+expect_preflight_failure "a run whose keychain query fails" \
+  "find-identity -v -p codesigning failed" "The specified keychain could not be found."
 
 new_repo
 echo "# changed" >>"$repo/.gitignore"
@@ -292,11 +311,34 @@ if ((status == 0)) || ! has_output SIGN_TIMESTAMP || called '^(swift|codesign) '
 fi
 
 new_repo
+run_bundle BUNDLE_DIR=build/elsewhere
+if ((status != 0)) || ! called ' build/elsewhere/DrowsyDock.app$' ||
+  [[ -e $repo/build/DrowsyDock.app ]]; then
+  fail "$(report "bundle.sh with BUNDLE_DIR=build/elsewhere doesn't build only there")"
+fi
+
+for bundle_dir in "$scratch/outside" ../outside build/../outside dist build/; do
+  new_repo
+  run_bundle BUNDLE_DIR="$bundle_dir"
+  if ((status == 0)) || ! has_output BUNDLE_DIR || called '^(swift|codesign) '; then
+    fail "$(report "bundle.sh with BUNDLE_DIR=$bundle_dir isn't refused before it builds")"
+  fi
+done
+
+new_repo
+run_bundle "SIGN_IDENTITY=DrowsyDock Dev"
+run_release -- --dry-run
+grep -qx 'identity=DrowsyDock Dev' \
+  "$repo/build/DrowsyDock.app/Contents/_CodeSignature/stub-signature" ||
+  fail "$(report "a dry run re-signs the developer's build/DrowsyDock.app")"
+
+new_repo
 leave_stale "$dry_run_zip"
 run_release "DEVELOPER_ID=$identity" "SIGN_IDENTITY=Developer ID Application: Dev (TEAMID)" \
   SIGN_TIMESTAMP=1 -- --dry-run
 expect_artifact "a dry run" "$dry_run_zip"
-called '^codesign --force --options runtime --timestamp=none --sign - build/DrowsyDock.app$' ||
+called \
+  '^codesign --force --options runtime --timestamp=none --sign - build/release/DrowsyDock.app$' ||
   fail "$(report "a dry run doesn't sign ad hoc without a timestamp")"
 if called '^(security|spctl) |^xcrun (notarytool|stapler)'; then
   fail "$(report "a dry run reaches the keychain, notarytool, stapler or spctl")"
@@ -356,7 +398,8 @@ expect_artifact "a release" "$release_zip"
 order="$(step_order)"
 [[ $order == "sign verify submit staple validate assess" ]] ||
   fail "$(report "a release runs its steps in the order: $order")"
-grep -qxF "codesign --force --options runtime --timestamp --sign $identity build/DrowsyDock.app" \
+grep -qxF \
+  "codesign --force --options runtime --timestamp --sign $identity build/release/DrowsyDock.app" \
   "$calls" || fail "$(report "a release doesn't sign with the Developer ID and a timestamp")"
 called '^submitted: a zip of DrowsyDock.app$' ||
   fail "$(report "a release submits something other than a zip of DrowsyDock.app")"
@@ -401,6 +444,16 @@ new_repo
 run_release "${release_env[@]}" STUB_NOTARY_STATUS=none
 expect_stopped_before_call "a submission that fails without a result" \
   '^xcrun (stapler|notarytool log)' "Unable to authenticate"
+
+new_repo
+run_release "${release_env[@]}" "STUB_NOTARY_STATUS=In Progress"
+expect_stopped_before_call "a submission still in progress at the timeout" \
+  '^xcrun (stapler|notarytool log)' "notarytool info $submission"
+
+new_repo
+run_release "${release_env[@]}" STUB_NOTARY_STATUS=Invalid "STUB_SUBMISSION_ID=../not-an-id"
+expect_stopped_before_call "a rejection whose id isn't one" '^xcrun (stapler|notarytool log)' \
+  "submission id"
 
 new_repo
 run_release "${release_env[@]}" STUB_STAPLE_STATUS=1

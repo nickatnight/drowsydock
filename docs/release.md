@@ -40,6 +40,8 @@ security find-identity -v -p codesigning
 
 One line should read `"Developer ID Application: Emgee Labs LLC (TEAMID)"`, where `TEAMID` is your team's 10-character ID. That whole quoted name is your `DEVELOPER_ID`. It is not a secret, but keep it out of the repository anyway: the repository writes only the `TEAMID` placeholder.
 
+When you renew the certificate, the old and the new one can both be valid for a while, with the same name. The script's check still passes, but `codesign` then stops with "ambiguous" because two identities match `DEVELOPER_ID`. Export a backup of the old certificate, then delete it from your keychain, so only the new one matches.
+
 ## 3. Save the notary credentials in your keychain
 
 `notarytool` reads its credentials from a keychain profile, and `scripts/release.sh` only knows the profile's name. Create the profile once, by hand, in your own terminal. Never put the password or the key in a script, a file in this repository, or CI.
@@ -103,13 +105,13 @@ Before you announce the release, do manual QA row 18.1 in [manual-qa.md](manual-
 | Step | It stops when |
 |---|---|
 | Preflight | `DEVELOPER_ID` or `NOTARY_PROFILE` is unset; `DEVELOPER_ID` doesn't start with `Developer ID Application:` or isn't in `security find-identity -v -p codesigning`; `notarytool`, `stapler`, `ditto` or `spctl` is missing; the tree has uncommitted or untracked files; `v<version>` isn't at `HEAD`. It checks all of these before building. |
-| Build | `scripts/bundle.sh` fails. It signs with `DEVELOPER_ID`, the hardened runtime, no entitlements, and Apple's secure timestamp (`SIGN_TIMESTAMP=1`). |
+| Build | `scripts/bundle.sh` fails. It builds into `build/release/DrowsyDock.app` (`BUNDLE_DIR=build/release`), so the `build/DrowsyDock.app` you run day to day keeps its own signature. It signs with `DEVELOPER_ID`, the hardened runtime, no entitlements, and Apple's secure timestamp (`SIGN_TIMESTAMP=1`). |
 | Verify | `codesign --verify --strict --deep` fails; the hardened runtime is missing; there are entitlements; the binary lacks `arm64` or `x86_64`; the first authority isn't `Developer ID Application`; `TeamIdentifier` isn't set; there is no `Timestamp=`. |
-| Notarize | `notarytool submit --wait` answers anything but `Accepted`. The script then prints the notary log. |
+| Notarize | `notarytool submit --wait --timeout 2h` answers anything but `Accepted`. The script then prints the notary log. If Apple hasn't finished after 2 hours, it stops and prints the `notarytool info` command for the submission instead. |
 | Staple and assess | `stapler staple` or `stapler validate` fails, or `spctl --assess --type execute -v` doesn't report `source=Notarized Developer ID`. |
 | Package | Nothing left to check. It writes `dist/DrowsyDock-<version>.zip` and `dist/DrowsyDock-<version>.zip.sha256`. |
 
-A run first deletes `dist/DrowsyDock-<version>.zip` and its `.sha256`, so after a failed run `dist/` has no zip for that version. Running the script again starts over.
+A run that gets past preflight first deletes `dist/DrowsyDock-<version>.zip` and its `.sha256`, so after a failed build, check, notarization or staple, `dist/` has no zip for that version. A run that fails preflight leaves `dist/` as it was. Running the script again starts over.
 
 ## 5. When Apple rejects a build
 
@@ -127,7 +129,7 @@ The log is JSON. Read its `issues` list: each issue has a `severity`, the `path`
 | The executable does not have the hardened runtime enabled. | `--options runtime` is missing from `bundle.sh`'s `codesign` line. |
 | The binary is not signed with a valid Developer ID certificate. | The certificate expired, was revoked, or isn't a Developer ID Application certificate. |
 
-To see earlier submissions and their IDs: `xcrun notarytool history --keychain-profile drowsydock-notary`.
+To see earlier submissions and their IDs: `xcrun notarytool history --keychain-profile drowsydock-notary`. If the script stopped because Apple hadn't finished after 2 hours, check that submission with `xcrun notarytool info SUBMISSION_ID --keychain-profile drowsydock-notary`, and run the script again once it shows `Accepted` or a rejection. A new run submits again.
 
 Fix the cause, commit, and move the tag to the new commit before you run the script again: `git tag -d v0.2.0`, then `git tag -a v0.2.0 -m "DrowsyDock 0.2.0"`. This is safe as long as you haven't pushed the tag.
 

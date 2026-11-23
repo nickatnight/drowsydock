@@ -2,8 +2,9 @@
 # xcrun stub for check-release-selftest.sh, so no run reaches the real notarytool or stapler.
 #   --find TOOL            succeeds unless $STUB_MISSING names TOOL
 #   notarytool submit      logs whether the zip holds DrowsyDock.app, then answers JSON with
-#                          status $STUB_NOTARY_STATUS (default Accepted) and exits
-#                          $STUB_SUBMIT_EXIT; STUB_NOTARY_STATUS=none fails with no JSON
+#                          status $STUB_NOTARY_STATUS (default Accepted) and id
+#                          $STUB_SUBMISSION_ID, and exits $STUB_SUBMIT_EXIT;
+#                          STUB_NOTARY_STATUS=none fails with no JSON
 #   notarytool log ID      prints a fixed issue
 #   stapler staple APP     writes a ticket file into APP, or exits $STUB_STAPLE_STATUS
 #   stapler validate APP   exits $STUB_VALIDATE_STATUS
@@ -26,8 +27,8 @@ case "$1 ${2:-}" in
     echo "/stub/$2"
     ;;
   "notarytool submit")
-    [[ $# == 8 && $4 == --keychain-profile && -n $5 && $6 == --wait && $7 == --output-format &&
-      $8 == json ]] || refuse
+    [[ $# == 10 && $4 == --keychain-profile && -n $5 && $6 == --wait && $7 == --timeout &&
+      -n $8 && $9 == --output-format && ${10} == json ]] || refuse
     if zipinfo -1 "$3" 2>/dev/null | grep -qx 'DrowsyDock.app/Contents/MacOS/DrowsyDock'; then
       echo "submitted: a zip of DrowsyDock.app" >>"$STUB_LOG"
     fi
@@ -37,7 +38,7 @@ case "$1 ${2:-}" in
     fi
     echo "Waiting for processing to complete." >&2
     printf '{"id":"%s","message":"Processing complete","status":"%s"}\n' \
-      "$submission" "${STUB_NOTARY_STATUS:-Accepted}"
+      "${STUB_SUBMISSION_ID:-$submission}" "${STUB_NOTARY_STATUS:-Accepted}"
     exit "${STUB_SUBMIT_EXIT:-0}"
     ;;
   "notarytool log")

@@ -11,16 +11,18 @@
 # setup and the whole release sequence. Agents run only --dry-run.
 #
 # A release needs a clean tree and the tag v<CFBundleShortVersionString> at HEAD. A dry run warns
-# about both instead, and needs no variables, network or keychain.
+# about both instead, and needs no variables, network or keychain. Both build into build/release/,
+# so the build/DrowsyDock.app you run keeps its own signature.
 #
 # It can't tell in advance whether Apple accepts the upload, or whether Gatekeeper on another Mac
 # opens the downloaded zip; the owner checks the first real release by hand (docs/manual-qa.md).
 # scripts/release/check-release-selftest.sh runs it against stub tools.
 set -euo pipefail
+usage_text="$(sed -n '4,6p' "$0" | sed 's/^# \{0,1\}//')"
 cd "$(dirname "$0")/.."
 
 usage() {
-  sed -n '3,5p' "$0" | sed 's/^# \{0,1\}//'
+  echo "$usage_text"
 }
 
 dry_run=false
@@ -52,6 +54,7 @@ step() { printf '\n==> %s\n' "$*"; }
 
 identity_prefix="Developer ID Application:"
 version_pattern='^[0-9]+(\.[0-9]+){0,2}$'
+notary_timeout=2h
 
 step "Preflight"
 if $dry_run; then
@@ -118,7 +121,8 @@ if [[ $tag_commit != "$head_commit" ]]; then
 fi
 echo "Preflight passed for version $version."
 
-app="build/DrowsyDock.app"
+bundle_dir="build/release"
+app="$bundle_dir/DrowsyDock.app"
 if $dry_run; then
   artifact="dist/DrowsyDock-$version-dryrun.zip"
 else
@@ -133,12 +137,14 @@ discard_previous_artifacts() {
 discard_previous_artifacts
 work="$(mktemp -d)"
 trap 'rm -rf "$work"; rm -f "$artifact.partial" "$checksum.partial"' EXIT
+trap 'exit 129' HUP
+trap 'exit 143' TERM
 
 step "Build"
 if $dry_run; then
-  SIGN_IDENTITY=- SIGN_TIMESTAMP=0 scripts/bundle.sh
+  BUNDLE_DIR="$bundle_dir" SIGN_IDENTITY=- SIGN_TIMESTAMP=0 scripts/bundle.sh
 else
-  SIGN_IDENTITY="$DEVELOPER_ID" SIGN_TIMESTAMP=1 scripts/bundle.sh
+  BUNDLE_DIR="$bundle_dir" SIGN_IDENTITY="$DEVELOPER_ID" SIGN_TIMESTAMP=1 scripts/bundle.sh
 fi
 
 step "Verify the signature"
@@ -185,16 +191,22 @@ step "Notarize"
 if $dry_run; then
   echo "skipped (dry run): xcrun notarytool submit"
 else
-  ditto -c -k --keepParent "$app" "$work/DrowsyDock.zip"
-  echo "Submitting to Apple's notary service and waiting for its answer, which can take minutes."
+  ditto -c -k --keepParent "$app" "$work/DrowsyDock.zip" || die "ditto can't zip $app."
+  echo "Submitting to Apple's notary service and waiting up to $notary_timeout for its answer."
   submit_status=0
   submission="$(xcrun notarytool submit "$work/DrowsyDock.zip" \
-    --keychain-profile "$NOTARY_PROFILE" --wait --output-format json)" || submit_status=$?
+    --keychain-profile "$NOTARY_PROFILE" --wait --timeout "$notary_timeout" \
+    --output-format json)" || submit_status=$?
   answer="$(grep '^{' <<<"$submission" | tail -n 1 || true)"
   notary_status="$(plutil -extract status raw -o - - <<<"$answer" 2>/dev/null || true)"
   submission_id="$(plutil -extract id raw -o - - <<<"$answer" 2>/dev/null || true)"
   if [[ -z $notary_status ]]; then
     die "notarytool submit exited $submit_status without a status:"$'\n'"$submission"
+  fi
+  if [[ $notary_status == "In Progress" ]]; then
+    die "Apple hadn't finished after $notary_timeout. Check the submission with" \
+      "xcrun notarytool info $submission_id --keychain-profile $NOTARY_PROFILE," \
+      "and run the release again once it is Accepted or rejected."
   fi
   if [[ $notary_status != Accepted ]]; then
     echo "release.sh: notarization ended with status $notary_status. Apple's log:" >&2
@@ -227,7 +239,7 @@ fi
 
 step "Package"
 mkdir -p dist
-ditto -c -k --keepParent "$app" "$artifact.partial"
+ditto -c -k --keepParent "$app" "$artifact.partial" || die "ditto can't zip $app."
 hash="$(shasum -a 256 <"$artifact.partial")"
 printf '%s  %s\n' "${hash%% *}" "${artifact#dist/}" >"$checksum.partial"
 mv -f "$checksum.partial" "$checksum"

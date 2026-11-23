@@ -383,8 +383,8 @@ plutil -lint Resources/Info.plist
 
 step "Release dry run (scripts/release.sh --dry-run, then the app in its zip)"
 scripts/release.sh --dry-run
-version="$(plutil -extract CFBundleShortVersionString raw -o - Resources/Info.plist)"
-release_zip="dist/DrowsyDock-$version-dryrun.zip"
+release_version="$(plutil -extract CFBundleShortVersionString raw -o - Resources/Info.plist)"
+release_zip="dist/DrowsyDock-$release_version-dryrun.zip"
 (cd dist && shasum -a 256 -s -c "${release_zip#dist/}.sha256")
 mkdir "$work/release"
 ditto -x -k "$release_zip" "$work/release"
