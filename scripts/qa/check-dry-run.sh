@@ -6,6 +6,7 @@
 # step that forgot run_or_print), and still reach every scenario and print the restore command.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+source scripts/lib.sh
 
 stubs="$(mktemp -d)"
 trap '/bin/rm -rf "$stubs"' EXIT
@@ -32,9 +33,8 @@ failed=0
 
 # A command named by its full path, such as /usr/bin/defaults, would skip both the PATH stubs and
 # the UNGUARDED functions. Only the read-only PlistBuddy may be named that way.
-if grep -nE '(^|[[:space:];|&(`])/(usr/)?(s)?bin/' scripts/qa-live.sh scripts/qa/live-functions.sh \
-  scripts/qa/dock-preferences.sh |
-  grep -v '^[^:]*:1:#!'; then
+if calls_by_full_path scripts/qa-live.sh scripts/qa/live-functions.sh scripts/qa/dock-preferences.sh
+then
   echo "qa-live.sh names a command by its full path; call it by name so the dry run can stub it" >&2
   failed=1
 fi

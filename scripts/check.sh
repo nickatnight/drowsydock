@@ -7,8 +7,9 @@
 #   scripts/check.sh task   fast + tests, coverage gate, bundle, and the release dry run with the
 #                           app in its zip checked (run before every commit)
 #
-# The release dry run runs with shims that refuse security, spctl, notarytool and stapler. It can't
-# catch a call to them by full path, and nothing runs the real release's Apple steps.
+# The release dry run runs with shims that refuse security, spctl, notarytool and stapler, and
+# `fast` fails if release.sh, bundle.sh or verify-signature.sh names a command by its full path,
+# which would get past them. Nothing runs the real release's Apple steps.
 #
 # The coverage gate compares against the merge base with $CHECK_BASE (default: main). It also
 # writes the gated files' coverage to .build/coverage/lcov.info, which CI uploads to Codecov.
@@ -322,8 +323,22 @@ scripts/qa/check-dry-run.sh
 scripts/qa/check-dock-restore.sh
 scripts/qa/check-app-log.sh
 
-step "Release script (syntax; check.sh task runs its dry run)"
+step "Release script (syntax, no command by full path, bundle.sh's refusals; task runs the dry run)"
 bash -n scripts/release.sh
+if calls_by_full_path scripts/release.sh scripts/bundle.sh scripts/verify-signature.sh scripts/lib.sh
+then
+  echo "Release script: a command named by its full path gets past the dry run's shims" >&2
+  exit 1
+fi
+# Each refusal exits before bundle.sh builds or deletes anything.
+for setting in SIGN_TIMESTAMP=yes BUNDLE_DIR=../outside BUNDLE_DIR=build/../outside; do
+  status=0
+  env "$setting" scripts/bundle.sh >/dev/null 2>&1 || status=$?
+  if ((status != 2)); then
+    echo "Release script: scripts/bundle.sh with $setting exits $status, not 2" >&2
+    exit 1
+  fi
+done
 
 step "Floor rules"
 floor_rules
@@ -369,6 +384,10 @@ coverage_gate
 step "Bundle"
 scripts/bundle.sh
 scripts/verify-signature.sh build/DrowsyDock.app
+# An in-place ad-hoc rebuild keeps the CDHash, so the dry run is checked against the binary's inode
+# and modification time instead.
+dev_binary=build/DrowsyDock.app/Contents/MacOS/DrowsyDock
+dev_binary_stat="$(stat -f '%i %m' "$dev_binary")"
 plutil -lint Resources/Info.plist
 
 step "Release dry run (scripts/release.sh --dry-run with Apple's services and the keychain refused, then the app in its zip)"
@@ -377,6 +396,10 @@ PATH="$work/refuse:$PATH" scripts/release.sh --dry-run
 if [[ -s $work/refused ]]; then
   echo "Release dry run: it called tools that only a real release may call:" >&2
   cat "$work/refused" >&2
+  exit 1
+fi
+if [[ $(stat -f '%i %m' "$dev_binary") != "$dev_binary_stat" ]]; then
+  echo "Release dry run: it rebuilt build/DrowsyDock.app; it must build only in build/release" >&2
   exit 1
 fi
 release_version="$(plutil -extract CFBundleShortVersionString raw -o - Resources/Info.plist)"

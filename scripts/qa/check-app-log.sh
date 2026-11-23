@@ -14,6 +14,7 @@ fi
 
 cat >"$scratch/run-case.sh" <<'RUN'
 set -uo pipefail
+source scripts/qa/dock-preferences.sh
 source scripts/qa/live-functions.sh
 
 root="$PWD"
@@ -194,6 +195,23 @@ case_overlay_undone() {
   expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
 }
 
+# The fade's 0.2 s budget lies between the times since the change started and since it returned.
+case_faded_at_the_budget() {
+  start_run
+  mark_log
+  append "$overlay_faded"
+  time_change_before "$overlay_faded" 0.300 0.200
+  expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
+}
+
+case_faded_late() {
+  start_run
+  mark_log
+  append "$overlay_faded"
+  time_change_before "$overlay_faded" 0.300 0.250
+  expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
+}
+
 case_cleanup() {
   start_run
   append "$started" "$grant"
@@ -202,6 +220,45 @@ case_cleanup() {
   ( (exit 3); cleanup )
   echo "cleanup exit: $?"
   echo "run log: $(cut -d' ' -f4- "$run_log" | tr '\n' '|')"
+}
+
+# The exit trap with the real put_dock_back, on a scratch domain instead of com.apple.dock. The
+# domain starts at orientation=bottom, is backed up, then changed to left.
+change_scratch_dock() {
+  dock_domain="$SCRATCH/dock"
+  dock_restart() { echo "dock restart" >>"$calls"; }
+  write_report() { :; }
+  defaults write "$dock_domain" orientation -string bottom
+  save_dock_backup
+  defaults write "$dock_domain" orientation -string left
+}
+
+dock_after_cleanup() {
+  ( (exit 3); cleanup )
+  echo "cleanup exit: $?"
+  echo "orientation: $(defaults read "$dock_domain" orientation 2>/dev/null)"
+  answer "backup kept" test -e "$dock_backup"
+}
+
+case_restore_on_exit() {
+  change_scratch_dock
+  owns_backup=true
+  dock_after_cleanup
+}
+
+case_failed_restore_on_exit() {
+  change_scratch_dock
+  owns_backup=true
+  defaults() {
+    if [[ $1 == import && $2 == "$dock_domain" ]]; then return 1; fi
+    command defaults "$@"
+  }
+  dock_after_cleanup
+}
+
+case_backup_not_owned() {
+  change_scratch_dock
+  dock_after_cleanup
 }
 
 # Runs the whole app preflight with the tools stubbed; the bundle is an empty executable.
@@ -260,7 +317,7 @@ fail() {
 
 run_case() {
   case_name="$1"
-  rm -rf "$scratch/qa" "$scratch/qa.log" "$scratch/calls.log"
+  rm -rf "$scratch/qa" "$scratch/qa.log" "$scratch/calls.log" "$scratch/dock.plist"
   : >"$scratch/calls.log"
   # A helper built for coverage writes a profile on exit; keep it out of the checkout.
   output="$(env SCRATCH="$scratch" HELPER="$helper" LLVM_PROFILE_FILE="$scratch/%p.profraw" \
@@ -312,6 +369,12 @@ run_case overlay_undone
 shown="$(grep -m 1 'Overlay: shown' Tests/LiveQAKitTests/Fixtures/qa.log)"
 expect "FAIL QA 8.11 (hover): the cat fades: a later line undid it: ${shown#*Overlay: }"
 
+run_case faded_at_the_budget
+expect "PASS QA 8.11 (hover): the cat fades: 0.20 s after the change returned (0.30 s after it started; budget 0.2 s)"
+
+run_case faded_late
+expect "FAIL QA 8.11 (hover): the cat fades: 0.25 s after the change returned (0.30 s after it started; budget 0.2 s)"
+
 run_case expect_line
 expect "PASS QA 3.9 to 3.13 (levels): 80% shows '80% · Discharging · Awake'"
 grep -qxF "menu Debug Simulate battery 80%" "$scratch/calls.log" ||
@@ -342,6 +405,22 @@ expect "cleanup exit: 1"
 expect "FAIL QA - (cleanup): DrowsyDock (pid 4242) didn't quit within 5 s, so it may still write the QA log; quit it"
 [[ $(cat "$scratch/calls.log") == "kill -TERM 4242" ]] ||
   fail "after a stuck quit, cleanup must not open the app again: $(cat "$scratch/calls.log")"
+
+run_case restore_on_exit APP_STOPPED=1
+expect "cleanup exit: 3"
+expect "orientation: bottom"
+expect "backup kept: no"
+grep -qx "dock restart" "$scratch/calls.log" || fail "restore_on_exit didn't relaunch the Dock"
+
+run_case failed_restore_on_exit APP_STOPPED=1
+expect "FAIL QA - (dock): the Dock's preferences couldn't be restored; see the message above"
+expect "cleanup exit: 1"
+expect "backup kept: yes"
+
+run_case backup_not_owned APP_STOPPED=1
+expect "cleanup exit: 3"
+expect "orientation: left"
+expect "backup kept: yes"
 
 run_case preflight_after_a_stuck_quit IGNORES_TERM=1 OPEN_WRITES_GRANT=1
 expect "preflight exit: 1"
