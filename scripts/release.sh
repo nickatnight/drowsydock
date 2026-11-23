@@ -97,7 +97,6 @@ if [[ ! $version =~ $version_pattern ]]; then
 fi
 tag="v$version"
 
-# Untracked files count, because SwiftPM compiles any Swift file under Sources.
 changes="$(git status --porcelain --untracked-files=all)" || die "git status failed."
 if [[ -n $changes ]]; then
   message="the working tree has uncommitted changes:"$'\n'"$changes"
@@ -126,8 +125,6 @@ else
   artifact="dist/DrowsyDock-$version.zip"
 fi
 checksum="$artifact.sha256"
-# This run's names are cleared first, so a failed run never leaves an older zip that looks like
-# its own. The partial files are moved into place only once they are complete.
 rm -f "$artifact" "$checksum" "$artifact.partial" "$checksum.partial"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"; rm -f "$artifact.partial" "$checksum.partial"' EXIT
@@ -188,7 +185,6 @@ else
   submit_status=0
   submission="$(xcrun notarytool submit "$work/DrowsyDock.zip" \
     --keychain-profile "$NOTARY_PROFILE" --wait --output-format json)" || submit_status=$?
-  # The answer is one JSON object; Apple documents its id and status fields.
   answer="$(grep '^{' <<<"$submission" | tail -n 1 || true)"
   notary_status="$(plutil -extract status raw -o - - <<<"$answer" 2>/dev/null || true)"
   submission_id="$(plutil -extract id raw -o - - <<<"$answer" 2>/dev/null || true)"

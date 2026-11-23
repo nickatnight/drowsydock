@@ -28,7 +28,6 @@ fail() {
   failed=1
 }
 
-# A command named by its full path would skip the stubs.
 if grep -nE '(^|[[:space:];|&(`])/(usr/)?(s)?bin/' scripts/release.sh scripts/bundle.sh |
   grep -v '^[^:]*:1:#!'; then
   fail "release.sh or bundle.sh names a command by its full path; call it by name for the stubs"
@@ -80,7 +79,6 @@ calls=""
 output=""
 status=0
 
-# new_repo: a fresh copy of the tagged scratch repository in $repo, for a case to change first.
 new_repo() {
   cases=$((cases + 1))
   repo="$scratch/case-$cases"
@@ -89,9 +87,6 @@ new_repo() {
   : >"$calls"
 }
 
-# run_in_repo SCRIPT [VAR=VALUE...] [-- ARG...]: runs $repo's SCRIPT. NO_DITTO=1 and NO_SPCTL=1
-# leave those tools off PATH; any other VAR=VALUE goes into the run's environment. Sets $status
-# and $output (stdout and stderr together).
 run_in_repo() {
   local script="$1" vars=() path
   local with_ditto=true with_spctl=true
@@ -133,8 +128,6 @@ release_zip=dist/DrowsyDock-1.2.3.zip
 
 zip_holds() { zipinfo -1 "$1" 2>/dev/null | grep -qx -- "$2"; }
 
-# expect_artifact NAME ZIP: the run passed and printed both paths, ZIP holds the app, and its
-# .sha256 file checks out from dist/.
 expect_artifact() {
   local name="$1" zip="$2"
   if ((status != 0)); then
@@ -152,8 +145,6 @@ expect_artifact() {
   fi
 }
 
-# expect_no_artifact NAME ZIP TEXT: the run failed, named TEXT, and left neither ZIP nor its
-# .sha256 in dist/.
 expect_no_artifact() {
   local name="$1" zip="$2" text="$3"
   ((status != 0)) || fail "$(report "$name passes")"
@@ -163,15 +154,12 @@ expect_no_artifact() {
   fi
 }
 
-# leave_stale ZIP: an earlier run's ZIP and .sha256, which a failed run must not leave in place.
 leave_stale() {
   mkdir -p "$repo/dist"
   echo "an earlier run's zip" >"$repo/$1"
   echo "0000  ${1#dist/}" >"$repo/$1.sha256"
 }
 
-# expect_preflight_failure NAME TEXT...: the run failed before building, and its output names
-# every TEXT.
 expect_preflight_failure() {
   local name="$1" text
   shift
@@ -187,8 +175,6 @@ expect_preflight_failure() {
   fi
 }
 
-# MARK: - Arguments
-
 new_repo
 run_release -- --help
 ((status == 0)) && has_output "--dry-run" || fail "$(report "--help doesn't print the usage")"
@@ -197,8 +183,6 @@ new_repo
 run_release -- --sign-later
 ((status == 2)) && has_output "--dry-run" ||
   fail "$(report "an unknown argument isn't a usage error with exit 2")"
-
-# MARK: - Preflight of a real run
 
 new_repo
 run_release NOTARY_PROFILE=drowsydock-notary
@@ -263,8 +247,6 @@ scratch_git -C "$repo" commit -qam "A version that isn't one"
 run_release "${release_env[@]}"
 expect_preflight_failure "a run with a version that isn't numbers" CFBundleShortVersionString
 
-# MARK: - Preflight of a dry run
-
 new_repo
 echo "# changed" >>"$repo/.gitignore"
 scratch_git -C "$repo" tag -d v1.2.3 >/dev/null
@@ -281,8 +263,6 @@ fi
 new_repo
 run_release NO_DITTO=1 -- --dry-run
 expect_preflight_failure "a dry run without ditto" ditto
-
-# MARK: - bundle.sh's timestamp switch
 
 new_repo
 run_bundle SIGN_IDENTITY=-
@@ -301,8 +281,6 @@ run_bundle SIGN_TIMESTAMP=yes
 if ((status == 0)) || ! has_output SIGN_TIMESTAMP || called '^(swift|codesign) '; then
   fail "$(report "bundle.sh with SIGN_TIMESTAMP=yes isn't refused before it builds")"
 fi
-
-# MARK: - Dry run
 
 new_repo
 leave_stale "$dry_run_zip"
@@ -344,9 +322,6 @@ new_repo
 run_release STUB_ARCHS=x86_64 -- --dry-run
 expect_no_artifact "a dry run of an x86_64-only binary" "$dry_run_zip" arm64
 
-# MARK: - Real run
-
-# step_order: the release steps in the order the stubs saw them.
 step_order() {
   awk '
     /^codesign --force / { print "sign" }
@@ -357,8 +332,6 @@ step_order() {
     /^spctl --assess / { print "assess" }' "$calls" | paste -sd ' ' -
 }
 
-# expect_stopped_before NAME STEP TEXT: the run failed, named TEXT, left no release zip, and never
-# reached STEP (a stub call pattern).
 expect_stopped_before() {
   expect_no_artifact "$1" "$release_zip" "$3"
   if called "$2"; then fail "$(report "$1 still reaches $2")"; fi

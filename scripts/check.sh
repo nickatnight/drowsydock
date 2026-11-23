@@ -300,8 +300,6 @@ coverage_gate() {
   fi
 }
 
-# check_signed_app LABEL APP: the signature verifies, has the hardened runtime (ADR 0005) and
-# carries no entitlements (ADR 0007).
 check_signed_app() {
   local label="$1" app="$2" signature entitlements
   codesign --verify --strict "$app"
