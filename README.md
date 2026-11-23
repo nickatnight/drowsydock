@@ -12,7 +12,7 @@
   <p><img src="docs/readme/banner.svg" width="900" alt="Animated illustration: DrowsyDock's apricot cat sits at the right end of a Dock, next to a battery gauge with marks at 10, 20, 30 and 50. The battery drains from 80% to 40%, 25%, 15% and 5%, and the cat goes from awake to drowsy, yawning, nodding off and asleep while the menu's status line follows. As the cat falls asleep, a grey veil covers the Dock and a wave runs along it: each icon dims and puffs a 'z'. Then a charger plugs in, the battery turns green, the cat wakes with a stretch and sparkles, and the battery charges back to 80%."></p>
 </div>
 
-**Status:** The cat, Dock tracking and the overlay work. Settings come next, then signed and notarized releases. Until then you build it yourself, and builds are ad-hoc signed.
+**Status:** The cat, Dock tracking and the overlay work. Settings come next. The release script is ready, and signed, notarized downloads start once Emgee Labs LLC's Developer ID is set up. Until then you build it yourself, and builds are ad-hoc signed.
 
 ## Requirements
 
@@ -85,8 +85,9 @@ DrowsyDock keeps no settings and writes no files in normal use. macOS keeps the 
 | `RECORD_SNAPSHOTS=1 swift test` | Rewrites the snapshot references, then fails on purpose |
 | `swift format lint --strict --recursive Sources scripts/qa/Sources Tests` | The format lint. `swift format --in-place --recursive Sources scripts/qa/Sources Tests` fixes most findings. |
 | `scripts/bundle.sh` | `build/DrowsyDock.app`, universal, signed with `$SIGN_IDENTITY` (default `-`, ad hoc) and the hardened runtime |
-| `scripts/check.sh fast` | Compile, format lint, the live QA script's checks, the floor rules from CONSTRAINTS.md, the QA row mapping, the README's links, banner and icon, and the secret scan. Run it after every edit. |
-| `scripts/check.sh task` | `fast`, then the tests with coverage, the changed-line coverage gate against `$CHECK_BASE` (default `main`) and the signed bundle. Run it before every commit. |
+| `scripts/check.sh fast` | Compile, format lint, the live QA script's checks, the release script's self-test, the floor rules from CONSTRAINTS.md, the QA row mapping, the README's links, banner and icon, and the secret scan. Run it after every edit. |
+| `scripts/check.sh task` | `fast`, then the tests with coverage, the changed-line coverage gate against `$CHECK_BASE` (default `main`), the signed bundle and the release dry run. Run it before every commit. |
+| `scripts/release.sh --dry-run` | Builds `build/release/DrowsyDock.app` ad hoc, checks its signature and writes `dist/DrowsyDock-<version>-dryrun.zip`, which is not for distribution. The real run, which signs with Developer ID and notarizes, is for the owner only ([docs/release.md](docs/release.md)). |
 | `scripts/readme/banner.sh` | Rebuilds `docs/readme/` (this page's banner and icon) from the snapshot references, `Resources/AppIcon.svg` and the values it reads from the app's Swift sources |
 
 To follow the log without an administrator account:
@@ -106,3 +107,6 @@ The snapshot tests compare the cat against PNG references in `Tests/DrowsyDockTe
 - [CONSTRAINTS.md](CONSTRAINTS.md): the quality bar and what each check enforces
 - [CLAUDE.md](CLAUDE.md): the layout, the commands and the engineering conventions
 - [docs/manual-qa.md](docs/manual-qa.md): every QA row, the test or live scenario that covers it, and the manual checklist
+- [docs/release.md](docs/release.md): how a release is signed, notarized and published
+
+<p align="center"><sub>© 2026 <a href="https://emgeelabs.io">Emgee Labs LLC</a>. Free and open source.</sub></p>

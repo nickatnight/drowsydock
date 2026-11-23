@@ -13,9 +13,10 @@ Read [CONSTRAINTS.md](CONSTRAINTS.md) before writing code. Never weaken it to ma
 | `Sources/DrowsyDock/` | The app: SwiftUI menu bar and settings, the IOKit adapter, the SpriteKit scene, wiring. |
 | `Resources/` | `Info.plist` and `AppIcon.svg`, the icon source. |
 | `Tests/` | One XCTest target per library, plus `DrowsyDockTests` for the app (snapshot references in `Snapshots/`) and `LiveQAKitTests`. `DockOverlayKitTestSupport` holds helpers both overlay test targets share. |
-| `scripts/` | `check.sh`, `bundle.sh` and `qa-live.sh`, plus `qa/` (the live QA helper and its checks), `readme/` (the banner generator and README check), `icon/` and `ci/`. None of it goes into the app bundle. |
+| `scripts/` | `check.sh`, `bundle.sh`, `release.sh` and `qa-live.sh`, plus `release/` (the release script's self-test and stub tools), `qa/` (the live QA helper and its checks), `readme/` (the banner generator and README check), `icon/` and `ci/`. None of it goes into the app bundle. |
 | `docs/manual-qa.md` | Every QA row, mapped to the test or live scenario that covers it. |
-| `docs/adr/` | Decision records. They exist only on the owner's machine: git ignores `docs/` except `manual-qa.md`, `qa-rows.txt` and `readme/`. |
+| `docs/release.md` | The owner's release guide: enrollment, the Developer ID certificate, the notary profile, the release steps. |
+| `docs/adr/` | Decision records. They exist only on the owner's machine: git ignores `docs/` except `manual-qa.md`, `qa-rows.txt`, `release.md` and `readme/`. |
 
 ### Things that are easy to miss
 
@@ -51,6 +52,7 @@ Read the relevant ADR before changing the area it covers. To change a decision, 
 | 0023 | README header icon, copied from `AppIcon.svg` |
 | 0024 | Bundle ID and log subsystem: `app.drowsydock`, typed out, pinned to the plist |
 | 0025 | Coverage to Codecov: gated files, informational, `CODECOV_TOKEN` |
+| 0026 | Release signing and notarization: `release.sh`, its dry run in `check.sh`, `build/release/` |
 
 ## Commands
 
@@ -68,13 +70,15 @@ Quit:    pkill -x DrowsyDock
 Logs:    open build/DrowsyDock.app --args --qa-log && tail -F ~/Library/Logs/DrowsyDock/qa.log
 Checks:  scripts/check.sh fast | task
 Live QA: scripts/qa-live.sh --dry-run      # agents: dry run only
+Release: scripts/release.sh --dry-run      # agents: dry run only; → dist/DrowsyDock-<version>-dryrun.zip
+Ship:    DEVELOPER_ID=… NOTARY_PROFILE=… scripts/release.sh   # owner only, see docs/release.md
 Restore: scripts/qa-live.sh --restore      # puts back Dock preferences after a killed run
 ```
 
 ## Checks
 
-- **`scripts/check.sh fast`**: run it after every edit. It covers compile, format, the CONSTRAINTS floor rules, import rules, the QA row mapping, the live QA script's own checks, the README links and banner, and the secret scan. The header of each script says exactly what it checks and what it can't catch.
-- **`scripts/check.sh task`**: run it before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate (against `$CHECK_BASE`, default `main`) and the signed bundle.
+- **`scripts/check.sh fast`**: run it after every edit. It covers compile, format, the CONSTRAINTS floor rules, import rules, the QA row mapping, the live QA script's own checks, the release script's self-test, the README links and banner, and the secret scan. The header of each script says exactly what it checks and what it can't catch.
+- **`scripts/check.sh task`**: run it before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate (against `$CHECK_BASE`, default `main`), the signed bundle, and `scripts/release.sh --dry-run` with the app in its zip checked.
 - **CI** (`.github/workflows/ci.yml`) runs `check.sh task` on pushes and PRs to `main`, with snapshots skipped.
   - The `xcode-27` runner label is a preview. If GitHub retires it, the job sits in the queue forever instead of failing. Bump `XCODE_VERSION` when Xcode changes, and `runs-on` when the label or image changes.
   - gitleaks scans every branch on `origin`, so a secret on any branch fails every run.
@@ -93,7 +97,8 @@ Restore: scripts/qa-live.sh --restore      # puts back Dock preferences after a 
 
 ## Signing and live QA
 
-- `scripts/bundle.sh` signs with `$SIGN_IDENTITY` (default `-`, ad hoc), always with the hardened runtime. Scripts never create certificates or touch the keychain.
+- `scripts/bundle.sh` signs with `$SIGN_IDENTITY` (default `-`, ad hoc), always with the hardened runtime and no entitlements. `SIGN_TIMESTAMP=1` adds Apple's timestamp; `BUNDLE_DIR` (default `build`) picks the output folder. Scripts never create certificates or write to the keychain; `release.sh` only reads it with `security find-identity`.
+- `scripts/release.sh` builds into `build/release/`, signs with Developer ID, notarizes, staples and zips into `dist/` (ADR 0026). **Agents run it only with `--dry-run`**: ad hoc, no keychain, no network. Never call `notarytool`, `stapler` or `spctl`, and write `TEAMID`, never a real Team ID. `docs/release.md` has the owner's steps.
 - `scripts/qa-live.sh` drives the real app and changes the real Dock's settings. **Agents run it only with `--dry-run`**: no Dock changes, synthetic events or menu clicks. Its header explains backup and restore.
 
 ## Git

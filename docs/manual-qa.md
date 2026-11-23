@@ -102,6 +102,14 @@ Start without the grant: `tccutil reset Accessibility app.drowsydock.DrowsyDock`
 | 7.13 | Freeze the Dock with `kill -STOP $(pgrep -x Dock)`, move the pointer onto the Dock area, then move it to the menu bar and open DrowsyDock's menu. Then run `kill -CONT $(pgrep -x Dock)`. | The menu opens after at most about 0.5 s, not 6 s or more. Each read of a frozen Dock waits for one 0.5 s timeout. About 0.5 s after the pointer leaves the Dock area, the log shows `Dock geometry unavailable: accessibility(… code: -25204)` (cannot complete), once, with no `Can't observe the Dock list` line before it. The frame checks that run while the pointer is on the Dock log nothing. After `kill -CONT` the cat is back within 1 s of the next event. |
 | 7.14 | With the grant and the overlay showing, freeze the Dock with `kill -STOP $(pgrep -x Dock)`. Keep the pointer away from the Dock and switch Spaces three times (Ctrl-Left/Right arrow). Then run `kill -CONT $(pgrep -x Dock)` and switch once more. | One `Dock geometry unavailable: accessibility(… code: -25204)` line for the first switch, none for the next two (`RepeatedFailureFilter` in `DockTracker`). After `kill -CONT` the overlay returns, and a later failure would log again. |
 
+### A notarized release
+
+The owner's first real release checks spec success criterion 9, which no agent or CI run can: they run only `scripts/release.sh --dry-run`, and its self-test uses stub tools. `docs/release.md` has the setup and the commands. The row stays open until that first notarized run.
+
+| # | Check | Expected |
+|---|---|---|
+| 18.1 | With the Developer ID certificate and the `drowsydock-notary` profile set up, run `scripts/release.sh` with `DEVELOPER_ID` and `NOTARY_PROFILE` on a clean checkout tagged `v<version>`. Publish with `gh release create`, then download the zip from the release page on a Mac that has never run DrowsyDock, unzip it and open the app. | The run reports `Accepted`, then `source=Notarized Developer ID`, and ends with `dist/DrowsyDock-<version>.zip` and its `.sha256`; `shasum -a 256 -c` passes in `dist/`. On the other Mac, `spctl --assess --type execute -v DrowsyDock.app` reports `accepted` and `source=Notarized Developer ID`, and the app opens after macOS's usual question about an app downloaded from the internet, with no warning about an unidentified developer. If the script misread any of Apple's tools' output, note it here. |
+
 ### The eye
 
 | # | Check | Expected |
@@ -110,7 +118,7 @@ Start without the grant: `tccutil reset Accessibility app.drowsydock.DrowsyDock`
 | 3.17 | With the grant and the cat showing, open the menu, go to Debug ▸ Simulate battery, move up and down through the levels, then pick 5%. Open it again and pick 80%. | The submenus open and the highlight follows the pointer as in other menu-bar menus. The menu closes with its usual fade, and the cat starts its transition (10.4, 10.11) as the menu disappears. A harness that drove this same SwiftUI menu measured AppKit's own work when the menu closes at 34 to 58 ms of main-thread time whether or not the app did anything. DrowsyDock's part was under 10 ms on the first pick and under 1.5 ms after that, and it runs after menu tracking has ended. If the menu stutters anyway, repeat the picks while `sample DrowsyDock 10 1 -file menu.txt` runs and attach `menu.txt`. |
 | E.1 | Choose each Simulate battery level and Charging once, and look at the cat on the Dock for a few seconds each. | Each pose and its ambient behaviour look like the snapshots under `Tests/DrowsyDockTests/Snapshots/`, and nothing looks broken: no clipped ears, no stray shapes, the veil over the Dock. Once, after Charging then 5%, watch the wave: each dark square sits on its icon's artwork with no taller box above or below it (11.1; the snapshot draws its own fixture icons, so only the real Dock shows the fit). |
 
-That is 27 rows. Not runnable yet:
+That is 28 rows. Not runnable yet:
 
 | # | Check | Status |
 |---|---|---|
