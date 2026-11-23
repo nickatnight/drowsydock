@@ -106,3 +106,5 @@ The snapshot tests compare the cat against PNG references in `Tests/DrowsyDockTe
 - [CONSTRAINTS.md](CONSTRAINTS.md): the quality bar and what each check enforces
 - [CLAUDE.md](CLAUDE.md): the layout, the commands and the engineering conventions
 - [docs/manual-qa.md](docs/manual-qa.md): every QA row, the test or live scenario that covers it, and the manual checklist
+
+<p align="center"><sub>© 2026 <a href="https://emgeelabs.io">Emgee Labs LLC</a>. Free and open source.</sub></p>
