@@ -330,10 +330,15 @@ then
   echo "Release script: a command named by its full path gets past the dry run's shims" >&2
   exit 1
 fi
-# Each refusal exits before bundle.sh builds or deletes anything.
+# Each refusal exits 2 before bundle.sh builds or deletes anything. If one regresses, the `swift`
+# shim stops bundle.sh at its first build step with 97, so the check itself builds nothing.
+mkdir "$work/no-swift"
+printf '#!/bin/sh\nexit 97\n' >"$work/no-swift/swift"
+chmod +x "$work/no-swift/swift"
 for setting in SIGN_TIMESTAMP=yes BUNDLE_DIR=../outside BUNDLE_DIR=build/../outside; do
   status=0
-  env "$setting" scripts/bundle.sh >/dev/null 2>&1 || status=$?
+  PATH="$work/no-swift:$PATH" env SIGN_IDENTITY=- SIGN_TIMESTAMP=0 "$setting" scripts/bundle.sh \
+    >/dev/null 2>&1 || status=$?
   if ((status != 2)); then
     echo "Release script: scripts/bundle.sh with $setting exits $status, not 2" >&2
     exit 1

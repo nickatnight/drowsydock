@@ -36,6 +36,17 @@ assume_yes=false
 require_live_settings
 calls="$SCRATCH/calls.log"
 
+# Every case works on a scratch defaults domain. A call that still names com.apple.dock, or tries
+# to relaunch the Dock, is refused and fails the case, whatever the case forgot to set.
+dock_domain="$SCRATCH/dock"
+dock_restart() { echo "dock restart" >>"$calls"; }
+killall() { echo "killall $*" >>"$SCRATCH/refused"; exit 99; }
+defaults() {
+  case " $* " in *" com.apple.dock "*) echo "defaults $*" >>"$SCRATCH/refused"; exit 99 ;; esac
+  if [[ -n ${FAIL_IMPORTS:-} && $1 == import && $2 == "$dock_domain" ]]; then return 1; fi
+  command defaults "$@"
+}
+
 # The fixture's lines by what they hold. 4242 is the app the run launched, 999 another DrowsyDock.
 earlier_runs_grant=1
 started=2
@@ -185,7 +196,7 @@ case_shown_just_past_half_a_point() {
   mark_log
   append "$overlay_shown"
   time_change_before "$overlay_shown" 0.300 0.120
-  DOCK_PERCH=1070.6,84,64,80 expect_overlay_within shown 1 7.1 position "0.6 pt off"
+  DOCK_PERCH=1069.4,84,64,80 expect_overlay_within shown 1 7.1 position "0.6 pt off"
 }
 
 case_overlay_undone() {
@@ -203,6 +214,14 @@ case_faded_at_the_budget() {
   append "$overlay_faded"
   time_change_before "$overlay_faded" 0.300 0.200
   expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
+}
+
+case_hidden_in_time() {
+  start_run
+  mark_log
+  append "$overlay_hidden"
+  time_change_before "$overlay_hidden" 0.300 0.100
+  expect_overlay_within hidden 1 7.4 autohide "the cat hides"
 }
 
 case_faded_late() {
@@ -226,8 +245,6 @@ case_cleanup() {
 # The exit trap with the real put_dock_back, on a scratch domain instead of com.apple.dock. The
 # domain starts at orientation=bottom, is backed up, then changed to left.
 change_scratch_dock() {
-  dock_domain="$SCRATCH/dock"
-  dock_restart() { echo "dock restart" >>"$calls"; }
   write_report() { :; }
   defaults write "$dock_domain" orientation -string bottom
   save_dock_backup
@@ -250,10 +267,6 @@ case_restore_on_exit() {
 case_failed_restore_on_exit() {
   change_scratch_dock
   owns_backup=true
-  defaults() {
-    if [[ $1 == import && $2 == "$dock_domain" ]]; then return 1; fi
-    command defaults "$@"
-  }
   dock_after_cleanup
 }
 
@@ -318,12 +331,16 @@ fail() {
 
 run_case() {
   case_name="$1"
-  rm -rf "$scratch/qa" "$scratch/qa.log" "$scratch/calls.log" "$scratch/dock.plist"
+  rm -rf "$scratch/qa" "$scratch/qa.log" "$scratch/calls.log" "$scratch/dock.plist" \
+    "$scratch/refused"
   : >"$scratch/calls.log"
   # A helper built for coverage writes a profile on exit; keep it out of the checkout.
   output="$(env SCRATCH="$scratch" HELPER="$helper" LLVM_PROFILE_FILE="$scratch/%p.profraw" \
     FIXTURE="$PWD/Tests/LiveQAKitTests/Fixtures/qa.log" CASE="case_$1" "${@:2}" \
     bash "$scratch/run-case.sh" 2>&1)"
+  if [[ -s $scratch/refused ]]; then
+    fail "$case_name reached for the real Dock: $(tr '\n' ';' <"$scratch/refused")"
+  fi
 }
 
 expect() {
@@ -373,6 +390,9 @@ expect "FAIL QA 8.11 (hover): the cat fades: a later line undid it: ${shown#*Ove
 run_case faded_at_the_budget
 expect "PASS QA 8.11 (hover): the cat fades: 0.20 s after the change returned (0.30 s after it started; budget 0.2 s)"
 
+run_case hidden_in_time
+expect "PASS QA 7.4 (autohide): the cat hides: 0.10 s after the change returned (0.30 s after it started; budget 1 s)"
+
 run_case faded_late
 expect "FAIL QA 8.11 (hover): the cat fades: 0.25 s after the change returned (0.30 s after it started; budget 0.2 s)"
 
@@ -413,7 +433,7 @@ expect "orientation: bottom"
 expect "backup kept: no"
 grep -qx "dock restart" "$scratch/calls.log" || fail "restore_on_exit didn't relaunch the Dock"
 
-run_case failed_restore_on_exit APP_STOPPED=1
+run_case failed_restore_on_exit APP_STOPPED=1 FAIL_IMPORTS=1
 expect "FAIL QA - (dock): the Dock's preferences couldn't be restored; see the message above"
 expect "cleanup exit: 1"
 expect "backup kept: yes"
