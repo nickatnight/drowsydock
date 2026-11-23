@@ -1,7 +1,3 @@
-# The functions scripts/qa-live.sh runs: output, the Dock's preferences, the app's log, driving the
-# app, the preflight and the scenarios. Sourcing it defines them and does nothing else; qa-live.sh
-# sets the variables they read first. scripts/qa/check-app-log.sh sources it too.
-
 # MARK: - Output
 
 # shellcheck source=scripts/lib.sh

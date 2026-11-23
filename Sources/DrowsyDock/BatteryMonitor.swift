@@ -8,7 +8,6 @@ protocol PowerSource {
 
   func readBattery() -> BatteryReading?
 
-  /// Calls `onChange` on each power change until the returned object is released.
   func subscribe(onChange: @escaping @MainActor @Sendable () -> Void) throws -> AnyObject
 }
 

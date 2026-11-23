@@ -154,8 +154,6 @@ case_run_log() {
   echo "run log after the start-over: $(cut -d' ' -f4- "$run_log")"
 }
 
-# expect_overlay_within passes, fails late, finds no line at the Dock's perch, or finds a later line
-# that undid the change. One case each.
 case_overlay_in_time() {
   start_run
   mark_log
@@ -164,7 +162,6 @@ case_overlay_in_time() {
   DOCK_PERCH=1070.4,84,64,80 expect_overlay_within shown 1 7.1 position "0.4 pt off"
 }
 
-# The line at the old perch comes in time; the one at the Dock's perch is late.
 case_overlay_late() {
   start_run
   mark_log

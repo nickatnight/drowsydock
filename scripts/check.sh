@@ -350,8 +350,6 @@ scripts/verify-signature.sh build/DrowsyDock.app
 plutil -lint Resources/Info.plist
 
 step "Release dry run (scripts/release.sh --dry-run with Apple's services and the keychain refused, then the app in its zip)"
-# Shims ahead of the real tools refuse security, spctl, notarytool and stapler, and record each
-# call, so a `|| true` in release.sh can't hide one. A call by full path would get past them.
 mkdir "$work/refuse"
 cat >"$work/refuse/security" <<EOF
 #!/bin/sh
