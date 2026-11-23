@@ -15,7 +15,7 @@ Read [CONSTRAINTS.md](CONSTRAINTS.md) before writing code. Never weaken it to ma
 | `Tests/` | One XCTest target per library, plus `DrowsyDockTests` for the app (snapshot references in `Snapshots/`) and `LiveQAKitTests`. `DockOverlayKitTestSupport` holds helpers both overlay test targets share. |
 | `scripts/` | `check.sh`, `bundle.sh`, `release.sh` and `qa-live.sh`, plus `release/` (the release script's self-test and stub tools), `qa/` (the live QA helper and its checks), `readme/` (the banner generator and README check), `icon/` and `ci/`. None of it goes into the app bundle. |
 | `docs/manual-qa.md` | Every QA row, mapped to the test or live scenario that covers it. |
-| `docs/release.md` | The owner's release guide: enrollment, the Developer ID certificate, the notary profile, the release steps. |
+| `docs/release.md` | The owner's release guide: the membership upgrade, the Developer ID certificate, the notary profile, the release steps. |
 | `docs/adr/` | Decision records. They exist only on the owner's machine: git ignores `docs/` except `manual-qa.md`, `qa-rows.txt`, `release.md` and `readme/`. |
 
 ### Things that are easy to miss

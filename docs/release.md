@@ -4,19 +4,20 @@ DrowsyDock ships as a zip of the app, signed with Emgee Labs LLC's Developer ID 
 
 Agents and CI run only `scripts/release.sh --dry-run`. It signs ad hoc, skips every step that needs Apple, and writes `dist/DrowsyDock-<version>-dryrun.zip`, which is not for distribution. `scripts/check.sh task` runs it before every commit.
 
-## 1. Enroll Emgee Labs LLC in the Apple Developer Program
+## 1. Upgrade your membership to an Emgee Labs LLC organization
 
-DrowsyDock is published by Emgee Labs LLC, so the LLC enrolls as an **organization**. Organization enrollment needs the LLC's D-U-N-S number.
+DrowsyDock is published by Emgee Labs LLC. You already have an individual Apple Developer Program membership, so you upgrade it to an **organization** membership for the LLC rather than enrolling the LLC from scratch. The upgrade needs the LLC's D-U-N-S number.
 
-- **The D-U-N-S number.** As of 2026-11-22 the application is with D&B. When D&B issues the number, check that Apple's [D-U-N-S lookup](https://developer.apple.com/enroll/duns-lookup/) finds it before you enroll. Apple gets D&B's records with a delay, so a number D&B has issued can be missing from the lookup for a while. Enroll once the lookup shows it.
-- **The legal entity name** you enter must match the D-U-N-S record exactly: `Emgee Labs LLC`, spelled and punctuated as D&B has it. A trade name or a different spelling stops the enrollment.
+- **The D-U-N-S number.** As of 2026-11-22 the application is with D&B. When D&B issues the number, check that Apple's [D-U-N-S lookup](https://developer.apple.com/enroll/duns-lookup/) finds it before you ask for the upgrade. Apple gets D&B's records with a delay, so a number D&B has issued can be missing from the lookup for a while.
+- **The legal entity name** you give must match the D-U-N-S record exactly: `Emgee Labs LLC`, spelled and punctuated as D&B has it. A trade name or a different spelling stops the upgrade.
 - **A website** on the organization's domain, publicly reachable: https://emgeelabs.io.
-- **Legal authority.** The person who enrolls must be able to bind the LLC to Apple's agreements, for example as its owner. Apple may phone to confirm this. That person becomes the Account Holder.
-- Enroll at https://developer.apple.com/programs/enroll/, signed in with the Apple ID that will be the Account Holder, and choose the organization option.
+- **Legal authority.** You stay the Account Holder, and you must be able to bind the LLC to Apple's agreements, for example as its owner. Apple may phone to confirm this.
+- **Ask for the upgrade** from Membership Details in your account at https://developer.apple.com/account, or through Apple Developer Support. In the support case, ask Apple to confirm in writing that your Team ID stays the same. Apple's forum answers say it does, but the public documentation doesn't promise it.
+- **While the upgrade is pending,** Apple may switch off some membership features, and some upgrades have taken weeks. Plan the first release for after it completes.
 
 ### One signing team
 
-Releases are signed only with Emgee Labs LLC's Developer ID, and no release goes out before the LLC's enrollment. macOS ties a user's Accessibility grant to the app's code signature, which names the signing team's ID, so every release must come from the same team for users to keep their grant.
+The upgrade keeps your Team ID. macOS ties a user's Accessibility grant to the app's code signature, which names the signing team's ID rather than the name on the certificate. Releases are signed only with the Emgee Labs LLC Developer ID certificate you create after the upgrade (section 2), so users see the LLC as the publisher, and every release comes from the same team, so users keep their grant.
 
 ## 2. Create the Developer ID Application certificate
 
@@ -26,7 +27,9 @@ Create a **Developer ID Application** certificate. It is the one for apps distri
 - **Mac App Distribution** is for the Mac App Store only.
 - **Developer ID Installer** signs `.pkg` installers. DrowsyDock ships a zip.
 
-Only the **Account Holder** can create a Developer ID certificate, so the person who enrolled does this:
+Create it after the upgrade completes. A Developer ID certificate you made under the individual membership carries your personal name. The new one should read `Developer ID Application: Emgee Labs LLC (TEAMID)`. The two names differ, so `DEVELOPER_ID` picks the LLC's certificate.
+
+Only the **Account Holder**, you, can create a Developer ID certificate:
 
 1. In Xcode, open Settings ▸ Accounts, add the Account Holder's Apple ID, and select the Emgee Labs LLC team.
 2. Click Manage Certificates, then + ▸ Developer ID Application. Xcode creates the private key in your login keychain and the certificate on Apple's side.
