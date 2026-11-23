@@ -58,7 +58,7 @@ is_gated() {
   local target
   for target in "${gated_targets[@]}"; do
     if [[ $1 == "$target"/* ]]; then
-      ! found grep -Eq "$coverage_exempt_imports" "$1"
+      ! found_or_abort grep -Eq "$coverage_exempt_imports" "$1"
       return
     fi
   done
@@ -77,7 +77,7 @@ coverage_exempt_files_are_in_manual_qa() {
   while IFS= read -r -d '' file; do
     if is_gated "$file"; then continue; fi
     name="$(basename "$file" .swift)"
-    if ! found grep -qF "\`$name\`" docs/manual-qa.md; then
+    if ! found_or_abort grep -qF "\`$name\`" docs/manual-qa.md; then
       echo "Manual QA: $file is exempt from coverage but docs/manual-qa.md never names \`$name\`" >&2
       failed=1
     fi
@@ -89,7 +89,7 @@ scan_swift_files() {
   local file files=()
   while IFS= read -r -d '' file; do files+=("$file"); done < <(swift_files_under Sources Tests)
   if ((${#files[@]} == 0)); then return 1; fi
-  found awk "$1" "${files[@]}"
+  found_or_abort awk "$1" "${files[@]}"
 }
 
 unexplained_suppressions='
@@ -135,11 +135,11 @@ empty_catches='
 
 floor_rules() {
   local failed=0
-  if found grep -rnF 'try!' Sources; then
+  if found_or_abort grep -rnF 'try!' Sources; then
     echo "Floor: try! outside tests" >&2
     failed=1
   fi
-  if found grep -rnE 'fatalError\("(TODO|not implemented)' Sources Tests; then
+  if found_or_abort grep -rnE 'fatalError\("(TODO|not implemented)' Sources Tests; then
     echo "Floor: unimplemented stub" >&2
     failed=1
   fi
@@ -151,16 +151,16 @@ floor_rules() {
     echo "Floor: suppression without an explaining comment" >&2
     failed=1
   fi
-  if found grep -rnE "$unified_log_imports" Sources --exclude=MirroredLogger.swift ||
-    found grep -rnF 'NSLog(' Sources; then
+  if found_or_abort grep -rnE "$unified_log_imports" Sources --exclude=MirroredLogger.swift ||
+    found_or_abort grep -rnF 'NSLog(' Sources; then
     echo "Logging: log through MirroredLogger, so a --qa-log run mirrors every line (ADR 0020)" >&2
     failed=1
   fi
-  if found grep -rnE "$coverage_exempt_imports" Sources/DrowsyDockCore; then
+  if found_or_abort grep -rnE "$coverage_exempt_imports" Sources/DrowsyDockCore; then
     echo "Boundary: DrowsyDockCore must not import system UI or hardware frameworks" >&2
     failed=1
   fi
-  if ! found grep -Eq '^  dependencies: \[\],?$' Package.swift; then
+  if ! found_or_abort grep -Eq '^  dependencies: \[\],?$' Package.swift; then
     echo "Floor: Package.swift must declare empty package dependencies" >&2
     failed=1
   fi
@@ -282,7 +282,7 @@ coverage_gate() {
       exit (percent < minimum)
     }' "$changed" "$lcov" || return
 
-  if ! found grep -q '^SF:' "$coverage_report"; then
+  if ! found_or_abort grep -q '^SF:' "$coverage_report"; then
     echo "Coverage gate: $coverage_report holds no gated file, so CI would upload an empty report."
     return 2
   fi

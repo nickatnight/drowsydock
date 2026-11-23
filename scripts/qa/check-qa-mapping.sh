@@ -14,7 +14,7 @@ tests_cells_name_real_tests() {
     class="${token%%.*}"
     if [[ $token == *.* ]]; then
       method="${token#*.}"
-      if ! cat Tests/*/"$class.swift" 2>/dev/null | found grep -Eq "^[[:space:]]*func $method\("; then
+      if ! cat Tests/*/"$class.swift" 2>/dev/null | found_or_abort grep -Eq "^[[:space:]]*func $method\("; then
         echo "Manual QA: $doc names $token, which no test file defines" >&2
         failed=1
       fi
@@ -24,7 +24,7 @@ tests_cells_name_real_tests() {
     fi
   done < <(awk -F'|' '{print $4}' <<<"$table" | grep -oE '`[^`]+`' | tr -d '`' | sort -u)
   if awk -F'|' '{print $4}' <<<"$table" | grep -oE '`[^`]+`' | tr -d '`' |
-    found grep -vqE '^[A-Za-z0-9]+Tests(\.test[A-Za-z0-9]+)?$'; then
+    found_or_abort grep -vqE '^[A-Za-z0-9]+Tests(\.test[A-Za-z0-9]+)?$'; then
     echo "Manual QA: a Tests cell names something that isn't a test class or Class.testMethod" >&2
     failed=1
   fi
@@ -46,7 +46,7 @@ live_cells_name_scenarios_that_list_the_row() {
       if [[ -z $rows_of_scenario ]]; then
         echo "Manual QA: row $row names live scenario $scenario, which qa-live.sh lacks" >&2
         failed=1
-      elif ! found grep -qE "(QA| )$row( |$)" <<<"$rows_of_scenario"; then
+      elif ! found_or_abort grep -qE "(QA| )$row( |$)" <<<"$rows_of_scenario"; then
         echo "Manual QA: row $row cites live scenario $scenario, whose --list rows omit it" >&2
         failed=1
       fi

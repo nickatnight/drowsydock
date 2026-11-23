@@ -1,6 +1,6 @@
 step() { printf '\n==> %s\n' "$*"; }
 
-found() {
+found_or_abort() {
   local status=0
   "$@" || status=$?
   if ((status > 1)); then
