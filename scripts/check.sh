@@ -392,12 +392,17 @@ plutil -lint Resources/Info.plist
 
 step "Release dry run (scripts/release.sh --dry-run with Apple's services and the keychain refused, then the app in its zip)"
 refuse_release_only_tools "$work/refuse" "$work/refused"
-PATH="$work/refuse:$PATH" scripts/release.sh --dry-run
+# A Developer ID in the environment must not reach the dry run's codesign.
+developer_id='Developer ID Application: Example (TEAMID)'
+release_status=0
+DEVELOPER_ID="$developer_id" SIGN_IDENTITY="$developer_id" PATH="$work/refuse:$PATH" \
+  scripts/release.sh --dry-run || release_status=$?
 if [[ -s $work/refused ]]; then
   echo "Release dry run: it called tools that only a real release may call:" >&2
   cat "$work/refused" >&2
   exit 1
 fi
+((release_status == 0)) || exit "$release_status"
 if [[ $(stat -f '%i %m' "$dev_binary") != "$dev_binary_stat" ]]; then
   echo "Release dry run: it rebuilt build/DrowsyDock.app; it must build only in build/release" >&2
   exit 1
@@ -408,5 +413,11 @@ release_zip="dist/DrowsyDock-$release_version-dryrun.zip"
 mkdir "$work/release"
 ditto -x -k "$release_zip" "$work/release"
 scripts/verify-signature.sh "$work/release/DrowsyDock.app"
+dry_run_signature="$(codesign -dv "$work/release/DrowsyDock.app" 2>&1)"
+if ! grep -qx 'Signature=adhoc' <<<"$dry_run_signature" ||
+  grep -q '^Timestamp=' <<<"$dry_run_signature"; then
+  echo "Release dry run: the zipped app must be signed ad hoc with no timestamp" >&2
+  exit 1
+fi
 
 step "task checks passed"

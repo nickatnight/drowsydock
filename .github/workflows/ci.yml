@@ -49,6 +49,11 @@ jobs:
           curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
             --retry 3 --output "$asset" \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${asset}"
+          # shasum -c picks the algorithm from the digest's length, so pin the length to SHA-256's.
+          if [[ ! $GITLEAKS_SHA256 =~ ^[0-9a-f]{64}$ ]]; then
+            echo "GITLEAKS_SHA256 must be 64 hex digits" >&2
+            exit 1
+          fi
           echo "$GITLEAKS_SHA256  $asset" | shasum -a 256 -c
           mkdir -p bin
           tar -xzf "$asset" -C bin gitleaks
