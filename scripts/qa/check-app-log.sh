@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Runs qa-live.sh's log reads over Tests/LiveQAKitTests/Fixtures/qa.log, the QA log the app writes
-# when launched with --qa-log (ADR 0020), with the real debug qa-helper.
+# when launched with --qa-log (ADR 0020), with the real debug qa-helper. It also runs the exit
+# trap's Dock restore on a scratch defaults domain. A case fails if it calls defaults with
+# com.apple.dock in its arguments, or killall or osascript (unless it defines its own osascript).
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 scratch="$(mktemp -d)"
