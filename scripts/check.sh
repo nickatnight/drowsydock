@@ -291,9 +291,6 @@ coverage_gate() {
   fi
 }
 
-# refuse_release_only_tools DIR LOG: writes security, spctl and xcrun shims into DIR. Each call
-# to security, spctl, xcrun notarytool, xcrun stapler or xcrun altool is appended to LOG and exits
-# 1, so a `|| true` can't hide it; any other xcrun call runs the real one.
 refuse_release_only_tools() {
   local dir="$1" log="$2"
   mkdir "$dir"
@@ -332,8 +329,6 @@ then
   echo "Release script: a command named by its full path gets past the dry run's shims" >&2
   exit 1
 fi
-# Each refusal exits 2 before bundle.sh builds or deletes anything. If one regresses, the `swift`
-# shim stops bundle.sh at its first build step with 97, so the check itself builds nothing.
 mkdir "$work/no-swift"
 printf '#!/bin/sh\nexit 97\n' >"$work/no-swift/swift"
 chmod +x "$work/no-swift/swift"
@@ -399,7 +394,6 @@ plutil -lint Resources/Info.plist
 
 step "Release dry run (scripts/release.sh --dry-run with Apple's services and the keychain refused, then the app in its zip)"
 refuse_release_only_tools "$work/refuse" "$work/refused"
-# A Developer ID in the environment must not reach the dry run's codesign.
 developer_id='Developer ID Application: Example (TEAMID)'
 release_status=0
 DEVELOPER_ID="$developer_id" SIGN_IDENTITY="$developer_id" PATH="$work/refuse:$PATH" \

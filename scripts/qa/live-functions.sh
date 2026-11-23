@@ -6,7 +6,6 @@ source "${BASH_SOURCE[0]%/*}/../lib.sh"
 live_settings=(root dry_run qa_dir report run_log app app_binary helper dock_backup run_pid_file
   results owns_backup app_log keep_captures assume_yes)
 
-# The functions below read these globals. A caller sets them all, then runs this.
 require_live_settings() {
   local name
   for name in "${live_settings[@]}"; do

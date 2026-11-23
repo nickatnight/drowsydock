@@ -212,7 +212,6 @@ case_overlay_undone() {
   expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
 }
 
-# The fade's 0.2 s budget lies between the times since the change started and since it returned.
 case_faded_at_the_budget() {
   start_run
   mark_log
@@ -247,8 +246,6 @@ case_cleanup() {
   echo "run log: $(cut -d' ' -f4- "$run_log" | tr '\n' '|')"
 }
 
-# The exit trap with the real put_dock_back, on a scratch domain instead of com.apple.dock. The
-# domain starts at orientation=bottom, is backed up, then changed to left.
 change_scratch_dock() {
   write_report() { :; }
   defaults write "$dock_domain" orientation -string bottom
