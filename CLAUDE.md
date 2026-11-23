@@ -11,9 +11,11 @@ Read [CONSTRAINTS.md](CONSTRAINTS.md) before writing code. Never weaken it to ma
 | `Sources/DrowsyDockCore/` | Pure logic and value types, all unit-tested. No AppKit, SpriteKit, IOKit or AX imports. |
 | `Sources/DockOverlayKit/` | Dock geometry (AX), the overlay window, the Accessibility permission, and `MirroredLogger`. Other Dock apps will reuse it, so it knows nothing about batteries or the cat. |
 | `Sources/DrowsyDock/` | The app: SwiftUI menu bar and settings, the IOKit adapter, the SpriteKit scene, wiring. |
+| `Sources/LiveQAKit/`, `Sources/qa-helper/` | The live QA helper `scripts/qa-live.sh` runs, and the pure checks it is built on. Not part of the app. |
+| `Sources/DockOverlayKitTestSupport/` | `FadeRecorder`, which both overlay test targets share (ADR 0019). No product depends on it. |
 | `Resources/` | `Info.plist` and `AppIcon.svg`, the icon source. |
-| `Tests/` | One XCTest target per library, plus `DrowsyDockTests` for the app (snapshot references in `Snapshots/`) and `LiveQAKitTests`. `DockOverlayKitTestSupport` holds helpers both overlay test targets share. |
-| `scripts/` | `check.sh`, `bundle.sh`, `release.sh` and `qa-live.sh`, plus `release/` (the release script's self-test and stub tools), `qa/` (the live QA helper and its checks), `readme/` (the banner generator and README check), `icon/` and `ci/`. None of it goes into the app bundle. |
+| `Tests/` | One XCTest target per library, plus `DrowsyDockTests` for the app (snapshot references in `Snapshots/`) and `LiveQAKitTests`. |
+| `scripts/` | `check.sh`, `bundle.sh`, `release.sh` and `qa-live.sh`, plus `release/` (the release script's self-test and stub tools), `qa/` (the live QA functions and their checks), `readme/` (the banner generator and README check), `icon/` and `ci/`. None of it goes into the app bundle. |
 | `docs/manual-qa.md` | Every QA row, mapped to the test or live scenario that covers it. |
 | `docs/release.md` | The owner's release guide: enrollment, the Developer ID certificate, the notary profile, the release steps. |
 | `docs/adr/` | Decision records. They exist only on the owner's machine: git ignores `docs/` except `manual-qa.md`, `qa-rows.txt`, `release.md` and `readme/`. |
@@ -62,8 +64,8 @@ Test:    swift test
 Cover:   swift test --enable-code-coverage
 Record:  RECORD_SNAPSHOTS=1 swift test     # rewrites snapshot references, then fails on purpose
 Banner:  scripts/readme/banner.sh          # regenerates docs/readme/; --check compares
-Format:  swift format lint --strict --recursive Sources scripts/qa/Sources Tests
-Fix fmt: swift format --in-place --recursive Sources scripts/qa/Sources Tests
+Format:  swift format lint --strict --recursive Sources Tests
+Fix fmt: swift format --in-place --recursive Sources Tests
 Bundle:  scripts/bundle.sh                 # → build/DrowsyDock.app, universal, ad-hoc signed
 Run:     open build/DrowsyDock.app
 Quit:    pkill -x DrowsyDock

@@ -24,8 +24,7 @@ esac
 
 coverage_minimum=80
 coverage_report=.build/coverage/lcov.info
-gated_targets=(Sources/DrowsyDockCore Sources/DockOverlayKit scripts/qa/Sources/LiveQAKit)
-source_roots=(Sources scripts/qa/Sources)
+gated_targets=(Sources/DrowsyDockCore Sources/DockOverlayKit Sources/LiveQAKit)
 # An import may carry attributes (`@preconcurrency`, `@_exported`, `@_spi(Name)`), an access level
 # (`internal import`) and a kind (`import class AppKit.NSColor`). HIServices holds the AX API, and
 # Carbon and Quartz re-export AX and AppKit.
@@ -81,7 +80,7 @@ gated_files() {
   local file
   while IFS= read -r -d '' file; do
     if is_gated "$file"; then printf '%s\0' "$file"; fi
-  done < <(swift_files_under "${source_roots[@]}")
+  done < <(swift_files_under Sources)
 }
 
 coverage_exempt_files_are_in_manual_qa() {
@@ -93,13 +92,13 @@ coverage_exempt_files_are_in_manual_qa() {
       echo "Manual QA: $file is exempt from coverage but docs/manual-qa.md never names \`$name\`" >&2
       failed=1
     fi
-  done < <(swift_files_under "${source_roots[@]}")
+  done < <(swift_files_under Sources)
   return "$failed"
 }
 
 scan_swift_files() {
   local file files=()
-  while IFS= read -r -d '' file; do files+=("$file"); done < <(swift_files_under "${source_roots[@]}" Tests)
+  while IFS= read -r -d '' file; do files+=("$file"); done < <(swift_files_under Sources Tests)
   if ((${#files[@]} == 0)); then return 1; fi
   found awk "$1" "${files[@]}"
 }
@@ -147,11 +146,11 @@ empty_catches='
 
 floor_rules() {
   local failed=0
-  if found grep -rnF 'try!' "${source_roots[@]}"; then
+  if found grep -rnF 'try!' Sources; then
     echo "Floor: try! outside tests" >&2
     failed=1
   fi
-  if found grep -rnE 'fatalError\("(TODO|not implemented)' "${source_roots[@]}" Tests; then
+  if found grep -rnE 'fatalError\("(TODO|not implemented)' Sources Tests; then
     echo "Floor: unimplemented stub" >&2
     failed=1
   fi
@@ -320,7 +319,7 @@ step "Compile (Swift 6, warnings are errors)"
 swift build --build-tests -Xswiftc -warnings-as-errors
 
 step "Format"
-swift format lint --strict --recursive "${source_roots[@]}" Tests
+swift format lint --strict --recursive Sources Tests
 
 step "Live QA script (syntax, a dry run that must touch nothing, the Dock restore and its self-test on a scratch domain, the log reads over a fixture QA log)"
 bash -n scripts/qa-live.sh
