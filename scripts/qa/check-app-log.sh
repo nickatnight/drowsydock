@@ -268,6 +268,7 @@ case_restore_on_exit() {
 }
 
 case_failed_restore_on_exit() {
+  FAIL_IMPORTS=1
   change_scratch_dock
   owns_backup=true
   dock_after_cleanup
@@ -436,7 +437,7 @@ expect "orientation: bottom"
 expect "backup kept: no"
 grep -qx "dock restart" "$scratch/calls.log" || fail "restore_on_exit didn't relaunch the Dock"
 
-run_case failed_restore_on_exit APP_STOPPED=1 FAIL_IMPORTS=1
+run_case failed_restore_on_exit APP_STOPPED=1
 expect "FAIL QA - (dock): the Dock's preferences couldn't be restored; see the message above"
 expect "cleanup exit: 1"
 expect "backup kept: yes"
