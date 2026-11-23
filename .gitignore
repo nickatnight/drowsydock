@@ -21,4 +21,5 @@ xcuserdata/
 docs/*
 !docs/manual-qa.md
 !docs/qa-rows.txt
+!docs/release.md
 !docs/readme/

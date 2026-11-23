@@ -22,6 +22,7 @@ Last reviewed: 2026-11-16. Earlier measurements and the reasons behind each chan
 | Tests | All pass | before commit, CI (without snapshots) |
 | Coverage | At least 80% of changed lines covered in the gated targets (below) | before commit, CI |
 | Bundle | The app builds; the signature verifies with the hardened runtime and carries **no entitlements** (ADR 0007); `Info.plist` lints | before commit, CI |
+| Release dry run | `scripts/release.sh --dry-run` passes: the ad-hoc build verifies strictly with the hardened runtime, no entitlements and both architectures, and the app in its zip verifies again with the same Bundle checks | before commit, CI |
 | Idle CPU | 60 s average: ≤ 1.0% in `awake`, ≤ 3.0% in `noddingOff`/`asleep` | manual QA (`scripts/qa-live.sh --only cpu`) |
 
 "Every edit" means `scripts/check.sh fast`. "Before commit" and CI mean `scripts/check.sh task`. The exact commands are in `scripts/check.sh`.
