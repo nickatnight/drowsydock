@@ -125,7 +125,12 @@ else
   artifact="dist/DrowsyDock-$version.zip"
 fi
 checksum="$artifact.sha256"
-rm -f "$artifact" "$checksum" "$artifact.partial" "$checksum.partial"
+
+discard_previous_artifacts() {
+  rm -f "$artifact" "$checksum" "$artifact.partial" "$checksum.partial"
+}
+
+discard_previous_artifacts
 work="$(mktemp -d)"
 trap 'rm -rf "$work"; rm -f "$artifact.partial" "$checksum.partial"' EXIT
 
