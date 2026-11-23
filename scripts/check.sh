@@ -329,13 +329,15 @@ then
   echo "Release script: a command named by its full path gets past the dry run's shims" >&2
   exit 1
 fi
-mkdir "$work/no-swift"
-printf '#!/bin/sh\nexit 97\n' >"$work/no-swift/swift"
-chmod +x "$work/no-swift/swift"
+swift_that_builds_nothing="$work/swift-that-builds-nothing"
+reached_swift_build=97
+mkdir "$swift_that_builds_nothing"
+printf '#!/bin/sh\nexit %s\n' "$reached_swift_build" >"$swift_that_builds_nothing/swift"
+chmod +x "$swift_that_builds_nothing/swift"
 for setting in SIGN_TIMESTAMP=yes BUNDLE_DIR=../outside BUNDLE_DIR=build/../outside; do
   status=0
-  PATH="$work/no-swift:$PATH" env SIGN_IDENTITY=- SIGN_TIMESTAMP=0 "$setting" scripts/bundle.sh \
-    >/dev/null 2>&1 || status=$?
+  PATH="$swift_that_builds_nothing:$PATH" env SIGN_IDENTITY=- SIGN_TIMESTAMP=0 "$setting" \
+    scripts/bundle.sh >/dev/null 2>&1 || status=$?
   if ((status != 2)); then
     echo "Release script: scripts/bundle.sh with $setting exits $status, not 2" >&2
     exit 1
