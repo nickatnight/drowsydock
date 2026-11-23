@@ -17,15 +17,13 @@ struct IOKitPowerSource: PowerSource {
     return PowerSourceParser.reading(from: descriptions)
   }
 
-  func subscribe(
-    onChange: @escaping @MainActor @Sendable () -> Void
-  ) throws -> any PowerSourceSubscription {
+  func subscribe(onChange: @escaping @MainActor @Sendable () -> Void) throws -> AnyObject {
     try Subscription(onChange: onChange)
   }
 
   /// `Subscription` is not main-actor isolated, so its `deinit` may read these non-Sendable
   /// handles. A main-actor class could not, because its `deinit` is nonisolated in Swift 6.0.
-  final class Subscription: PowerSourceSubscription {
+  final class Subscription {
     enum SubscriptionError: Error {
       case runLoopSourceUnavailable
     }

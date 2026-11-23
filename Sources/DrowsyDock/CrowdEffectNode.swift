@@ -23,11 +23,11 @@ final class CrowdEffectNode {
     stop()
     let wave = CrowdWave(iconCount: iconFrames.count)
     for (index, icon) in iconFrames.enumerated() {
-      let start = wave.startTime(ofIconAt: index).inSeconds
+      let start = wave.startTime(ofIconAt: index) / .seconds(1)
       dim(icon, after: start)
       puff(from: icon, orientation: orientation, after: start)
     }
-    node.run(.completion(after: wave.totalDuration.inSeconds, completion))
+    node.run(.completion(after: wave.totalDuration / .seconds(1), completion))
   }
 
   func stop() {
@@ -46,7 +46,7 @@ final class CrowdEffectNode {
     shade.lineWidth = 0
     shade.alpha = 0
     node.addChild(shade)
-    let dim = CrowdWave.dimDuration.inSeconds
+    let dim = CrowdWave.dimDuration / .seconds(1)
     shade.run(
       .sequence([
         .wait(forDuration: delay),
@@ -75,7 +75,7 @@ final class CrowdEffectNode {
     z.alpha = 0
     z.setScale(0.5)
     node.addChild(z)
-    let life = CrowdWave.iconEffectDuration.inSeconds
+    let life = CrowdWave.iconEffectDuration / .seconds(1)
     z.run(
       .sequence([
         .wait(forDuration: delay),

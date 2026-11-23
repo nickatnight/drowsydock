@@ -96,7 +96,7 @@ final class AppCoordinatorTests: XCTestCase {
       scene: rig.overlay.canvasScene,
       size: rig.overlay.canvasWindow.frame.size
     )
-    canvas.advance(by: CrowdWave.maximumDuration.inSeconds + 0.1)
+    canvas.advance(by: CrowdWave.maximumDuration / .seconds(1) + 0.1)
   }
 
   // MARK: - The menu line

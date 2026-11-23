@@ -3,11 +3,11 @@ import XCTest
 
 final class DrowsinessTrackerTests: XCTestCase {
   private func onBattery(_ percentage: Int) -> BatteryReading {
-    BatteryReading(percentage: percentage, powerState: .discharging)!
+    BatteryReading(clampingPercentage: percentage, powerState: .discharging)
   }
 
   private func charging(_ percentage: Int) -> BatteryReading {
-    BatteryReading(percentage: percentage, powerState: .charging)!
+    BatteryReading(clampingPercentage: percentage, powerState: .charging)
   }
 
   // MARK: - Starting state
@@ -133,7 +133,7 @@ final class DrowsinessTrackerTests: XCTestCase {
     let whileStillWaking = tracker.phase
     tracker.finishWaking()
     let afterWaking = tracker.phase
-    tracker.update(BatteryReading(percentage: 100, powerState: .pluggedIn)!)
+    tracker.update(BatteryReading(clampingPercentage: 100, powerState: .pluggedIn))
 
     XCTAssertEqual(afterEdge, .waking)
     XCTAssertEqual(whileStillWaking, .waking)
@@ -147,7 +147,7 @@ final class DrowsinessTrackerTests: XCTestCase {
     for powerState in powerStates {
       var tracker = DrowsinessTracker(reading: onBattery(85))
 
-      tracker.update(BatteryReading(percentage: 85, powerState: powerState)!)
+      tracker.update(BatteryReading(clampingPercentage: 85, powerState: powerState))
       let afterEdge = tracker.phase
       tracker.finishWaking()
 
@@ -160,7 +160,7 @@ final class DrowsinessTrackerTests: XCTestCase {
     var tracker = DrowsinessTracker(reading: onBattery(99))
     tracker.update(charging(99))
 
-    tracker.update(BatteryReading(percentage: 100, powerState: .pluggedIn)!)
+    tracker.update(BatteryReading(clampingPercentage: 100, powerState: .pluggedIn))
 
     XCTAssertEqual(tracker.phase, .waking)
   }

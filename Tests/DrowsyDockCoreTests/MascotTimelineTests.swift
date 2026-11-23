@@ -13,7 +13,8 @@ final class MascotTimelineTests: XCTestCase {
   func testTheLoopEaseOutEndsBeforeEveryTransitionDoes() {
     XCTAssertGreaterThan(MascotTimeline.loopEaseOut, 0)
     for animation in transitions {
-      XCTAssertLessThan(MascotTimeline.loopEaseOut, animation.duration.inSeconds, "\(animation)")
+      XCTAssertLessThan(
+        MascotTimeline.loopEaseOut, animation.duration / .seconds(1), "\(animation)")
     }
   }
 
@@ -47,7 +48,7 @@ final class MascotTimelineTests: XCTestCase {
   func testACrossfadeIsAllFlexible() {
     XCTAssertEqual(
       MascotTimeline.flexiblePhase(of: .crossfade),
-      MascotAnimation.crossfade.duration.inSeconds,
+      MascotAnimation.crossfade.duration / .seconds(1),
       accuracy: 1e-9
     )
   }
@@ -58,7 +59,7 @@ final class MascotTimelineTests: XCTestCase {
 
     XCTAssertEqual(
       MascotTimeline.flexiblePhase(of: .yawn) + phases.reduce(0, +),
-      MascotAnimation.yawn.duration.inSeconds,
+      MascotAnimation.yawn.duration / .seconds(1),
       accuracy: 1e-9
     )
   }
@@ -68,7 +69,7 @@ final class MascotTimelineTests: XCTestCase {
 
     XCTAssertEqual(
       nodOff.droop + nodOff.jerk + MascotTimeline.flexiblePhase(of: .nodOff),
-      MascotAnimation.nodOff.duration.inSeconds,
+      MascotAnimation.nodOff.duration / .seconds(1),
       accuracy: 1e-9
     )
   }
@@ -79,7 +80,7 @@ final class MascotTimelineTests: XCTestCase {
     XCTAssertEqual(
       MascotTimeline.WakeUp.snapOpen + MascotTimeline.flexiblePhase(of: .wakeUp) + blink.close
         + blink.hold + blink.open,
-      MascotAnimation.wakeUp.duration.inSeconds,
+      MascotAnimation.wakeUp.duration / .seconds(1),
       accuracy: 1e-9
     )
   }

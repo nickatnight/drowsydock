@@ -4,7 +4,7 @@ import XCTest
 final class StatusLineTests: XCTestCase {
   func testDischargingShowsPercentagePowerStateAndMood() {
     let tracker = DrowsinessTracker(
-      reading: BatteryReading(percentage: 63, powerState: .discharging),
+      reading: BatteryReading(clampingPercentage: 63, powerState: .discharging),
       thresholds: Thresholds(
         drowsyBelow: 70, yawningBelow: 30, noddingOffBelow: 20, asleepBelow: 10)!
     )
@@ -17,7 +17,7 @@ final class StatusLineTests: XCTestCase {
 
   func testLowPowerModeIsAppended() {
     let tracker = DrowsinessTracker(
-      reading: BatteryReading(percentage: 15, powerState: .discharging)
+      reading: BatteryReading(clampingPercentage: 15, powerState: .discharging)
     )
 
     XCTAssertEqual(
@@ -28,9 +28,9 @@ final class StatusLineTests: XCTestCase {
 
   func testWakingAfterPluggingIn() {
     var tracker = DrowsinessTracker(
-      reading: BatteryReading(percentage: 31, powerState: .discharging)
+      reading: BatteryReading(clampingPercentage: 31, powerState: .discharging)
     )
-    tracker.update(BatteryReading(percentage: 31, powerState: .charging))
+    tracker.update(BatteryReading(clampingPercentage: 31, powerState: .charging))
 
     XCTAssertEqual(
       StatusLine.text(for: tracker, isLowPowerModeOn: false),
@@ -40,7 +40,7 @@ final class StatusLineTests: XCTestCase {
 
   func testPluggedInAndFull() {
     let tracker = DrowsinessTracker(
-      reading: BatteryReading(percentage: 100, powerState: .pluggedIn)
+      reading: BatteryReading(clampingPercentage: 100, powerState: .pluggedIn)
     )
 
     XCTAssertEqual(
@@ -53,7 +53,7 @@ final class StatusLineTests: XCTestCase {
     let labels = [80, 40, 25, 15, 5].map { percentage in
       StatusLine.text(
         for: DrowsinessTracker(
-          reading: BatteryReading(percentage: percentage, powerState: .discharging)
+          reading: BatteryReading(clampingPercentage: percentage, powerState: .discharging)
         ),
         isLowPowerModeOn: false
       )

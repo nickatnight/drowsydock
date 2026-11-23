@@ -49,7 +49,7 @@ extension CatRenderer {
     completion: @escaping @MainActor () -> Void
   ) {
     pose = target
-    let duration = animation.duration.inSeconds
+    let duration = animation.duration / .seconds(1)
     switch animation {
     case .crossfade:
       blend(to: target, over: duration)

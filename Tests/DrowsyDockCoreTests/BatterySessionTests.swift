@@ -3,11 +3,11 @@ import XCTest
 
 final class BatterySessionTests: XCTestCase {
   private func onBattery(_ percentage: Int) -> BatteryReading {
-    BatteryReading(percentage: percentage, powerState: .discharging)!
+    BatteryReading(clampingPercentage: percentage, powerState: .discharging)
   }
 
   private func charging(_ percentage: Int) -> BatteryReading {
-    BatteryReading(percentage: percentage, powerState: .charging)!
+    BatteryReading(clampingPercentage: percentage, powerState: .charging)
   }
 
   // MARK: - Real source

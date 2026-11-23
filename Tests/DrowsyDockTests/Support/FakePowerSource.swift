@@ -3,7 +3,7 @@ import DrowsyDockCore
 @testable import DrowsyDock
 
 @MainActor
-final class FakePowerSource: PowerSource, PowerSourceSubscription {
+final class FakePowerSource: PowerSource {
   var reading: BatteryReading?
   var isLowPowerModeOn = false
   private var onChange: (@MainActor @Sendable () -> Void)?
@@ -16,9 +16,7 @@ final class FakePowerSource: PowerSource, PowerSourceSubscription {
     reading
   }
 
-  func subscribe(
-    onChange: @escaping @MainActor @Sendable () -> Void
-  ) throws -> any PowerSourceSubscription {
+  func subscribe(onChange: @escaping @MainActor @Sendable () -> Void) throws -> AnyObject {
     self.onChange = onChange
     return self
   }
