@@ -104,7 +104,7 @@ Start without the grant: `tccutil reset Accessibility app.drowsydock.DrowsyDock`
 
 ### A notarized release
 
-The owner's first real release checks spec success criterion 9, which no agent or CI run can: they run only `scripts/release.sh --dry-run`, and its self-test uses stub tools. `docs/release.md` has the setup and the commands. The row stays open until that first notarized run.
+The owner's first real release checks spec success criterion 9, which no agent or CI run can: they run only `scripts/release.sh --dry-run`, which skips every Apple step. `docs/release.md` has the setup and the commands. The row stays open until that first notarized run.
 
 | # | Check | Expected |
 |---|---|---|

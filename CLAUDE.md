@@ -15,7 +15,7 @@ Read [CONSTRAINTS.md](CONSTRAINTS.md) before writing code. Never weaken it to ma
 | `Sources/DockOverlayKitTestSupport/` | `FadeRecorder`, which both overlay test targets share (ADR 0019). No product depends on it. |
 | `Resources/` | `Info.plist` and `AppIcon.svg`, the icon source. |
 | `Tests/` | One XCTest target per library, plus `DrowsyDockTests` for the app (snapshot references in `Snapshots/`) and `LiveQAKitTests`. |
-| `scripts/` | `check.sh`, `bundle.sh`, `release.sh` and `qa-live.sh`, plus `release/` (the release script's self-test and stub tools), `qa/` (the live QA functions and their checks), `readme/` (the banner generator and README check), `icon/` and `ci/`. None of it goes into the app bundle. |
+| `scripts/` | `check.sh`, `bundle.sh`, `release.sh` and `qa-live.sh`, plus `qa/` (the live QA functions and their checks), `readme/` (the banner generator and README check), `icon/` and `ci/`. None of it goes into the app bundle. |
 | `docs/manual-qa.md` | Every QA row, mapped to the test or live scenario that covers it. |
 | `docs/release.md` | The owner's release guide: enrollment, the Developer ID certificate, the notary profile, the release steps. |
 | `docs/adr/` | Decision records. They exist only on the owner's machine: git ignores `docs/` except `manual-qa.md`, `qa-rows.txt`, `release.md` and `readme/`. |
@@ -79,7 +79,7 @@ Restore: scripts/qa-live.sh --restore      # puts back Dock preferences after a 
 
 ## Checks
 
-- **`scripts/check.sh fast`**: run it after every edit. It covers compile, format, the CONSTRAINTS floor rules, import rules, the QA row mapping, the live QA script's own checks, the release script's self-test, the README links and banner, and the secret scan. The header of each script says exactly what it checks and what it can't catch.
+- **`scripts/check.sh fast`**: run it after every edit. It covers compile, format, the CONSTRAINTS floor rules, import rules, the QA row mapping, the live QA script's own checks, the release script's syntax, the README links and banner, and the secret scan. The header of each script says exactly what it checks and what it can't catch.
 - **`scripts/check.sh task`**: run it before every commit. It runs `fast`, then the tests with coverage, the changed-line coverage gate (against `$CHECK_BASE`, default `main`), the signed bundle, and `scripts/release.sh --dry-run` with the app in its zip checked.
 - **CI** (`.github/workflows/ci.yml`) runs `check.sh task` on pushes and PRs to `main`, with snapshots skipped.
   - The `xcode-27` runner label is a preview. If GitHub retires it, the job sits in the queue forever instead of failing. Bump `XCODE_VERSION` when Xcode changes, and `runs-on` when the label or image changes.

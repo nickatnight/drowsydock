@@ -1,9 +1,0 @@
-#!/bin/bash
-# lipo stub for check-release-selftest.sh: -archs answers $STUB_ARCHS, by default both
-# architectures. Anything else is refused.
-echo "lipo $*" >>"$STUB_LOG"
-if [[ $1 != -archs || $# != 2 ]]; then
-  echo "refused: lipo $*" >>"$STUB_LOG"
-  exit 1
-fi
-echo "${STUB_ARCHS:-x86_64 arm64}"

@@ -2,11 +2,14 @@
 # Runs the checks from CONSTRAINTS.md.
 #
 #   scripts/check.sh fast   compile, format, the live QA script's checks (dry run, Dock restore,
-#                           restore self-test, log reads), the release script's self-test with
-#                           stub tools, floor rules, the QA row mapping, the README (links,
-#                           images, banner) and its self-test, secrets (every edit)
+#                           restore self-test, log reads), the release script's syntax, floor
+#                           rules, the QA row mapping, the README (links, images, banner) and its
+#                           self-test, secrets (every edit)
 #   scripts/check.sh task   fast + tests, coverage gate, bundle, and the release dry run with the
 #                           app in its zip checked (run before every commit)
+#
+# The release dry run runs with shims that refuse security, spctl, notarytool and stapler. It can't
+# catch a call to them by full path, and nothing runs the real release's Apple steps.
 #
 # The coverage gate compares against the merge base with $CHECK_BASE (default: main). It also
 # writes the gated files' coverage to .build/coverage/lcov.info, which CI uploads to Codecov.
@@ -328,9 +331,8 @@ scripts/qa/check-dock-restore.sh
 scripts/qa/check-restore-selftest.sh
 scripts/qa/check-app-log.sh
 
-step "Release script (syntax, and its self-test with stub tools: no network, certificate or build)"
+step "Release script (syntax; check.sh task runs its dry run)"
 bash -n scripts/release.sh
-scripts/release/check-release-selftest.sh
 
 step "Floor rules"
 floor_rules
@@ -380,8 +382,30 @@ scripts/bundle.sh
 check_signed_app Bundle build/DrowsyDock.app
 plutil -lint Resources/Info.plist
 
-step "Release dry run (scripts/release.sh --dry-run, then the app in its zip)"
-scripts/release.sh --dry-run
+step "Release dry run (scripts/release.sh --dry-run with Apple's services and the keychain refused, then the app in its zip)"
+# Shims ahead of the real tools refuse security, spctl, notarytool and stapler, and record each
+# call, so a `|| true` in release.sh can't hide one. A call by full path would get past them.
+mkdir "$work/refuse"
+cat >"$work/refuse/security" <<EOF
+#!/bin/sh
+echo "\${0##*/} \$*" >>"$work/refused"
+exit 1
+EOF
+cp "$work/refuse/security" "$work/refuse/spctl"
+cat >"$work/refuse/xcrun" <<EOF
+#!/bin/sh
+for arg in "\$@"; do
+  case "\$arg" in notarytool | stapler) echo "xcrun \$*" >>"$work/refused"; exit 1 ;; esac
+done
+exec /usr/bin/xcrun "\$@"
+EOF
+chmod +x "$work/refuse"/*
+PATH="$work/refuse:$PATH" scripts/release.sh --dry-run
+if [[ -s $work/refused ]]; then
+  echo "Release dry run: it called tools that only a real release may call:" >&2
+  cat "$work/refused" >&2
+  exit 1
+fi
 release_version="$(plutil -extract CFBundleShortVersionString raw -o - Resources/Info.plist)"
 release_zip="dist/DrowsyDock-$release_version-dryrun.zip"
 (cd dist && shasum -a 256 -s -c "${release_zip#dist/}.sha256")
