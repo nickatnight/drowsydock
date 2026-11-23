@@ -5,7 +5,8 @@
 #                           restore self-test, log reads), the release script's self-test with
 #                           stub tools, floor rules, the QA row mapping, the README (links,
 #                           images, banner) and its self-test, secrets (every edit)
-#   scripts/check.sh task   fast + tests, coverage gate, bundle (run before every commit)
+#   scripts/check.sh task   fast + tests, coverage gate, bundle, and the release dry run with the
+#                           app in its zip checked (run before every commit)
 #
 # The coverage gate compares against the merge base with $CHECK_BASE (default: main). It also
 # writes the gated files' coverage to .build/coverage/lcov.info, which CI uploads to Codecov.
@@ -299,6 +300,24 @@ coverage_gate() {
   fi
 }
 
+# check_signed_app LABEL APP: the signature verifies, has the hardened runtime (ADR 0005) and
+# carries no entitlements (ADR 0007).
+check_signed_app() {
+  local label="$1" app="$2" signature entitlements
+  codesign --verify --strict "$app"
+  signature="$(codesign -dv "$app" 2>&1)"
+  if ! grep -Eq '^CodeDirectory .*flags=0x[0-9a-f]+\([^)]*runtime' <<<"$signature"; then
+    echo "$label: the signature lacks the hardened runtime (codesign --options runtime)" >&2
+    exit 1
+  fi
+  entitlements="$(codesign -d --entitlements - --xml "$app" 2>/dev/null)"
+  if [[ -n $entitlements ]]; then
+    echo "$label: the signature carries entitlements; scripts/bundle.sh must sign with none" >&2
+    grep -Eo '<key>[^<]*</key>' <<<"$entitlements" >&2 || echo "$entitlements" >&2
+    exit 1
+  fi
+}
+
 step "Compile (Swift 6, warnings are errors)"
 swift build --build-tests -Xswiftc -warnings-as-errors
 
@@ -361,18 +380,16 @@ coverage_gate
 
 step "Bundle"
 scripts/bundle.sh
-codesign --verify --strict build/DrowsyDock.app
-signature="$(codesign -dv build/DrowsyDock.app 2>&1)"
-if ! grep -Eq '^CodeDirectory .*flags=0x[0-9a-f]+\([^)]*runtime' <<<"$signature"; then
-  echo "Bundle: the signature lacks the hardened runtime (codesign --options runtime)" >&2
-  exit 1
-fi
-entitlements="$(codesign -d --entitlements - --xml build/DrowsyDock.app 2>/dev/null)"
-if [[ -n $entitlements ]]; then
-  echo "Bundle: the signature carries entitlements; scripts/bundle.sh must sign with none" >&2
-  grep -Eo '<key>[^<]*</key>' <<<"$entitlements" >&2 || echo "$entitlements" >&2
-  exit 1
-fi
+check_signed_app Bundle build/DrowsyDock.app
 plutil -lint Resources/Info.plist
+
+step "Release dry run (scripts/release.sh --dry-run, then the app in its zip)"
+scripts/release.sh --dry-run
+version="$(plutil -extract CFBundleShortVersionString raw -o - Resources/Info.plist)"
+release_zip="dist/DrowsyDock-$version-dryrun.zip"
+(cd dist && shasum -a 256 -s -c "${release_zip#dist/}.sha256")
+mkdir "$work/release"
+ditto -x -k "$release_zip" "$work/release"
+check_signed_app "Release dry run" "$work/release/DrowsyDock.app"
 
 step "task checks passed"

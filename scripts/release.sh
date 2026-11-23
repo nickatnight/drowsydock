@@ -115,5 +115,70 @@ fi
 echo "Preflight passed for version $version."
 
 if ! $dry_run; then
-  die "the build, notarization and packaging steps are not written yet."
+  die "the notarization steps are not written yet."
+fi
+
+app="build/DrowsyDock.app"
+if $dry_run; then
+  artifact="dist/DrowsyDock-$version-dryrun.zip"
+else
+  artifact="dist/DrowsyDock-$version.zip"
+fi
+checksum="$artifact.sha256"
+# This run's names are cleared first, so a failed run never leaves an older zip that looks like
+# its own. The partial files are moved into place only once they are complete.
+rm -f "$artifact" "$checksum" "$artifact.partial" "$checksum.partial"
+trap 'rm -f "$artifact.partial" "$checksum.partial"' EXIT
+
+step "Build"
+if $dry_run; then
+  SIGN_IDENTITY=- SIGN_TIMESTAMP=0 scripts/bundle.sh
+else
+  SIGN_IDENTITY="$DEVELOPER_ID" SIGN_TIMESTAMP=1 scripts/bundle.sh
+fi
+
+step "Verify the signature"
+codesign --verify --strict --deep "$app" ||
+  die "codesign --verify --strict --deep rejects $app."
+signature="$(codesign -dv --verbose=4 "$app" 2>&1)" || die "codesign -dv can't read $app."
+if ! grep -Eq '^CodeDirectory .*flags=0x[0-9a-f]+\([^)]*runtime' <<<"$signature"; then
+  die "the signature lacks the hardened runtime (codesign --options runtime)."
+fi
+entitlements="$(codesign -d --entitlements - --xml "$app" 2>/dev/null)" ||
+  die "codesign can't read the entitlements of $app."
+if [[ -n $entitlements ]]; then
+  die "the signature carries entitlements; a release is signed with none (ADR 0007):" \
+    "$entitlements"
+fi
+archs=" $(lipo -archs "$app/Contents/MacOS/DrowsyDock") " || die "lipo can't read the binary."
+for arch in arm64 x86_64; do
+  if [[ $archs != *" $arch "* ]]; then
+    die "the binary lacks $arch (lipo -archs:$archs); a release is universal."
+  fi
+done
+echo "Strict verification, the hardened runtime, no entitlements, arm64 and x86_64: passed."
+if $dry_run; then
+  echo "skipped (dry run): the Developer ID authority, TeamIdentifier and timestamp checks"
+fi
+
+if $dry_run; then
+  step "Notarize"
+  echo "skipped (dry run): xcrun notarytool submit"
+  step "Staple and assess"
+  echo "skipped (dry run): xcrun stapler staple"
+  echo "skipped (dry run): xcrun stapler validate"
+  echo "skipped (dry run): spctl --assess --type execute"
+fi
+
+step "Package"
+mkdir -p dist
+ditto -c -k --keepParent "$app" "$artifact.partial"
+hash="$(shasum -a 256 <"$artifact.partial")"
+printf '%s  %s\n' "${hash%% *}" "${artifact#dist/}" >"$checksum.partial"
+mv -f "$checksum.partial" "$checksum"
+mv -f "$artifact.partial" "$artifact"
+echo "$artifact"
+echo "$checksum"
+if $dry_run; then
+  echo "A dry run's zip is signed ad hoc and not notarized; it is not for distribution."
 fi

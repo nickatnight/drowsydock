@@ -1,0 +1,88 @@
+#!/bin/bash
+# codesign stub for check-release-selftest.sh. Signing writes the identity, the hardened runtime
+# and the timestamp choice into the bundle; -dv reads them back in codesign's format. A case
+# breaks the signature with STUB_VERIFY_STATUS (--verify's exit), STUB_FLAGS (the CodeDirectory
+# flags), STUB_ENTITLEMENTS (the entitlements XML), STUB_AUTHORITY (the first Authority line),
+# STUB_TEAM (TeamIdentifier) or STUB_TIMESTAMP=none. Anything else is refused.
+echo "codesign $*" >>"$STUB_LOG"
+refuse() {
+  echo "refused: codesign $arguments" >>"$STUB_LOG"
+  exit 1
+}
+arguments="$*"
+app="${!#}"
+state="$app/Contents/_CodeSignature/stub-signature"
+
+field() { sed -n "s/^$1=//p" "$state"; }
+
+not_signed() {
+  echo "$app: code object is not signed at all" >&2
+  exit 1
+}
+
+case "$arguments" in
+  "--force --options runtime "*"--sign "*)
+    identity="" runtime=no timestamp=default
+    while (($# > 1)); do
+      case "$1" in
+        --force) ;;
+        --options) [[ $2 == runtime ]] && runtime=yes && shift ;;
+        --timestamp) timestamp=yes ;;
+        --timestamp=none) timestamp=no ;;
+        --sign) identity="$2" && shift ;;
+        *) refuse ;;
+      esac
+      shift
+    done
+    [[ -n $identity && -d $app/Contents/MacOS ]] || refuse
+    mkdir -p "$app/Contents/_CodeSignature"
+    printf 'identity=%s\nruntime=%s\ntimestamp=%s\n' "$identity" "$runtime" "$timestamp" >"$state"
+    ;;
+  "--verify --strict --deep $app")
+    [[ -f $state ]] || not_signed
+    if ((${STUB_VERIFY_STATUS:-0} != 0)); then
+      echo "$app: a sealed resource is missing or invalid" >&2
+      exit "$STUB_VERIFY_STATUS"
+    fi
+    ;;
+  "-d --entitlements - --xml $app")
+    [[ -f $state ]] || not_signed
+    echo "Executable=$app/Contents/MacOS/DrowsyDock" >&2
+    printf '%s' "${STUB_ENTITLEMENTS:-}"
+    ;;
+  "-dv --verbose=4 $app")
+    [[ -f $state ]] || not_signed
+    identity="$(field identity)"
+    if [[ $identity == - ]]; then
+      flags="0x2(adhoc)"
+      [[ $(field runtime) == yes ]] && flags="0x10002(adhoc,runtime)"
+    else
+      flags="0x0(none)"
+      [[ $(field runtime) == yes ]] && flags="0x10000(runtime)"
+    fi
+    {
+      echo "Executable=$app/Contents/MacOS/DrowsyDock"
+      echo "Identifier=app.drowsydock.DrowsyDock"
+      echo "Format=app bundle with Mach-O universal (x86_64 arm64)"
+      echo "CodeDirectory v=20500 size=1658 flags=${STUB_FLAGS:-$flags} hashes=45+3 location=embedded"
+      if [[ $identity == - ]]; then
+        echo "Signature=adhoc"
+        team="not set"
+      else
+        echo "Signature size=9054"
+        echo "Authority=${STUB_AUTHORITY:-$identity}"
+        echo "Authority=Developer ID Certification Authority"
+        echo "Authority=Apple Root CA"
+        if [[ $(field timestamp) == yes && ${STUB_TIMESTAMP:-} != none ]]; then
+          echo "Timestamp=22 Nov 2026 at 20:00:00"
+        fi
+        team="${identity##*(}"
+        team="${team%)}"
+      fi
+      echo "Info.plist entries=13"
+      echo "TeamIdentifier=${STUB_TEAM:-$team}"
+      echo "Sealed Resources version=2 rules=13 files=1"
+    } >&2
+    ;;
+  *) refuse ;;
+esac
