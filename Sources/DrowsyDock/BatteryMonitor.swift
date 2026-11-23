@@ -8,8 +8,12 @@ protocol PowerSource {
 
   func readBattery() -> BatteryReading?
 
-  func subscribe(onChange: @escaping @MainActor @Sendable () -> Void) throws -> AnyObject
+  func subscribe(
+    onChange: @escaping @MainActor @Sendable () -> Void
+  ) throws -> PowerSourceSubscription
 }
+
+typealias PowerSourceSubscription = AnyObject
 
 @MainActor
 @Observable
@@ -27,7 +31,7 @@ final class BatteryMonitor {
 
   @ObservationIgnored private let source: any PowerSource
   @ObservationIgnored private let clock: any Clock<Duration>
-  @ObservationIgnored private var powerChanges: AnyObject?
+  @ObservationIgnored private var powerChanges: PowerSourceSubscription?
   @ObservationIgnored private var wakingTask: Task<Void, Never>?
 
   var statusText: String {

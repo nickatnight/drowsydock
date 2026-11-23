@@ -17,7 +17,9 @@ struct IOKitPowerSource: PowerSource {
     return PowerSourceParser.reading(from: descriptions)
   }
 
-  func subscribe(onChange: @escaping @MainActor @Sendable () -> Void) throws -> AnyObject {
+  func subscribe(
+    onChange: @escaping @MainActor @Sendable () -> Void
+  ) throws -> PowerSourceSubscription {
     try Subscription(onChange: onChange)
   }
 

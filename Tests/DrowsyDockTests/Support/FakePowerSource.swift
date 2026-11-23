@@ -16,7 +16,9 @@ final class FakePowerSource: PowerSource {
     reading
   }
 
-  func subscribe(onChange: @escaping @MainActor @Sendable () -> Void) throws -> AnyObject {
+  func subscribe(
+    onChange: @escaping @MainActor @Sendable () -> Void
+  ) throws -> PowerSourceSubscription {
     self.onChange = onChange
     return self
   }
