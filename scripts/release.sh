@@ -16,7 +16,8 @@
 #
 # It can't tell in advance whether Apple accepts the upload, or whether Gatekeeper on another Mac
 # opens the downloaded zip; the owner checks the first real release by hand (docs/manual-qa.md).
-# scripts/check.sh task runs the dry run with security, spctl, notarytool and stapler refused.
+# scripts/check.sh task runs the dry run with security, spctl, notarytool, stapler and altool
+# refused.
 set -euo pipefail
 usage_text="$(sed -n '4,6p' "$0" | sed 's/^# \{0,1\}//')"
 cd "$(dirname "$0")/.."

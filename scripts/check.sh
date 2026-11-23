@@ -292,8 +292,8 @@ coverage_gate() {
 }
 
 # refuse_release_only_tools DIR LOG: writes security, spctl and xcrun shims into DIR. Each call
-# to security, spctl, xcrun notarytool or xcrun stapler is appended to LOG and exits 1, so a
-# `|| true` can't hide it; any other xcrun call runs the real one.
+# to security, spctl, xcrun notarytool, xcrun stapler or xcrun altool is appended to LOG and exits
+# 1, so a `|| true` can't hide it; any other xcrun call runs the real one.
 refuse_release_only_tools() {
   local dir="$1" log="$2"
   mkdir "$dir"
