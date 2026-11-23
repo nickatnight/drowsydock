@@ -124,6 +124,7 @@ fi
 # shellcheck source=scripts/qa/live-functions.sh
 source "$root/scripts/qa/live-functions.sh"
 app_log="$(qa_log_path)"
+require_live_settings
 
 if $mode_restore && $dry_run; then
   echo "--restore applies the backup; it has no dry run. Run it without --dry-run." >&2

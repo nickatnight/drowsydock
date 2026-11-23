@@ -1,3 +1,19 @@
+# MARK: - Settings
+
+live_settings=(root dry_run qa_dir report run_log app app_binary helper dock_backup run_pid_file
+  results owns_backup app_log keep_captures)
+
+# The functions below read these globals. A caller sets them all, then runs this.
+require_live_settings() {
+  local name
+  for name in "${live_settings[@]}"; do
+    if ! declare -p "$name" >/dev/null 2>&1; then
+      echo "live-functions.sh: set $name before calling require_live_settings" >&2
+      exit 2
+    fi
+  done
+}
+
 # MARK: - Output
 
 # shellcheck source=scripts/lib.sh

@@ -26,6 +26,12 @@ app="$SCRATCH/DrowsyDock.app"
 app_binary="$app/Contents/MacOS/DrowsyDock"
 app_log="$SCRATCH/qa.log"
 run_log="$qa_dir/app.log"
+report="$qa_dir/report.md"
+dock_backup="$qa_dir/dock-backup.plist"
+run_pid_file="$SCRATCH/run.pid"
+owns_backup=false
+keep_captures=false
+require_live_settings
 calls="$SCRATCH/calls.log"
 
 # The fixture's lines by what they hold. 4242 is the app the run launched, 999 another DrowsyDock.
@@ -193,7 +199,6 @@ case_cleanup() {
   append "$started" "$grant"
   put_dock_back() { return 0; }
   write_report() { :; }
-  run_pid_file="$SCRATCH/run.pid"
   ( (exit 3); cleanup )
   echo "cleanup exit: $?"
   echo "run log: $(cut -d' ' -f4- "$run_log" | tr '\n' '|')"
