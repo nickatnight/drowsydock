@@ -64,7 +64,8 @@ case "$arguments" in
       echo "Executable=$app/Contents/MacOS/DrowsyDock"
       echo "Identifier=app.drowsydock.DrowsyDock"
       echo "Format=app bundle with Mach-O universal (x86_64 arm64)"
-      echo "CodeDirectory v=20500 size=1658 flags=${STUB_FLAGS:-$flags} hashes=45+3 location=embedded"
+      echo "CodeDirectory v=20500 size=1658 flags=${STUB_FLAGS:-$flags} hashes=45+3" \
+        "location=embedded"
       if [[ $identity == - ]]; then
         echo "Signature=adhoc"
         team="not set"

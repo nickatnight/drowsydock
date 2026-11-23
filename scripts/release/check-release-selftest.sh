@@ -9,6 +9,12 @@
 # only zips, comes back through its own folder, so a case can leave it out; so can spctl's stub.
 # Each stub appends its call to calls.log and refuses any call it doesn't know.
 #
+# Cases: the arguments; every preflight failure of a real run, and a dry run's warnings instead;
+# bundle.sh's SIGN_TIMESTAMP; the dry run's ad-hoc build, signature checks and zip; a real run's
+# Developer ID checks, a rejected or failed submission (the log is printed and dist/ keeps no zip),
+# the staple, the Gatekeeper check, and the step order sign, verify, submit, staple, validate,
+# assess, then the zip of the stapled app.
+#
 # It can't check that the stubs answer as Apple's tools do; docs/release.md asks the owner to
 # report any difference on the first real run.
 set -uo pipefail
@@ -25,11 +31,11 @@ fail() {
 # A command named by its full path would skip the stubs.
 if grep -nE '(^|[[:space:];|&(`])/(usr/)?(s)?bin/' scripts/release.sh scripts/bundle.sh |
   grep -v '^[^:]*:1:#!'; then
-  fail "release.sh or bundle.sh names a command by its full path; call it by name so the stubs apply"
+  fail "release.sh or bundle.sh names a command by its full path; call it by name for the stubs"
 fi
 
 system="$scratch/system"
-mkdir -p "$system" "$scratch/stubs" "$scratch/spctl" "$scratch/ditto" "$scratch/home" "$scratch/tmp"
+mkdir -p "$system" "$scratch/stubs" "$scratch/spctl" "$scratch/ditto" "$scratch/home"
 for dir in /usr/bin /bin /usr/sbin /sbin; do
   ln -s "$dir"/* "$system/" 2>/dev/null
 done
@@ -104,7 +110,7 @@ run_in_repo() {
   if $with_ditto; then path="$path:$scratch/ditto"; fi
   path="$path:$system"
   status=0
-  output="$(cd "$repo" && env -i HOME="$scratch/home" TMPDIR="$scratch/tmp" PATH="$path" \
+  output="$(cd "$repo" && env -i HOME="$scratch/home" PATH="$path" \
     GIT_CONFIG_NOSYSTEM=1 STUB_LOG="$calls" STUB_IDENTITY="$identity" STUB_BIN="$scratch/bin" \
     ${vars[@]+"${vars[@]}"} "$script" "$@" 2>&1)" || status=$?
   if grep -q '^refused:' "$calls"; then
@@ -123,6 +129,9 @@ has_output() { grep -qF -- "$1" <<<"$output"; }
 called() { grep -qE -- "$1" "$calls"; }
 
 dry_run_zip=dist/DrowsyDock-1.2.3-dryrun.zip
+release_zip=dist/DrowsyDock-1.2.3.zip
+
+zip_holds() { zipinfo -1 "$1" 2>/dev/null | grep -qx -- "$2"; }
 
 # expect_artifact NAME ZIP: the run passed and printed both paths, ZIP holds the app, and its
 # .sha256 file checks out from dist/.
@@ -135,7 +144,7 @@ expect_artifact() {
   if ! has_output "$zip" || ! has_output "$zip.sha256"; then
     fail "$(report "$name doesn't print $zip and its .sha256")"
   fi
-  if ! zipinfo -1 "$repo/$zip" 2>/dev/null | grep -qx 'DrowsyDock.app/Contents/MacOS/DrowsyDock'; then
+  if ! zip_holds "$repo/$zip" DrowsyDock.app/Contents/MacOS/DrowsyDock; then
     fail "$(report "$name leaves no $zip holding DrowsyDock.app")"
   fi
   if ! (cd "$repo/dist" && shasum -a 256 -s -c "${zip#dist/}.sha256"); then
@@ -254,10 +263,6 @@ scratch_git -C "$repo" commit -qam "A version that isn't one"
 run_release "${release_env[@]}"
 expect_preflight_failure "a run with a version that isn't numbers" CFBundleShortVersionString
 
-new_repo
-run_release "${release_env[@]}"
-has_output "Preflight passed" || fail "$(report "a run with everything in place fails its preflight")"
-
 # MARK: - Preflight of a dry run
 
 new_repo
@@ -327,8 +332,8 @@ run_release "STUB_FLAGS=0x2(adhoc)" -- --dry-run
 expect_no_artifact "a dry run without the hardened runtime" "$dry_run_zip" runtime
 
 new_repo
-run_release "STUB_ENTITLEMENTS=<plist><dict><key>com.apple.security.cs.allow-jit</key><true/></dict></plist>" \
-  -- --dry-run
+entitlement='<plist><dict><key>com.apple.security.cs.allow-jit</key><true/></dict></plist>'
+run_release "STUB_ENTITLEMENTS=$entitlement" -- --dry-run
 expect_no_artifact "a dry run with an entitlement" "$dry_run_zip" entitlements
 
 new_repo
@@ -338,5 +343,94 @@ expect_no_artifact "a dry run of an arm64-only binary" "$dry_run_zip" x86_64
 new_repo
 run_release STUB_ARCHS=x86_64 -- --dry-run
 expect_no_artifact "a dry run of an x86_64-only binary" "$dry_run_zip" arm64
+
+# MARK: - Real run
+
+# step_order: the release steps in the order the stubs saw them.
+step_order() {
+  awk '
+    /^codesign --force / { print "sign" }
+    /^codesign --verify / { print "verify" }
+    /^xcrun notarytool submit / { print "submit" }
+    /^xcrun stapler staple / { print "staple" }
+    /^xcrun stapler validate / { print "validate" }
+    /^spctl --assess / { print "assess" }' "$calls" | paste -sd ' ' -
+}
+
+# expect_stopped_before NAME STEP TEXT: the run failed, named TEXT, left no release zip, and never
+# reached STEP (a stub call pattern).
+expect_stopped_before() {
+  expect_no_artifact "$1" "$release_zip" "$3"
+  if called "$2"; then fail "$(report "$1 still reaches $2")"; fi
+}
+
+new_repo
+leave_stale "$release_zip"
+run_release "${release_env[@]}"
+expect_artifact "a release" "$release_zip"
+order="$(step_order)"
+[[ $order == "sign verify submit staple validate assess" ]] ||
+  fail "$(report "a release runs its steps in the order: $order")"
+grep -qxF "codesign --force --options runtime --timestamp --sign $identity build/DrowsyDock.app" \
+  "$calls" || fail "$(report "a release doesn't sign with the Developer ID and a timestamp")"
+called '^submitted: a zip of DrowsyDock.app$' ||
+  fail "$(report "a release submits something other than a zip of DrowsyDock.app")"
+called '^xcrun notarytool submit .* --keychain-profile drowsydock-notary --wait ' ||
+  fail "$(report "a release doesn't submit with NOTARY_PROFILE's keychain profile")"
+zip_holds "$repo/$release_zip" DrowsyDock.app/Contents/CodeResources ||
+  fail "$(report "a release zips the app without its stapled ticket")"
+
+new_repo
+run_release "${release_env[@]}" "STUB_AUTHORITY=Apple Development: Emgee Labs LLC (TEAMID)"
+expect_stopped_before "a release signed by another authority" '^xcrun notarytool' \
+  "Developer ID Application"
+
+new_repo
+run_release "${release_env[@]}" "STUB_TEAM=not set"
+expect_stopped_before "a release without a TeamIdentifier" '^xcrun notarytool' TeamIdentifier
+
+new_repo
+run_release "${release_env[@]}" STUB_TIMESTAMP=none
+expect_stopped_before "a release without a secure timestamp" '^xcrun notarytool' timestamp
+
+new_repo
+run_release "${release_env[@]}" "STUB_FLAGS=0x0(none)"
+expect_stopped_before "a release without the hardened runtime" '^xcrun notarytool' runtime
+
+submission=2efe2717-52ef-43a5-96dc-0797e4ca1041
+for submit_exit in 0 1; do
+  new_repo
+  leave_stale "$release_zip"
+  run_release "${release_env[@]}" STUB_NOTARY_STATUS=Invalid STUB_SUBMIT_EXIT="$submit_exit"
+  expect_stopped_before "a rejected release (notarytool exit $submit_exit)" '^xcrun stapler' Invalid
+  has_output "STUB LOG: The signature does not include a secure timestamp." ||
+    fail "$(report "a rejected release (notarytool exit $submit_exit) doesn't print the log")"
+  grep -qxF "xcrun notarytool log $submission --keychain-profile drowsydock-notary" "$calls" ||
+    fail "$(report "a rejected release doesn't fetch the log of its submission")"
+  has_output "notarytool log $submission" ||
+    fail "$(report "a rejected release doesn't print the command that reads the log again")"
+done
+
+new_repo
+run_release "${release_env[@]}" STUB_NOTARY_STATUS=none
+expect_stopped_before "a submission that fails without a result" '^xcrun (stapler|notarytool log)' \
+  "Unable to authenticate"
+
+new_repo
+run_release "${release_env[@]}" STUB_STAPLE_STATUS=1
+expect_stopped_before "a release whose staple fails" '^spctl ' staple
+
+new_repo
+run_release "${release_env[@]}" STUB_VALIDATE_STATUS=65
+expect_stopped_before "a release whose stapled ticket doesn't validate" '^spctl ' validate
+
+new_repo
+run_release "${release_env[@]}" STUB_SPCTL_STATUS=3
+expect_stopped_before "a release Gatekeeper rejects" '^never$' "rejected"
+
+new_repo
+run_release "${release_env[@]}" "STUB_SPCTL_SOURCE=Unnotarized Developer ID"
+expect_stopped_before "a release Gatekeeper accepts from another source" '^never$' \
+  "Notarized Developer ID"
 
 exit "$failed"

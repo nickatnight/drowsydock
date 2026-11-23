@@ -12,6 +12,10 @@
 #
 # A release needs a clean tree and the tag v<CFBundleShortVersionString> at HEAD. A dry run warns
 # about both instead, and needs no variables, network or keychain.
+#
+# It can't tell in advance whether Apple accepts the upload, or whether Gatekeeper on another Mac
+# opens the downloaded zip; the owner checks the first real release by hand (docs/manual-qa.md).
+# scripts/release/check-release-selftest.sh runs it against stub tools.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -51,7 +55,8 @@ version_pattern='^[0-9]+(\.[0-9]+){0,2}$'
 
 step "Preflight"
 if $dry_run; then
-  echo "Dry run: signed ad hoc; the Developer ID, notarization, stapling and Gatekeeper steps are skipped."
+  echo "Dry run: signed ad hoc, and the Developer ID, notarization, stapling and Gatekeeper" \
+    "steps are skipped."
 else
   if [[ -z ${DEVELOPER_ID:-} ]]; then
     die "DEVELOPER_ID is not set. Set it to your certificate's name, such as" \
@@ -114,10 +119,6 @@ if [[ $tag_commit != "$head_commit" ]]; then
 fi
 echo "Preflight passed for version $version."
 
-if ! $dry_run; then
-  die "the notarization steps are not written yet."
-fi
-
 app="build/DrowsyDock.app"
 if $dry_run; then
   artifact="dist/DrowsyDock-$version-dryrun.zip"
@@ -128,7 +129,8 @@ checksum="$artifact.sha256"
 # This run's names are cleared first, so a failed run never leaves an older zip that looks like
 # its own. The partial files are moved into place only once they are complete.
 rm -f "$artifact" "$checksum" "$artifact.partial" "$checksum.partial"
-trap 'rm -f "$artifact.partial" "$checksum.partial"' EXIT
+work="$(mktemp -d)"
+trap 'rm -rf "$work"; rm -f "$artifact.partial" "$checksum.partial"' EXIT
 
 step "Build"
 if $dry_run; then
@@ -159,15 +161,67 @@ done
 echo "Strict verification, the hardened runtime, no entitlements, arm64 and x86_64: passed."
 if $dry_run; then
   echo "skipped (dry run): the Developer ID authority, TeamIdentifier and timestamp checks"
+else
+  # codesign lists the chain from the signing certificate up to Apple's root.
+  authority="$(grep -m 1 '^Authority=' <<<"$signature" || true)"
+  if [[ $authority != "Authority=$identity_prefix"* ]]; then
+    die "the signature's first authority is \"${authority#Authority=}\", not a" \
+      "$identity_prefix certificate."
+  fi
+  team="$(sed -n 's/^TeamIdentifier=//p' <<<"$signature")"
+  if [[ -z $team || $team == "not set" ]]; then
+    die "the signature has no TeamIdentifier."
+  fi
+  if ! grep -q '^Timestamp=' <<<"$signature"; then
+    die "the signature has no secure timestamp, which notarization requires (bundle.sh" \
+      "SIGN_TIMESTAMP=1)."
+  fi
+  echo "${authority#Authority=}, TeamIdentifier, secure timestamp: passed."
 fi
 
+step "Notarize"
 if $dry_run; then
-  step "Notarize"
   echo "skipped (dry run): xcrun notarytool submit"
-  step "Staple and assess"
+else
+  ditto -c -k --keepParent "$app" "$work/DrowsyDock.zip"
+  echo "Submitting to Apple's notary service and waiting for its answer, which can take minutes."
+  submit_status=0
+  submission="$(xcrun notarytool submit "$work/DrowsyDock.zip" \
+    --keychain-profile "$NOTARY_PROFILE" --wait --output-format json)" || submit_status=$?
+  # The answer is one JSON object; Apple documents its id and status fields.
+  answer="$(grep '^{' <<<"$submission" | tail -n 1 || true)"
+  notary_status="$(plutil -extract status raw -o - - <<<"$answer" 2>/dev/null || true)"
+  submission_id="$(plutil -extract id raw -o - - <<<"$answer" 2>/dev/null || true)"
+  if [[ -z $notary_status ]]; then
+    die "notarytool submit exited $submit_status without a status:"$'\n'"$submission"
+  fi
+  if [[ $notary_status != Accepted ]]; then
+    echo "release.sh: notarization ended with status $notary_status. Apple's log:" >&2
+    if [[ $submission_id =~ ^[0-9A-Fa-f-]+$ ]]; then
+      xcrun notarytool log "$submission_id" --keychain-profile "$NOTARY_PROFILE" >&2 ||
+        echo "(notarytool log failed)" >&2
+      die "fix what the log names and release again. To read the log again:" \
+        "xcrun notarytool log $submission_id --keychain-profile $NOTARY_PROFILE"
+    fi
+    die "the answer names no submission id:"$'\n'"$submission"
+  fi
+  echo "Accepted (submission $submission_id)."
+fi
+
+step "Staple and assess"
+if $dry_run; then
   echo "skipped (dry run): xcrun stapler staple"
   echo "skipped (dry run): xcrun stapler validate"
   echo "skipped (dry run): spctl --assess --type execute"
+else
+  xcrun stapler staple "$app" || die "xcrun stapler staple failed."
+  xcrun stapler validate "$app" || die "xcrun stapler validate rejects the stapled ticket."
+  assessment="$(spctl --assess --type execute -v "$app" 2>&1)" ||
+    die "Gatekeeper rejected $app:"$'\n'"$assessment"
+  if ! grep -qF 'source=Notarized Developer ID' <<<"$assessment"; then
+    die "spctl doesn't report source=Notarized Developer ID:"$'\n'"$assessment"
+  fi
+  echo "Stapled, validated, and Gatekeeper reports source=Notarized Developer ID."
 fi
 
 step "Package"
@@ -181,4 +235,6 @@ echo "$artifact"
 echo "$checksum"
 if $dry_run; then
   echo "A dry run's zip is signed ad hoc and not notarized; it is not for distribution."
+else
+  echo "Publish it with the gh release create command in docs/release.md."
 fi

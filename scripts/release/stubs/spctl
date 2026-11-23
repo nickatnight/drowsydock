@@ -1,5 +1,15 @@
 #!/bin/bash
-# spctl stub for check-release-selftest.sh. Anything else is refused.
+# spctl stub for check-release-selftest.sh: --assess reports source=$STUB_SPCTL_SOURCE (default
+# Notarized Developer ID). A non-zero $STUB_SPCTL_STATUS rejects with that same source, so only the
+# exit status says no. Anything else is refused.
 echo "spctl $*" >>"$STUB_LOG"
-echo "refused: spctl $*" >>"$STUB_LOG"
-exit 1
+if [[ $# != 5 || $1 != --assess || $2 != --type || $3 != execute || $4 != -v ]]; then
+  echo "refused: spctl $*" >>"$STUB_LOG"
+  exit 1
+fi
+if ((${STUB_SPCTL_STATUS:-0} != 0)); then
+  printf '%s: rejected (the code is valid but does not seem to be an app)\nsource=%s\n' "$5" \
+    "${STUB_SPCTL_SOURCE:-Notarized Developer ID}" >&2
+  exit "$STUB_SPCTL_STATUS"
+fi
+printf '%s: accepted\nsource=%s\n' "$5" "${STUB_SPCTL_SOURCE:-Notarized Developer ID}" >&2
