@@ -212,7 +212,7 @@ case_overlay_undone() {
   expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
 }
 
-case_faded_at_the_budget() {
+case_faded_at_the_budget_from_the_return() {
   start_run
   mark_log
   append "$overlay_faded"
@@ -390,7 +390,7 @@ run_case overlay_undone
 shown="$(grep -m 1 'Overlay: shown' Tests/LiveQAKitTests/Fixtures/qa.log)"
 expect "FAIL QA 8.11 (hover): the cat fades: a later line undid it: ${shown#*Overlay: }"
 
-run_case faded_at_the_budget
+run_case faded_at_the_budget_from_the_return
 expect "PASS QA 8.11 (hover): the cat fades: 0.20 s after the change returned (0.30 s after it started; budget 0.2 s)"
 
 run_case hidden_in_time
