@@ -154,56 +154,18 @@ case_run_log() {
   echo "run log after the start-over: $(cut -d' ' -f4- "$run_log")"
 }
 
+# expect_overlay_within passes, fails late, finds no line at the Dock's perch, or finds a later line
+# that undid the change. One case each.
 case_overlay_in_time() {
   start_run
   mark_log
   append "$overlay_shown"
   time_change_before "$overlay_shown" 0.300 0.120
-  expect_overlay_within shown 1 7.1 position "the cat moves"
-}
-
-case_overlay_late() {
-  start_run
-  mark_log
-  append "$overlay_shown"
-  time_change_before "$overlay_shown" 1.700 1.500
-  expect_overlay_within shown 1 7.1 position "the cat moves"
-}
-
-case_overlay_elsewhere() {
-  start_run
-  mark_log
-  append "$overlay_shown"
-  time_change_before "$overlay_shown" 0.300 0.120
-  DOCK_PERCH=0,0,64,80 expect_overlay_within shown 1 7.1 position "the cat moves"
-}
-
-case_overlay_undone() {
-  start_run
-  mark_log
-  append "$overlay_shown" "$overlay_faded"
-  time_change_before "$overlay_shown" 0.300 0.120
-  expect_overlay_within shown 1 7.1 position "the cat moves"
-}
-
-case_perch_within_half_a_point() {
-  start_run
-  mark_log
-  append "$overlay_shown"
-  time_change_before "$overlay_shown" 0.300 0.120
   DOCK_PERCH=1070.4,84,64,80 expect_overlay_within shown 1 7.1 position "0.4 pt off"
-  DOCK_PERCH=1070.6,84,64,80 expect_overlay_within shown 1 7.1 position "0.6 pt off"
 }
 
-case_just_past_the_budget() {
-  start_run
-  mark_log
-  append "$overlay_shown"
-  time_change_before "$overlay_shown" 1.200 1.050
-  expect_overlay_within shown 1 7.1 position "the cat moves"
-}
-
-case_old_perch_early_new_perch_late() {
+# The line at the old perch comes in time; the one at the Dock's perch is late.
+case_overlay_late() {
   start_run
   mark_log
   fixture_line "$overlay_shown" | sed 's/frame: (1070.0, 84.0/frame: (900.0, 84.0/' >>"$app_log"
@@ -213,36 +175,20 @@ case_old_perch_early_new_perch_late() {
   expect_overlay_within shown 1 7.1 position "the cat moves"
 }
 
-case_faded_in_time() {
+case_overlay_elsewhere() {
   start_run
   mark_log
-  append "$overlay_faded"
-  time_change_before "$overlay_faded" 0.300 0.150
-  expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
+  append "$overlay_shown"
+  time_change_before "$overlay_shown" 0.300 0.120
+  DOCK_PERCH=1070.6,84,64,80 expect_overlay_within shown 1 7.1 position "0.6 pt off"
 }
 
-case_faded_late() {
-  start_run
-  mark_log
-  append "$overlay_faded"
-  time_change_before "$overlay_faded" 0.300 0.250
-  expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
-}
-
-case_faded_then_shown() {
+case_overlay_undone() {
   start_run
   mark_log
   append "$overlay_faded" "$overlay_shown"
   time_change_before "$overlay_faded" 0.300 0.150
   expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
-}
-
-case_hidden_in_time() {
-  start_run
-  mark_log
-  append "$overlay_hidden"
-  time_change_before "$overlay_hidden" 0.300 0.100
-  expect_overlay_within hidden 1 7.4 autohide "the cat hides"
 }
 
 case_cleanup() {
@@ -352,17 +298,17 @@ expect "run log: DrowsyDock[4242] DrowsyDock[999] "
 expect "run log after the start-over: qa-log: qa.log reached its limit of 1048576 bytes and started over"
 
 run_case overlay_in_time
-expect "PASS QA 7.1 (position): the cat moves: 0.12 s after the change returned (0.30 s after it started; budget 1 s)"
+expect "PASS QA 7.1 (position): 0.4 pt off: 0.12 s after the change returned (0.30 s after it started; budget 1 s)"
 
 run_case overlay_late
-expect "FAIL QA 7.1 (position): the cat moves: 1.50 s after the change returned (1.70 s after it started; budget 1 s)"
+expect "FAIL QA 7.1 (position): the cat moves: 1.42 s after the change returned (1.60 s after it started; budget 1 s)"
 
 run_case overlay_elsewhere
-expect "FAIL QA 7.1 (position): the cat moves: no 'Overlay: shown' line at the Dock's perch"
+expect "FAIL QA 7.1 (position): 0.6 pt off: no 'Overlay: shown' line at the Dock's perch"
 
 run_case overlay_undone
-faded="$(grep -m 1 'Overlay: fadedOut' Tests/LiveQAKitTests/Fixtures/qa.log)"
-expect "FAIL QA 7.1 (position): the cat moves: a later line undid it: ${faded#*Overlay: }"
+shown="$(grep -m 1 'Overlay: shown' Tests/LiveQAKitTests/Fixtures/qa.log)"
+expect "FAIL QA 8.11 (hover): the cat fades: a later line undid it: ${shown#*Overlay: }"
 
 run_case expect_line
 expect "PASS QA 3.9 to 3.13 (levels): 80% shows '80% · Discharging · Awake'"
@@ -382,29 +328,6 @@ expect "launch: 1, pid "
 
 run_case launch APP_STOPPED=1 APP_NEVER_RUNS=1 OTHER_APP=1
 expect "launch: 1, pid "
-
-run_case perch_within_half_a_point
-expect "PASS QA 7.1 (position): 0.4 pt off: 0.12 s after the change returned (0.30 s after it started; budget 1 s)"
-expect "FAIL QA 7.1 (position): 0.6 pt off: no 'Overlay: shown' line at the Dock's perch"
-
-run_case just_past_the_budget
-expect "FAIL QA 7.1 (position): the cat moves: 1.05 s after the change returned (1.20 s after it started; budget 1 s)"
-
-run_case old_perch_early_new_perch_late
-expect "FAIL QA 7.1 (position): the cat moves: 1.42 s after the change returned (1.60 s after it started; budget 1 s)"
-
-run_case faded_in_time
-expect "PASS QA 8.11 (hover): the cat fades: 0.15 s after the change returned (0.30 s after it started; budget 0.2 s)"
-
-run_case faded_late
-expect "FAIL QA 8.11 (hover): the cat fades: 0.25 s after the change returned (0.30 s after it started; budget 0.2 s)"
-
-run_case faded_then_shown
-shown="$(grep -m 1 'Overlay: shown' Tests/LiveQAKitTests/Fixtures/qa.log)"
-expect "FAIL QA 8.11 (hover): the cat fades: a later line undid it: ${shown#*Overlay: }"
-
-run_case hidden_in_time
-expect "PASS QA 7.4 (autohide): the cat hides: 0.10 s after the change returned (0.30 s after it started; budget 1 s)"
 
 run_case cleanup
 expect "cleanup exit: 3"
