@@ -1,0 +1,5 @@
+#!/bin/bash
+# spctl stub for check-release-selftest.sh. Anything else is refused.
+echo "spctl $*" >>"$STUB_LOG"
+echo "refused: spctl $*" >>"$STUB_LOG"
+exit 1

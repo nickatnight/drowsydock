@@ -2,9 +2,9 @@
 # Runs the checks from CONSTRAINTS.md.
 #
 #   scripts/check.sh fast   compile, format, the live QA script's checks (dry run, Dock restore,
-#                           restore self-test, log reads), floor rules, the QA row mapping,
-#                           the README (links, images, banner) and its self-test, secrets
-#                           (every edit)
+#                           restore self-test, log reads), the release script's self-test with
+#                           stub tools, floor rules, the QA row mapping, the README (links,
+#                           images, banner) and its self-test, secrets (every edit)
 #   scripts/check.sh task   fast + tests, coverage gate, bundle (run before every commit)
 #
 # The coverage gate compares against the merge base with $CHECK_BASE (default: main). It also
@@ -311,6 +311,10 @@ scripts/qa/check-dry-run.sh
 scripts/qa/check-dock-restore.sh
 scripts/qa/check-restore-selftest.sh
 scripts/qa/check-app-log.sh
+
+step "Release script (syntax, and its self-test with stub tools: no network, certificate or build)"
+bash -n scripts/release.sh
+scripts/release/check-release-selftest.sh
 
 step "Floor rules"
 floor_rules

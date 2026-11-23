@@ -1,0 +1,14 @@
+#!/bin/bash
+# xcrun stub for check-release-selftest.sh. `--find` succeeds unless $STUB_MISSING names the
+# tool. Anything else is refused, so no run reaches the real notarytool or stapler.
+echo "xcrun $*" >>"$STUB_LOG"
+if [[ $1 == --find && $# == 2 ]]; then
+  if [[ " ${STUB_MISSING:-} " == *" $2 "* ]]; then
+    echo "xcrun: error: unable to find utility \"$2\", not a developer tool or in PATH" >&2
+    exit 72
+  fi
+  echo "/stub/$2"
+  exit 0
+fi
+echo "refused: xcrun $*" >>"$STUB_LOG"
+exit 1
