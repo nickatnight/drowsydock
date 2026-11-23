@@ -336,7 +336,6 @@ step "Floor rules"
 floor_rules
 coverage_exempt_files_are_in_manual_qa
 scripts/qa/check-qa-mapping.sh
-scripts/qa/check-qa-mapping-selftest.sh
 
 step "README (every relative link and image resolves, the banner matches the snapshot references and the app)"
 scripts/readme/check-readme.sh

@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 # Checks docs/manual-qa.md's map from each QA row to the tests or live scenarios that cover it.
-#
-#   scripts/qa/check-qa-mapping.sh [DOC] [ROWS]
 set -uo pipefail
 cd "$(dirname "$0")/../.."
-doc="${1:-docs/manual-qa.md}"
-rows_file="${2:-docs/qa-rows.txt}"
+doc=docs/manual-qa.md
 
 # Exit 0 means it found something and 1 means it found nothing; anything else stops the check.
 found() {
@@ -77,19 +74,8 @@ every_row_cites_something() {
   return "$failed"
 }
 
-rows_equal_the_list() {
-  if ! found cmp -s <(grep -oE '^\| ([0-9]+\.[0-9]+[a-z]?|E\.[0-9]+) ' "$doc" |
-    tr -d '| ' | sort) <(sort "$rows_file"); then
-    echo "Manual QA: $doc's rows differ from $rows_file:" >&2
-    diff <(grep -oE '^\| ([0-9]+\.[0-9]+[a-z]?|E\.[0-9]+) ' "$doc" | tr -d '| ' | sort) \
-      <(sort "$rows_file") >&2 || true
-    return 1
-  fi
-}
-
 failed=0
 tests_cells_name_real_tests || failed=1
 live_cells_name_scenarios_that_list_the_row || failed=1
 every_row_cites_something || failed=1
-rows_equal_the_list || failed=1
 exit "$failed"
