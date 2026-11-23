@@ -15,7 +15,7 @@ Read [CONSTRAINTS.md](CONSTRAINTS.md) before writing code. Never weaken it to ma
 | `Sources/DockOverlayKitTestSupport/` | `FadeRecorder`, which both overlay test targets share (ADR 0019). No product depends on it. |
 | `Resources/` | `Info.plist` and `AppIcon.svg`, the icon source. |
 | `Tests/` | One XCTest target per library, plus `DrowsyDockTests` for the app (snapshot references in `Snapshots/`) and `LiveQAKitTests`. |
-| `scripts/` | `check.sh`, `bundle.sh`, `release.sh` and `qa-live.sh`; `verify-signature.sh`, the signature checks `check.sh` and `release.sh` share; `lib.sh`, their shared shell functions; plus `qa/` (the live QA functions and their checks), `readme/` (the banner generator and README check) and `icon/`. None of it goes into the app bundle. |
+| `scripts/` | `check.sh`, `bundle.sh`, `release.sh` and `qa-live.sh`; `verify-signature.sh`, the signature checks `check.sh` and `release.sh` share; `lib.sh`, the shell functions they and the live QA scripts share; plus `qa/` (the live QA functions and their checks), `readme/` (the banner generator and README check) and `icon/`. None of it goes into the app bundle. |
 | `docs/manual-qa.md` | Every QA row, mapped to the test or live scenario that covers it. |
 | `docs/release.md` | The owner's release guide: enrollment, the Developer ID certificate, the notary profile, the release steps. |
 | `docs/adr/` | Decision records. They exist only on the owner's machine: git ignores `docs/` except `manual-qa.md`, `release.md` and `readme/`. |
