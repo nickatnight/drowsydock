@@ -4,8 +4,10 @@
 
 # MARK: - Output
 
+# shellcheck source=scripts/lib.sh
+source "${BASH_SOURCE[0]%/*}/../lib.sh"
+
 say() { printf '%s\n' "$*"; }
-step() { printf '\n==> %s\n' "$*"; }
 
 run_or_print() {
   if $dry_run; then

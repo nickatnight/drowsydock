@@ -2,18 +2,8 @@
 # Checks docs/manual-qa.md's map from each QA row to the tests or live scenarios that cover it.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
+source scripts/lib.sh
 doc=docs/manual-qa.md
-
-# Exit 0 means it found something and 1 means it found nothing; anything else stops the check.
-found() {
-  local status=0
-  "$@" || status=$?
-  if ((status > 1)); then
-    echo "Scan failed with exit $status: $*" >&2
-    exit 2
-  fi
-  return "$status"
-}
 
 table="$(sed -n '/^## Automated and live rows/,/^## Coverage/p' "$doc" |
   awk -F'|' 'NF > 5 && $2 ~ /[0-9]/')"

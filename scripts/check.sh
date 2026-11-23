@@ -14,6 +14,7 @@
 # writes the gated files' coverage to .build/coverage/lcov.info, which CI uploads to Codecov.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/lib.sh
 
 mode="${1:-}"
 case "$mode" in
@@ -43,20 +44,6 @@ trap 'exit 143' TERM
 # NUL-delimited, so names with blanks, quotes or backslashes survive. Listed once at the top
 # level, where `set -e` stops the run if git fails.
 git ls-files --cached --others --exclude-standard -z >"$work/files"
-
-step() { printf '\n==> %s\n' "$*"; }
-
-# Runs a scan (grep, awk). Exit 0 means it found something and 1 means it found nothing. Any other
-# status, such as a file it could not open, stops the run instead of reading as "nothing found".
-found() {
-  local status=0
-  "$@" || status=$?
-  if ((status > 1)); then
-    echo "Scan failed with exit $status: $*" >&2
-    exit 2
-  fi
-  return "$status"
-}
 
 swift_files_under() {
   local dir file
@@ -301,22 +288,6 @@ coverage_gate() {
   fi
 }
 
-check_signed_app() {
-  local label="$1" app="$2" signature entitlements
-  codesign --verify --strict "$app"
-  signature="$(codesign -dv "$app" 2>&1)"
-  if ! grep -Eq '^CodeDirectory .*flags=0x[0-9a-f]+\([^)]*runtime' <<<"$signature"; then
-    echo "$label: the signature lacks the hardened runtime (codesign --options runtime)" >&2
-    exit 1
-  fi
-  entitlements="$(codesign -d --entitlements - --xml "$app" 2>/dev/null)"
-  if [[ -n $entitlements ]]; then
-    echo "$label: the signature carries entitlements; scripts/bundle.sh must sign with none" >&2
-    grep -Eo '<key>[^<]*</key>' <<<"$entitlements" >&2 || echo "$entitlements" >&2
-    exit 1
-  fi
-}
-
 step "Compile (Swift 6, warnings are errors)"
 swift build --build-tests -Xswiftc -warnings-as-errors
 
@@ -375,7 +346,7 @@ coverage_gate
 
 step "Bundle"
 scripts/bundle.sh
-check_signed_app Bundle build/DrowsyDock.app
+scripts/verify-signature.sh build/DrowsyDock.app
 plutil -lint Resources/Info.plist
 
 step "Release dry run (scripts/release.sh --dry-run with Apple's services and the keychain refused, then the app in its zip)"
@@ -407,6 +378,6 @@ release_zip="dist/DrowsyDock-$release_version-dryrun.zip"
 (cd dist && shasum -a 256 -s -c "${release_zip#dist/}.sha256")
 mkdir "$work/release"
 ditto -x -k "$release_zip" "$work/release"
-check_signed_app "Release dry run" "$work/release/DrowsyDock.app"
+scripts/verify-signature.sh "$work/release/DrowsyDock.app"
 
 step "task checks passed"
