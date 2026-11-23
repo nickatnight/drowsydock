@@ -126,7 +126,9 @@ called() { grep -qE -- "$1" "$calls"; }
 dry_run_zip=dist/DrowsyDock-1.2.3-dryrun.zip
 release_zip=dist/DrowsyDock-1.2.3.zip
 
-zip_holds() { zipinfo -1 "$1" 2>/dev/null | grep -qx -- "$2"; }
+# Not grep -q: it would stop reading at the first match, and under pipefail the SIGPIPE that
+# zipinfo then gets would turn a found entry into a miss.
+zip_holds() { zipinfo -1 "$1" 2>/dev/null | grep -x -- "$2" >/dev/null; }
 
 expect_artifact() {
   local name="$1" zip="$2"
