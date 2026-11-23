@@ -288,6 +288,28 @@ coverage_gate() {
   fi
 }
 
+# refuse_release_only_tools DIR LOG: writes security, spctl and xcrun shims into DIR. Each call
+# to security, spctl, xcrun notarytool or xcrun stapler is appended to LOG and exits 1, so a
+# `|| true` can't hide it; any other xcrun call runs the real one.
+refuse_release_only_tools() {
+  local dir="$1" log="$2"
+  mkdir "$dir"
+  cat >"$dir/security" <<EOF
+#!/bin/sh
+echo "\${0##*/} \$*" >>"$log"
+exit 1
+EOF
+  cp "$dir/security" "$dir/spctl"
+  cat >"$dir/xcrun" <<EOF
+#!/bin/sh
+for arg in "\$@"; do
+  case "\$arg" in notarytool | stapler) echo "xcrun \$*" >>"$log"; exit 1 ;; esac
+done
+exec /usr/bin/xcrun "\$@"
+EOF
+  chmod +x "$dir"/*
+}
+
 step "Compile (Swift 6, warnings are errors)"
 swift build --build-tests -Xswiftc -warnings-as-errors
 
@@ -350,21 +372,7 @@ scripts/verify-signature.sh build/DrowsyDock.app
 plutil -lint Resources/Info.plist
 
 step "Release dry run (scripts/release.sh --dry-run with Apple's services and the keychain refused, then the app in its zip)"
-mkdir "$work/refuse"
-cat >"$work/refuse/security" <<EOF
-#!/bin/sh
-echo "\${0##*/} \$*" >>"$work/refused"
-exit 1
-EOF
-cp "$work/refuse/security" "$work/refuse/spctl"
-cat >"$work/refuse/xcrun" <<EOF
-#!/bin/sh
-for arg in "\$@"; do
-  case "\$arg" in notarytool | stapler) echo "xcrun \$*" >>"$work/refused"; exit 1 ;; esac
-done
-exec /usr/bin/xcrun "\$@"
-EOF
-chmod +x "$work/refuse"/*
+refuse_release_only_tools "$work/refuse" "$work/refused"
 PATH="$work/refuse:$PATH" scripts/release.sh --dry-run
 if [[ -s $work/refused ]]; then
   echo "Release dry run: it called tools that only a real release may call:" >&2
