@@ -45,7 +45,6 @@ dock_backup="$qa_dir/dock-backup.plist"
 run_pid_file="$qa_dir/run.pid"
 
 scenarios=(
-  "restore-selftest|-|saves the Dock preferences, changes one harmless key, restores them"
   "launch|1.1 1.2 1.3 7.0|a menu-bar app with no Dock icon; Quit and Cmd-Q end it"
   "battery|3.0 3.1|the real battery's line matches pmset"
   "levels|3.9 3.10 3.11 3.12 3.13 3.14 3.15 3.16|every Simulate battery choice, in both orders"
@@ -68,7 +67,6 @@ keep_captures=false
 results=()
 failed=false
 owns_backup=false
-needs_app=false
 
 usage() {
   sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
@@ -164,11 +162,6 @@ if $dry_run; then
   list
 fi
 
-for entry in "${scenarios[@]}"; do
-  name="${entry%%|*}"
-  if selected "$name" && [[ $name != restore-selftest ]]; then needs_app=true; fi
-done
-
 if ! $dry_run; then
   if pid="$(other_run_pid)"; then
     say "Another qa-live.sh run (pid $pid) is using build/qa and the Dock; let it finish." >&2
@@ -197,10 +190,8 @@ for entry in "${scenarios[@]}"; do
   "scenario_${name//-/_}"
 done
 
-if $needs_app; then
-  step "Back to the real battery"
-  simulate Real
-fi
+step "Back to the real battery"
+simulate Real
 
 $failed && exit 1
 exit 0

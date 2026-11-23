@@ -18,7 +18,6 @@ source scripts/qa/live-functions.sh
 
 root="$PWD"
 dry_run=false
-needs_app=true
 failed=false
 results=()
 helper="$HELPER"

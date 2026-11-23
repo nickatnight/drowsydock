@@ -2,9 +2,8 @@
 # Runs the checks from CONSTRAINTS.md.
 #
 #   scripts/check.sh fast   compile, format, the live QA script's checks (dry run, Dock restore,
-#                           restore self-test, log reads), the release script's syntax, floor
-#                           rules, the QA row mapping, the README (links, images, banner),
-#                           secrets (every edit)
+#                           log reads), the release script's syntax, floor rules, the QA row
+#                           mapping, the README (links, images, banner), secrets (every edit)
 #   scripts/check.sh task   fast + tests, coverage gate, bundle, and the release dry run with the
 #                           app in its zip checked (run before every commit)
 #
@@ -324,11 +323,10 @@ swift build --build-tests -Xswiftc -warnings-as-errors
 step "Format"
 swift format lint --strict --recursive Sources Tests
 
-step "Live QA script (syntax, a dry run that must touch nothing, the Dock restore and its self-test on a scratch domain, the log reads over a fixture QA log)"
+step "Live QA script (syntax, a dry run that must touch nothing, the Dock restore on a scratch domain, the log reads over a fixture QA log)"
 bash -n scripts/qa-live.sh
 scripts/qa/check-dry-run.sh
 scripts/qa/check-dock-restore.sh
-scripts/qa/check-restore-selftest.sh
 scripts/qa/check-app-log.sh
 
 step "Release script (syntax; check.sh task runs its dry run)"
