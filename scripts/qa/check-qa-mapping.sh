@@ -14,7 +14,8 @@ tests_cells_name_real_tests() {
     class="${token%%.*}"
     if [[ $token == *.* ]]; then
       method="${token#*.}"
-      if ! cat Tests/*/"$class.swift" 2>/dev/null | found_or_abort grep -Eq "^[[:space:]]*func $method\("; then
+      if ! cat Tests/*/"$class.swift" 2>/dev/null |
+        found_or_abort grep -Eq "^[[:space:]]*func $method\("; then
         echo "Manual QA: $doc names $token, which no test file defines" >&2
         failed=1
       fi
