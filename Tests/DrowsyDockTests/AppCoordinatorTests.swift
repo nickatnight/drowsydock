@@ -271,11 +271,11 @@ final class AppCoordinatorTests: XCTestCase {
 
     rig.percent(5)
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .shown)
+    XCTAssertEqual(rig.canvasFades.lastFade?.alpha, 1, "the veil fades in (10.4)")
+    XCTAssertEqual(rig.canvasFades.lastFade?.duration, 0.2)
     XCTAssertEqual(rig.overlay.canvasWindow.frame, MascotOverlay.canvasFrame(around: dock))
     finishWave(rig)
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .shown)
-    XCTAssertEqual(rig.canvasFades.lastFade?.alpha, 1, "the veil fades in as usual")
-    XCTAssertEqual(rig.canvasFades.lastFade?.duration, 0.2)
     rig.percent(15)
 
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .hidden)
@@ -452,6 +452,8 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertFalse(rig.overlay.catScene.director.isAnimating, "no transition into asleep")
     XCTAssertFalse(isWavePlaying(rig))
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .shown)
+    XCTAssertEqual(rig.canvasFades.lastFade?.alpha, 1, "the veil fades in as usual on a resync")
+    XCTAssertEqual(rig.canvasFades.lastFade?.duration, 0.2)
     rig.percent(15)
     rig.percent(5)
 
