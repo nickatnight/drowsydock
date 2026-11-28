@@ -111,7 +111,7 @@ public enum MascotTimeline {
   /// leaves: the whole crossfade, the settle before the yawn and nod, the settle after the
   /// nod-off's jerk, or the hold before the wake-up's final blink.
   public static func flexiblePhase(of animation: MascotAnimation) -> Double {
-    let total = animation.duration / .seconds(1)
+    let total = animation.duration.inSeconds
     switch animation {
     case .crossfade:
       return total
