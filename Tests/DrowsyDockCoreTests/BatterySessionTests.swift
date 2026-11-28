@@ -191,6 +191,15 @@ final class BatterySessionTests: XCTestCase {
     XCTAssertEqual(session.tracker?.phase, .onExternalPower)
   }
 
+  func testPickingRealAgainDuringItsWakeUpKeepsWaking() {
+    var session = BatterySession(realReading: onBattery(40))
+    session.receive(charging(40))
+
+    session.simulate(.real)
+
+    XCTAssertEqual(session.tracker?.phase, .waking)
+  }
+
   func testLeavingRealDuringTheWakeUpSettlesIt() {
     var session = BatterySession(realReading: onBattery(40))
     session.receive(charging(40))

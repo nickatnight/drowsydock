@@ -23,7 +23,6 @@ public struct BatterySession: Sendable, Equatable {
   /// Records a reading from the real battery.
   public mutating func receive(_ reading: BatteryReading?) {
     real = updated(real, with: reading)
-    settleHiddenWakeUp()
   }
 
   /// Records a reading from the real battery taken after the Mac woke from sleep.
@@ -38,12 +37,19 @@ public struct BatterySession: Sendable, Equatable {
   ///
   /// Picking a level is a jump rather than a discharge, so its state is derived afresh: 80% after
   /// 5% shows `awake`. Picking Charging from a discharging state goes through the tracker's charge
-  /// edge and wakes the mascot. Picking Real shows the real battery's tracker as it is.
+  /// edge and wakes the mascot. Picking Real shows the real battery's tracker with any wake-up it
+  /// had while hidden already over, since nobody saw it.
   public mutating func simulate(_ simulation: BatterySimulation) {
     let shown = tracker
+    let realWasHidden = self.simulation != .real
     self.simulation = simulation
     switch simulation {
-    case .real, .noBattery:
+    case .real:
+      simulated = nil
+      if realWasHidden {
+        real?.finishWaking()
+      }
+    case .noBattery:
       simulated = nil
     case .discharging(let percentage):
       simulated = DrowsinessTracker(
@@ -57,7 +63,6 @@ public struct BatterySession: Sendable, Equatable {
         with: BatteryReading(clampingPercentage: percentage, powerState: .charging)
       )
     }
-    settleHiddenWakeUp()
   }
 
   /// Ends the shown tracker's wake-up. See `DrowsinessTracker.finishWaking()`.
@@ -77,10 +82,5 @@ public struct BatterySession: Sendable, Equatable {
     guard var tracker else { return DrowsinessTracker(reading: reading, thresholds: thresholds) }
     tracker.update(reading)
     return tracker
-  }
-
-  private mutating func settleHiddenWakeUp() {
-    guard simulation != .real else { return }
-    real?.finishWaking()
   }
 }
