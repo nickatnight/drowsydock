@@ -17,13 +17,6 @@ public struct BatteryReading: Sendable, Equatable {
   /// Where the Mac draws power from.
   public let powerState: PowerState
 
-  /// Creates a reading, or returns `nil` when `percentage` is outside 0...100.
-  public init?(percentage: Int, powerState: PowerState) {
-    guard (0...100).contains(percentage) else { return nil }
-    self.percentage = percentage
-    self.powerState = powerState
-  }
-
   /// Creates a reading with `percentage` clamped into 0...100.
   public init(clampingPercentage percentage: Int, powerState: PowerState) {
     self.percentage = min(max(percentage, 0), 100)

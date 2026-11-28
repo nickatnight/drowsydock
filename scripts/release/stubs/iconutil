@@ -1,8 +1,0 @@
-#!/bin/bash
-# iconutil stub for check-release-selftest.sh: writes an empty .icns. Anything else is refused.
-echo "iconutil $*" >>"$STUB_LOG"
-if [[ $1 != --convert || $2 != icns || $3 != --output || $# != 5 ]]; then
-  echo "refused: iconutil $*" >>"$STUB_LOG"
-  exit 1
-fi
-touch "$4"

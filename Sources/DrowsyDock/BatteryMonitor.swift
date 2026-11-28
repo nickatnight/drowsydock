@@ -10,10 +10,11 @@ protocol PowerSource {
 
   func subscribe(
     onChange: @escaping @MainActor @Sendable () -> Void
-  ) throws -> any PowerSourceSubscription
+  ) throws -> PowerSourceSubscription
 }
 
-protocol PowerSourceSubscription: AnyObject {}
+/// Power changes reach `onChange` until the subscription is released.
+typealias PowerSourceSubscription = AnyObject
 
 @MainActor
 @Observable
@@ -31,7 +32,7 @@ final class BatteryMonitor {
 
   @ObservationIgnored private let source: any PowerSource
   @ObservationIgnored private let clock: any Clock<Duration>
-  @ObservationIgnored private var powerChanges: (any PowerSourceSubscription)?
+  @ObservationIgnored private var powerChanges: PowerSourceSubscription?
   @ObservationIgnored private var wakingTask: Task<Void, Never>?
 
   var statusText: String {

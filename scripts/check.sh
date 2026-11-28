@@ -2,16 +2,22 @@
 # Runs the checks from CONSTRAINTS.md.
 #
 #   scripts/check.sh fast   compile, format, the live QA script's checks (dry run, Dock restore,
-#                           restore self-test, log reads), the release script's self-test with
-#                           stub tools, floor rules, the QA row mapping, the README (links,
-#                           images, banner) and its self-test, secrets (every edit)
+#                           log reads), the release script's syntax, full-path calls and
+#                           bundle.sh's refusals, floor rules, the QA row mapping, the README
+#                           (links, images, banner), secrets (every edit)
 #   scripts/check.sh task   fast + tests, coverage gate, bundle, and the release dry run with the
 #                           app in its zip checked (run before every commit)
+#
+# The release dry run runs with shims that refuse security, spctl, notarytool, stapler and altool,
+# and `fast` fails if release.sh, bundle.sh, verify-signature.sh or lib.sh names a command by an
+# absolute path in a bin or sbin folder, Xcode's included, which would get past them. A path built
+# at run time, or one in another folder, still would. Nothing runs the real release's Apple steps.
 #
 # The coverage gate compares against the merge base with $CHECK_BASE (default: main). It also
 # writes the gated files' coverage to .build/coverage/lcov.info, which CI uploads to Codecov.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/lib.sh
 
 mode="${1:-}"
 case "$mode" in
@@ -24,8 +30,7 @@ esac
 
 coverage_minimum=80
 coverage_report=.build/coverage/lcov.info
-gated_targets=(Sources/DrowsyDockCore Sources/DockOverlayKit scripts/qa/Sources/LiveQAKit)
-source_roots=(Sources scripts/qa/Sources)
+gated_targets=(Sources/DrowsyDockCore Sources/DockOverlayKit Sources/LiveQAKit)
 # An import may carry attributes (`@preconcurrency`, `@_exported`, `@_spi(Name)`), an access level
 # (`internal import`) and a kind (`import class AppKit.NSColor`). HIServices holds the AX API, and
 # Carbon and Quartz re-export AX and AppKit.
@@ -43,20 +48,6 @@ trap 'exit 143' TERM
 # level, where `set -e` stops the run if git fails.
 git ls-files --cached --others --exclude-standard -z >"$work/files"
 
-step() { printf '\n==> %s\n' "$*"; }
-
-# Runs a scan (grep, awk). Exit 0 means it found something and 1 means it found nothing. Any other
-# status, such as a file it could not open, stops the run instead of reading as "nothing found".
-found() {
-  local status=0
-  "$@" || status=$?
-  if ((status > 1)); then
-    echo "Scan failed with exit $status: $*" >&2
-    exit 2
-  fi
-  return "$status"
-}
-
 swift_files_under() {
   local dir file
   for dir in "$@"; do
@@ -70,7 +61,7 @@ is_gated() {
   local target
   for target in "${gated_targets[@]}"; do
     if [[ $1 == "$target"/* ]]; then
-      ! found grep -Eq "$coverage_exempt_imports" "$1"
+      ! found_or_abort grep -Eq "$coverage_exempt_imports" "$1"
       return
     fi
   done
@@ -81,7 +72,7 @@ gated_files() {
   local file
   while IFS= read -r -d '' file; do
     if is_gated "$file"; then printf '%s\0' "$file"; fi
-  done < <(swift_files_under "${source_roots[@]}")
+  done < <(swift_files_under Sources)
 }
 
 coverage_exempt_files_are_in_manual_qa() {
@@ -89,19 +80,19 @@ coverage_exempt_files_are_in_manual_qa() {
   while IFS= read -r -d '' file; do
     if is_gated "$file"; then continue; fi
     name="$(basename "$file" .swift)"
-    if ! found grep -qF "\`$name\`" docs/manual-qa.md; then
+    if ! found_or_abort grep -qF "\`$name\`" docs/manual-qa.md; then
       echo "Manual QA: $file is exempt from coverage but docs/manual-qa.md never names \`$name\`" >&2
       failed=1
     fi
-  done < <(swift_files_under "${source_roots[@]}")
+  done < <(swift_files_under Sources)
   return "$failed"
 }
 
 scan_swift_files() {
   local file files=()
-  while IFS= read -r -d '' file; do files+=("$file"); done < <(swift_files_under "${source_roots[@]}" Tests)
+  while IFS= read -r -d '' file; do files+=("$file"); done < <(swift_files_under Sources Tests)
   if ((${#files[@]} == 0)); then return 1; fi
-  found awk "$1" "${files[@]}"
+  found_or_abort awk "$1" "${files[@]}"
 }
 
 unexplained_suppressions='
@@ -147,11 +138,11 @@ empty_catches='
 
 floor_rules() {
   local failed=0
-  if found grep -rnF 'try!' "${source_roots[@]}"; then
+  if found_or_abort grep -rnF 'try!' Sources; then
     echo "Floor: try! outside tests" >&2
     failed=1
   fi
-  if found grep -rnE 'fatalError\("(TODO|not implemented)' "${source_roots[@]}" Tests; then
+  if found_or_abort grep -rnE 'fatalError\("(TODO|not implemented)' Sources Tests; then
     echo "Floor: unimplemented stub" >&2
     failed=1
   fi
@@ -163,16 +154,16 @@ floor_rules() {
     echo "Floor: suppression without an explaining comment" >&2
     failed=1
   fi
-  if found grep -rnE "$unified_log_imports" Sources --exclude=MirroredLogger.swift ||
-    found grep -rnF 'NSLog(' Sources; then
+  if found_or_abort grep -rnE "$unified_log_imports" Sources --exclude=MirroredLogger.swift ||
+    found_or_abort grep -rnF 'NSLog(' Sources; then
     echo "Logging: log through MirroredLogger, so a --qa-log run mirrors every line (ADR 0020)" >&2
     failed=1
   fi
-  if found grep -rnE "$coverage_exempt_imports" Sources/DrowsyDockCore; then
+  if found_or_abort grep -rnE "$coverage_exempt_imports" Sources/DrowsyDockCore; then
     echo "Boundary: DrowsyDockCore must not import system UI or hardware frameworks" >&2
     failed=1
   fi
-  if ! found grep -Eq '^  dependencies: \[\],?$' Package.swift; then
+  if ! found_or_abort grep -Eq '^  dependencies: \[\],?$' Package.swift; then
     echo "Floor: Package.swift must declare empty package dependencies" >&2
     failed=1
   fi
@@ -294,54 +285,72 @@ coverage_gate() {
       exit (percent < minimum)
     }' "$changed" "$lcov" || return
 
-  if ! found grep -q '^SF:' "$coverage_report"; then
+  if ! found_or_abort grep -q '^SF:' "$coverage_report"; then
     echo "Coverage gate: $coverage_report holds no gated file, so CI would upload an empty report."
     return 2
   fi
 }
 
-check_signed_app() {
-  local label="$1" app="$2" signature entitlements
-  codesign --verify --strict "$app"
-  signature="$(codesign -dv "$app" 2>&1)"
-  if ! grep -Eq '^CodeDirectory .*flags=0x[0-9a-f]+\([^)]*runtime' <<<"$signature"; then
-    echo "$label: the signature lacks the hardened runtime (codesign --options runtime)" >&2
-    exit 1
-  fi
-  entitlements="$(codesign -d --entitlements - --xml "$app" 2>/dev/null)"
-  if [[ -n $entitlements ]]; then
-    echo "$label: the signature carries entitlements; scripts/bundle.sh must sign with none" >&2
-    grep -Eo '<key>[^<]*</key>' <<<"$entitlements" >&2 || echo "$entitlements" >&2
-    exit 1
-  fi
+refuse_release_only_tools() {
+  local dir="$1" log="$2"
+  mkdir "$dir"
+  cat >"$dir/security" <<EOF
+#!/bin/sh
+echo "\${0##*/} \$*" >>"$log"
+exit 1
+EOF
+  cp "$dir/security" "$dir/spctl"
+  cat >"$dir/xcrun" <<EOF
+#!/bin/sh
+for arg in "\$@"; do
+  case "\$arg" in notarytool | stapler | altool) echo "xcrun \$*" >>"$log"; exit 1 ;; esac
+done
+exec /usr/bin/xcrun "\$@"
+EOF
+  chmod +x "$dir"/*
 }
 
 step "Compile (Swift 6, warnings are errors)"
 swift build --build-tests -Xswiftc -warnings-as-errors
 
 step "Format"
-swift format lint --strict --recursive "${source_roots[@]}" Tests
+swift format lint --strict --recursive Sources Tests
 
-step "Live QA script (syntax, a dry run that must touch nothing, the Dock restore and its self-test on a scratch domain, the log reads over a fixture QA log)"
+step "Live QA script (syntax, a dry run that must touch nothing, the Dock restore on a scratch domain, the log reads over a fixture QA log)"
 bash -n scripts/qa-live.sh
 scripts/qa/check-dry-run.sh
 scripts/qa/check-dock-restore.sh
-scripts/qa/check-restore-selftest.sh
 scripts/qa/check-app-log.sh
 
-step "Release script (syntax, and its self-test with stub tools: no network, certificate or build)"
+step "Release script (syntax, no command by full path, bundle.sh's refusals; task runs the dry run)"
 bash -n scripts/release.sh
-scripts/release/check-release-selftest.sh
+if calls_by_full_path scripts/release.sh scripts/bundle.sh scripts/verify-signature.sh scripts/lib.sh
+then
+  echo "Release script: a command named by its full path gets past the dry run's shims" >&2
+  exit 1
+fi
+swift_that_builds_nothing="$work/swift-that-builds-nothing"
+reached_swift_build=97
+mkdir "$swift_that_builds_nothing"
+printf '#!/bin/sh\nexit %s\n' "$reached_swift_build" >"$swift_that_builds_nothing/swift"
+chmod +x "$swift_that_builds_nothing/swift"
+for setting in SIGN_TIMESTAMP=yes BUNDLE_DIR=../outside BUNDLE_DIR=build/../outside; do
+  status=0
+  PATH="$swift_that_builds_nothing:$PATH" env SIGN_IDENTITY=- SIGN_TIMESTAMP=0 "$setting" \
+    scripts/bundle.sh >/dev/null 2>&1 || status=$?
+  if ((status != 2)); then
+    echo "Release script: scripts/bundle.sh with $setting exits $status, not 2" >&2
+    exit 1
+  fi
+done
 
 step "Floor rules"
 floor_rules
 coverage_exempt_files_are_in_manual_qa
 scripts/qa/check-qa-mapping.sh
-scripts/qa/check-qa-mapping-selftest.sh
 
 step "README (every relative link and image resolves, the banner matches the snapshot references and the app)"
 scripts/readme/check-readme.sh
-scripts/readme/check-readme-selftest.sh
 
 step "Secrets"
 # gitleaks matches text, so binary signing material needs its own check.
@@ -378,16 +387,40 @@ coverage_gate
 
 step "Bundle"
 scripts/bundle.sh
-check_signed_app Bundle build/DrowsyDock.app
+scripts/verify-signature.sh build/DrowsyDock.app
+# An in-place ad-hoc rebuild keeps the CDHash, so the dry run is checked against the binary's inode
+# and modification time instead.
+dev_binary=build/DrowsyDock.app/Contents/MacOS/DrowsyDock
+dev_binary_stat="$(stat -f '%i %m' "$dev_binary")"
 plutil -lint Resources/Info.plist
 
-step "Release dry run (scripts/release.sh --dry-run, then the app in its zip)"
-scripts/release.sh --dry-run
+step "Release dry run (scripts/release.sh --dry-run with Apple's services and the keychain refused, then the app in its zip)"
+refuse_release_only_tools "$work/refuse" "$work/refused"
+decoy_developer_id='Developer ID Application: Example (TEAMID)'
+release_status=0
+DEVELOPER_ID="$decoy_developer_id" SIGN_IDENTITY="$decoy_developer_id" \
+  PATH="$work/refuse:$PATH" scripts/release.sh --dry-run || release_status=$?
+if [[ -s $work/refused ]]; then
+  echo "Release dry run: it called tools that only a real release may call:" >&2
+  cat "$work/refused" >&2
+  exit 1
+fi
+((release_status == 0)) || exit "$release_status"
+if [[ $(stat -f '%i %m' "$dev_binary") != "$dev_binary_stat" ]]; then
+  echo "Release dry run: it rebuilt build/DrowsyDock.app; it must build only in build/release" >&2
+  exit 1
+fi
 release_version="$(plutil -extract CFBundleShortVersionString raw -o - Resources/Info.plist)"
 release_zip="dist/DrowsyDock-$release_version-dryrun.zip"
 (cd dist && shasum -a 256 -s -c "${release_zip#dist/}.sha256")
 mkdir "$work/release"
 ditto -x -k "$release_zip" "$work/release"
-check_signed_app "Release dry run" "$work/release/DrowsyDock.app"
+scripts/verify-signature.sh "$work/release/DrowsyDock.app"
+dry_run_signature="$(codesign -dv "$work/release/DrowsyDock.app" 2>&1)"
+if ! grep -qx 'Signature=adhoc' <<<"$dry_run_signature" ||
+  grep -q '^Timestamp=' <<<"$dry_run_signature"; then
+  echo "Release dry run: the zipped app must be signed ad hoc with no timestamp" >&2
+  exit 1
+fi
 
 step "task checks passed"

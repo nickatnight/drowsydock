@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Runs qa-live.sh's log reads over Tests/LiveQAKitTests/Fixtures/qa.log, the QA log the app writes
-# when launched with --qa-log (ADR 0020), with the real debug qa-helper.
+# when launched with --qa-log (ADR 0020), with the real debug qa-helper. It also runs the exit
+# trap's Dock restore on a scratch defaults domain. A case fails if it calls defaults with
+# com.apple.dock in its arguments, or killall or osascript (unless it defines its own osascript).
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 scratch="$(mktemp -d)"
@@ -14,11 +16,11 @@ fi
 
 cat >"$scratch/run-case.sh" <<'RUN'
 set -uo pipefail
+source scripts/qa/dock-preferences.sh
 source scripts/qa/live-functions.sh
 
 root="$PWD"
 dry_run=false
-needs_app=true
 failed=false
 results=()
 helper="$HELPER"
@@ -27,7 +29,28 @@ app="$SCRATCH/DrowsyDock.app"
 app_binary="$app/Contents/MacOS/DrowsyDock"
 app_log="$SCRATCH/qa.log"
 run_log="$qa_dir/app.log"
+report="$qa_dir/report.md"
+dock_backup="$qa_dir/dock-backup.plist"
+run_pid_file="$SCRATCH/run.pid"
+owns_backup=false
+keep_captures=false
+assume_yes=false
+require_live_settings
 calls="$SCRATCH/calls.log"
+
+# Every case works on a scratch defaults domain. A call that still names com.apple.dock, even
+# inside a path, tries to relaunch the Dock, or runs osascript, which is how a live run changes the
+# Dock, is refused and fails the case, whatever the case forgot to set. A case that needs osascript
+# defines its own.
+dock_domain="$SCRATCH/dock"
+dock_restart() { echo "dock restart" >>"$calls"; }
+killall() { echo "killall $*" >>"$SCRATCH/refused"; exit 99; }
+osascript() { echo "osascript $*" >>"$SCRATCH/refused"; exit 99; }
+defaults() {
+  case "$*" in *com.apple.dock*) echo "defaults $*" >>"$SCRATCH/refused"; exit 99 ;; esac
+  if [[ -n ${FAIL_IMPORTS:-} && $1 == import && $2 == "$dock_domain" ]]; then return 1; fi
+  command defaults "$@"
+}
 
 # The fixture's lines by what they hold. 4242 is the app the run launched, 999 another DrowsyDock.
 earlier_runs_grant=1
@@ -155,56 +178,15 @@ case_run_log() {
   echo "run log after the start-over: $(cut -d' ' -f4- "$run_log")"
 }
 
-case_overlay_in_time() {
-  start_run
-  mark_log
-  append "$overlay_shown"
-  time_change_before "$overlay_shown" 0.300 0.120
-  expect_overlay_within shown 1 7.1 position "the cat moves"
-}
-
-case_overlay_late() {
-  start_run
-  mark_log
-  append "$overlay_shown"
-  time_change_before "$overlay_shown" 1.700 1.500
-  expect_overlay_within shown 1 7.1 position "the cat moves"
-}
-
-case_overlay_elsewhere() {
-  start_run
-  mark_log
-  append "$overlay_shown"
-  time_change_before "$overlay_shown" 0.300 0.120
-  DOCK_PERCH=0,0,64,80 expect_overlay_within shown 1 7.1 position "the cat moves"
-}
-
-case_overlay_undone() {
-  start_run
-  mark_log
-  append "$overlay_shown" "$overlay_faded"
-  time_change_before "$overlay_shown" 0.300 0.120
-  expect_overlay_within shown 1 7.1 position "the cat moves"
-}
-
-case_perch_within_half_a_point() {
+case_shown_in_time_within_half_a_point() {
   start_run
   mark_log
   append "$overlay_shown"
   time_change_before "$overlay_shown" 0.300 0.120
   DOCK_PERCH=1070.4,84,64,80 expect_overlay_within shown 1 7.1 position "0.4 pt off"
-  DOCK_PERCH=1070.6,84,64,80 expect_overlay_within shown 1 7.1 position "0.6 pt off"
 }
 
-case_just_past_the_budget() {
-  start_run
-  mark_log
-  append "$overlay_shown"
-  time_change_before "$overlay_shown" 1.200 1.050
-  expect_overlay_within shown 1 7.1 position "the cat moves"
-}
-
-case_old_perch_early_new_perch_late() {
+case_old_perch_on_time_dock_perch_late() {
   start_run
   mark_log
   fixture_line "$overlay_shown" | sed 's/frame: (1070.0, 84.0/frame: (900.0, 84.0/' >>"$app_log"
@@ -214,27 +196,27 @@ case_old_perch_early_new_perch_late() {
   expect_overlay_within shown 1 7.1 position "the cat moves"
 }
 
-case_faded_in_time() {
+case_shown_just_past_half_a_point() {
   start_run
   mark_log
-  append "$overlay_faded"
-  time_change_before "$overlay_faded" 0.300 0.150
-  expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
+  append "$overlay_shown"
+  time_change_before "$overlay_shown" 0.300 0.120
+  DOCK_PERCH=1069.4,84,64,80 expect_overlay_within shown 1 7.1 position "0.6 pt off"
 }
 
-case_faded_late() {
-  start_run
-  mark_log
-  append "$overlay_faded"
-  time_change_before "$overlay_faded" 0.300 0.250
-  expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
-}
-
-case_faded_then_shown() {
+case_overlay_undone() {
   start_run
   mark_log
   append "$overlay_faded" "$overlay_shown"
   time_change_before "$overlay_faded" 0.300 0.150
+  expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
+}
+
+case_faded_at_the_budget_from_the_return() {
+  start_run
+  mark_log
+  append "$overlay_faded"
+  time_change_before "$overlay_faded" 0.300 0.200
   expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
 }
 
@@ -246,15 +228,54 @@ case_hidden_in_time() {
   expect_overlay_within hidden 1 7.4 autohide "the cat hides"
 }
 
+case_faded_late() {
+  start_run
+  mark_log
+  append "$overlay_faded"
+  time_change_before "$overlay_faded" 0.300 0.250
+  expect_overlay_within fadedOut 0.2 8.11 hover "the cat fades"
+}
+
 case_cleanup() {
   start_run
   append "$started" "$grant"
   put_dock_back() { return 0; }
   write_report() { :; }
-  run_pid_file="$SCRATCH/run.pid"
   ( (exit 3); cleanup )
   echo "cleanup exit: $?"
   echo "run log: $(cut -d' ' -f4- "$run_log" | tr '\n' '|')"
+}
+
+change_scratch_dock() {
+  write_report() { :; }
+  defaults write "$dock_domain" orientation -string bottom
+  save_dock_backup
+  defaults write "$dock_domain" orientation -string left
+}
+
+dock_after_cleanup() {
+  ( (exit 3); cleanup )
+  echo "cleanup exit: $?"
+  echo "orientation: $(defaults read "$dock_domain" orientation 2>/dev/null)"
+  answer "backup kept" test -e "$dock_backup"
+}
+
+case_restore_on_exit() {
+  change_scratch_dock
+  owns_backup=true
+  dock_after_cleanup
+}
+
+case_failed_restore_on_exit() {
+  FAIL_IMPORTS=1
+  change_scratch_dock
+  owns_backup=true
+  dock_after_cleanup
+}
+
+case_backup_not_owned() {
+  change_scratch_dock
+  dock_after_cleanup
 }
 
 # Runs the whole app preflight with the tools stubbed; the bundle is an empty executable.
@@ -313,12 +334,16 @@ fail() {
 
 run_case() {
   case_name="$1"
-  rm -rf "$scratch/qa" "$scratch/qa.log" "$scratch/calls.log"
+  rm -rf "$scratch/qa" "$scratch/qa.log" "$scratch/calls.log" "$scratch/dock.plist" \
+    "$scratch/refused"
   : >"$scratch/calls.log"
   # A helper built for coverage writes a profile on exit; keep it out of the checkout.
   output="$(env SCRATCH="$scratch" HELPER="$helper" LLVM_PROFILE_FILE="$scratch/%p.profraw" \
     FIXTURE="$PWD/Tests/LiveQAKitTests/Fixtures/qa.log" CASE="case_$1" "${@:2}" \
     bash "$scratch/run-case.sh" 2>&1)"
+  if [[ -s $scratch/refused ]]; then
+    fail "$case_name reached for the real Dock: $(tr '\n' ';' <"$scratch/refused")"
+  fi
 }
 
 expect() {
@@ -352,18 +377,27 @@ run_case run_log
 expect "run log: DrowsyDock[4242] DrowsyDock[999] "
 expect "run log after the start-over: qa-log: qa.log reached its limit of 1048576 bytes and started over"
 
-run_case overlay_in_time
-expect "PASS QA 7.1 (position): the cat moves: 0.12 s after the change returned (0.30 s after it started; budget 1 s)"
+run_case shown_in_time_within_half_a_point
+expect "PASS QA 7.1 (position): 0.4 pt off: 0.12 s after the change returned (0.30 s after it started; budget 1 s)"
 
-run_case overlay_late
-expect "FAIL QA 7.1 (position): the cat moves: 1.50 s after the change returned (1.70 s after it started; budget 1 s)"
+run_case old_perch_on_time_dock_perch_late
+expect "FAIL QA 7.1 (position): the cat moves: 1.42 s after the change returned (1.60 s after it started; budget 1 s)"
 
-run_case overlay_elsewhere
-expect "FAIL QA 7.1 (position): the cat moves: no 'Overlay: shown' line at the Dock's perch"
+run_case shown_just_past_half_a_point
+expect "FAIL QA 7.1 (position): 0.6 pt off: no 'Overlay: shown' line at the Dock's perch"
 
 run_case overlay_undone
-faded="$(grep -m 1 'Overlay: fadedOut' Tests/LiveQAKitTests/Fixtures/qa.log)"
-expect "FAIL QA 7.1 (position): the cat moves: a later line undid it: ${faded#*Overlay: }"
+shown="$(grep -m 1 'Overlay: shown' Tests/LiveQAKitTests/Fixtures/qa.log)"
+expect "FAIL QA 8.11 (hover): the cat fades: a later line undid it: ${shown#*Overlay: }"
+
+run_case faded_at_the_budget_from_the_return
+expect "PASS QA 8.11 (hover): the cat fades: 0.20 s after the change returned (0.30 s after it started; budget 0.2 s)"
+
+run_case hidden_in_time
+expect "PASS QA 7.4 (autohide): the cat hides: 0.10 s after the change returned (0.30 s after it started; budget 1 s)"
+
+run_case faded_late
+expect "FAIL QA 8.11 (hover): the cat fades: 0.25 s after the change returned (0.30 s after it started; budget 0.2 s)"
 
 run_case expect_line
 expect "PASS QA 3.9 to 3.13 (levels): 80% shows '80% · Discharging · Awake'"
@@ -384,29 +418,6 @@ expect "launch: 1, pid "
 run_case launch APP_STOPPED=1 APP_NEVER_RUNS=1 OTHER_APP=1
 expect "launch: 1, pid "
 
-run_case perch_within_half_a_point
-expect "PASS QA 7.1 (position): 0.4 pt off: 0.12 s after the change returned (0.30 s after it started; budget 1 s)"
-expect "FAIL QA 7.1 (position): 0.6 pt off: no 'Overlay: shown' line at the Dock's perch"
-
-run_case just_past_the_budget
-expect "FAIL QA 7.1 (position): the cat moves: 1.05 s after the change returned (1.20 s after it started; budget 1 s)"
-
-run_case old_perch_early_new_perch_late
-expect "FAIL QA 7.1 (position): the cat moves: 1.42 s after the change returned (1.60 s after it started; budget 1 s)"
-
-run_case faded_in_time
-expect "PASS QA 8.11 (hover): the cat fades: 0.15 s after the change returned (0.30 s after it started; budget 0.2 s)"
-
-run_case faded_late
-expect "FAIL QA 8.11 (hover): the cat fades: 0.25 s after the change returned (0.30 s after it started; budget 0.2 s)"
-
-run_case faded_then_shown
-shown="$(grep -m 1 'Overlay: shown' Tests/LiveQAKitTests/Fixtures/qa.log)"
-expect "FAIL QA 8.11 (hover): the cat fades: a later line undid it: ${shown#*Overlay: }"
-
-run_case hidden_in_time
-expect "PASS QA 7.4 (autohide): the cat hides: 0.10 s after the change returned (0.30 s after it started; budget 1 s)"
-
 run_case cleanup
 expect "cleanup exit: 3"
 expect "run log: battery: Started: 46% · Discharging · Drowsy (real)|accessibility: Accessibility granted: true|"
@@ -418,6 +429,22 @@ expect "cleanup exit: 1"
 expect "FAIL QA - (cleanup): DrowsyDock (pid 4242) didn't quit within 5 s, so it may still write the QA log; quit it"
 [[ $(cat "$scratch/calls.log") == "kill -TERM 4242" ]] ||
   fail "after a stuck quit, cleanup must not open the app again: $(cat "$scratch/calls.log")"
+
+run_case restore_on_exit APP_STOPPED=1
+expect "cleanup exit: 3"
+expect "orientation: bottom"
+expect "backup kept: no"
+grep -qx "dock restart" "$scratch/calls.log" || fail "restore_on_exit didn't relaunch the Dock"
+
+run_case failed_restore_on_exit APP_STOPPED=1
+expect "FAIL QA - (dock): the Dock's preferences couldn't be restored; see the message above"
+expect "cleanup exit: 1"
+expect "backup kept: yes"
+
+run_case backup_not_owned APP_STOPPED=1
+expect "cleanup exit: 3"
+expect "orientation: left"
+expect "backup kept: yes"
 
 run_case preflight_after_a_stuck_quit IGNORES_TERM=1 OPEN_WRITES_GRANT=1
 expect "preflight exit: 1"
