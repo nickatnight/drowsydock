@@ -146,7 +146,7 @@ That is 28 rows. Not runnable yet:
 | 3.13 | Simulate battery ▸ 5%: `5% · Discharging · Asleep` | `AppCoordinatorTests.testEachSimulatedLevelShowsItsStateInEitherOrder` | `levels` |
 | 3.14 | Simulate battery ▸ 5%, then Charging: `5% · Charging · Waking`, then `5% · Charging · Awake` about 3 s later | `AppCoordinatorTests.testChargingShowsWakingThenAwakeThreeSecondsLater` | `levels` |
 | 3.15 | Simulate battery ▸ No battery: `No battery detected` | `AppCoordinatorTests.testNoBatteryShowsNoBatteryDetected` | `levels` |
-| 3.16 | Simulate battery ▸ 5%, then Real: The real battery's line, re-derived (not stuck at Asleep) | `AppCoordinatorTests.testRealAfterASimulationShowsTheRealBatteryAgain` | `levels` |
+| 3.16 | Simulate battery ▸ 5%, then Real: The real battery's line, with the history it kept while hidden (not stuck at Asleep, and no wake-up for a plug-in made meanwhile) | `AppCoordinatorTests.testRealAfterASimulationShowsTheRealBatteryAgain`, `BatterySessionTests.testReturningToRealKeepsTheRealBatterysHistory`, `BatterySessionTests.testPluggingInWhileSimulatingSettlesTheRealBatteryWithoutAWakeUp` | `levels` |
 | 5.1 | With a bottom Dock on the main display, choose Debug ▸ Log Dock geometry | `DockGeometryTests` | `position` |
 | 5.2 | Move the Dock to the left, then the right (System Settings ▸ Desktop & Dock ▸ Position on screen), and log again each time | `DockGeometryTests` (left and right perches) | `position` |
 | 5.4 | Turn on "Automatically hide and show the Dock", move the pointer away so the Dock hides, then log from the menu | `DockGeometryTests` (hidden frames) | `autohide` |

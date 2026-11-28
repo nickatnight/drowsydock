@@ -147,13 +147,58 @@ final class BatterySessionTests: XCTestCase {
     XCTAssertEqual(session.tracker?.reading, charging(60))
   }
 
-  func testReturningToRealWhileTheMacIsPluggedInWakes() {
+  // MARK: - Returning to Real
+
+  func testReturningToRealKeepsTheRealBatterysHistory() {
+    var session = BatterySession(realReading: onBattery(51))
+    session.receive(onBattery(49))
+    session.receive(onBattery(50))
+    session.simulate(.discharging(percentage: 80))
+
+    session.simulate(.real)
+
+    XCTAssertEqual(session.tracker?.phase, .discharging(.drowsy))
+    XCTAssertEqual(session.tracker?.reading, onBattery(50))
+  }
+
+  func testRealReadingsWhileSimulatingStillOnlyMakeTheRealBatterySleepier() {
+    var session = BatterySession(realReading: onBattery(60))
+    session.simulate(.discharging(percentage: 80))
+    session.receive(onBattery(25))
+    session.receive(onBattery(35))
+
+    session.simulate(.real)
+
+    XCTAssertEqual(session.tracker?.phase, .discharging(.yawning))
+  }
+
+  func testReturningToRealWhileTheMacIsPluggedInShowsItAwakeWithoutAWakeUp() {
     var session = BatterySession(realReading: charging(50))
     session.simulate(.discharging(percentage: 5))
 
     session.simulate(.real)
 
-    XCTAssertEqual(session.tracker?.phase, .waking)
+    XCTAssertEqual(session.tracker?.phase, .onExternalPower)
+  }
+
+  func testPluggingInWhileSimulatingSettlesTheRealBatteryWithoutAWakeUp() {
+    var session = BatterySession(realReading: onBattery(40))
+    session.simulate(.discharging(percentage: 5))
+    session.receive(charging(40))
+
+    session.simulate(.real)
+
+    XCTAssertEqual(session.tracker?.phase, .onExternalPower)
+  }
+
+  func testLeavingRealDuringTheWakeUpSettlesIt() {
+    var session = BatterySession(realReading: onBattery(40))
+    session.receive(charging(40))
+    session.simulate(.discharging(percentage: 80))
+
+    session.simulate(.real)
+
+    XCTAssertEqual(session.tracker?.phase, .onExternalPower)
   }
 
   // MARK: - Menu
