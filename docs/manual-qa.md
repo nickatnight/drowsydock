@@ -104,7 +104,7 @@ Start without the grant: `tccutil reset Accessibility app.drowsydock.DrowsyDock`
 
 ### A notarized release
 
-The owner's first real release checks spec success criterion 9, which no agent or CI run can: they run only `scripts/release.sh --dry-run`, and its self-test uses stub tools. `docs/release.md` has the setup and the commands. The row stays open until that first notarized run.
+The owner's first real release checks spec success criterion 9, which no agent or CI run can: they run only `scripts/release.sh --dry-run`, which skips every step that needs Apple's servers, the keychain or a Developer ID. `docs/release.md` has the setup and the commands. The row stays open until that first notarized run.
 
 | # | Check | Expected |
 |---|---|---|
@@ -239,3 +239,4 @@ These files import AppKit, SpriteKit, IOKit, SwiftUI or the Accessibility API, o
 | `QALogFile` | `QALogFileTests`: no file without `--qa-log`, the folder's and the file's permissions, refused links, the size limit, each line's time as the script reads it, the same path as the script's `qa_log_path`, and every line reaching both the unified log and the file. `QALogMessageTests`: every `log_` pattern in `live-functions.sh` matches a line the app logs. Every live scenario reads the file |
 | `LogSubsystem` | `LogSubsystemTests`: the subsystem equals `CFBundleIdentifier` in `Resources/Info.plist` |
 | `QAHelper` | `LiveQAKitTests` for its checks (`LiveQAKit`); `scripts/qa/check-dry-run.sh` for the script's dry run |
+| `FadeRecorder` | A test helper, not app code: `OverlayWindowTests` and `AppCoordinatorTests` run through it |

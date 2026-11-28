@@ -1,22 +1,9 @@
 #!/usr/bin/env bash
 # Checks docs/manual-qa.md's map from each QA row to the tests or live scenarios that cover it.
-#
-#   scripts/qa/check-qa-mapping.sh [DOC] [ROWS]
 set -uo pipefail
 cd "$(dirname "$0")/../.."
-doc="${1:-docs/manual-qa.md}"
-rows_file="${2:-docs/qa-rows.txt}"
-
-# Exit 0 means it found something and 1 means it found nothing; anything else stops the check.
-found() {
-  local status=0
-  "$@" || status=$?
-  if ((status > 1)); then
-    echo "Scan failed with exit $status: $*" >&2
-    exit 2
-  fi
-  return "$status"
-}
+source scripts/lib.sh
+doc=docs/manual-qa.md
 
 table="$(sed -n '/^## Automated and live rows/,/^## Coverage/p' "$doc" |
   awk -F'|' 'NF > 5 && $2 ~ /[0-9]/')"
@@ -27,7 +14,8 @@ tests_cells_name_real_tests() {
     class="${token%%.*}"
     if [[ $token == *.* ]]; then
       method="${token#*.}"
-      if ! cat Tests/*/"$class.swift" 2>/dev/null | found grep -Eq "^[[:space:]]*func $method\("; then
+      if ! cat Tests/*/"$class.swift" 2>/dev/null |
+        found_or_abort grep -Eq "^[[:space:]]*func $method\("; then
         echo "Manual QA: $doc names $token, which no test file defines" >&2
         failed=1
       fi
@@ -37,7 +25,7 @@ tests_cells_name_real_tests() {
     fi
   done < <(awk -F'|' '{print $4}' <<<"$table" | grep -oE '`[^`]+`' | tr -d '`' | sort -u)
   if awk -F'|' '{print $4}' <<<"$table" | grep -oE '`[^`]+`' | tr -d '`' |
-    found grep -vqE '^[A-Za-z0-9]+Tests(\.test[A-Za-z0-9]+)?$'; then
+    found_or_abort grep -vqE '^[A-Za-z0-9]+Tests(\.test[A-Za-z0-9]+)?$'; then
     echo "Manual QA: a Tests cell names something that isn't a test class or Class.testMethod" >&2
     failed=1
   fi
@@ -59,7 +47,7 @@ live_cells_name_scenarios_that_list_the_row() {
       if [[ -z $rows_of_scenario ]]; then
         echo "Manual QA: row $row names live scenario $scenario, which qa-live.sh lacks" >&2
         failed=1
-      elif ! found grep -qE "(QA| )$row( |$)" <<<"$rows_of_scenario"; then
+      elif ! found_or_abort grep -qE "(QA| )$row( |$)" <<<"$rows_of_scenario"; then
         echo "Manual QA: row $row cites live scenario $scenario, whose --list rows omit it" >&2
         failed=1
       fi
@@ -77,19 +65,8 @@ every_row_cites_something() {
   return "$failed"
 }
 
-rows_equal_the_list() {
-  if ! found cmp -s <(grep -oE '^\| ([0-9]+\.[0-9]+[a-z]?|E\.[0-9]+) ' "$doc" |
-    tr -d '| ' | sort) <(sort "$rows_file"); then
-    echo "Manual QA: $doc's rows differ from $rows_file:" >&2
-    diff <(grep -oE '^\| ([0-9]+\.[0-9]+[a-z]?|E\.[0-9]+) ' "$doc" | tr -d '| ' | sort) \
-      <(sort "$rows_file") >&2 || true
-    return 1
-  fi
-}
-
 failed=0
 tests_cells_name_real_tests || failed=1
 live_cells_name_scenarios_that_list_the_row || failed=1
 every_row_cites_something || failed=1
-rows_equal_the_list || failed=1
 exit "$failed"

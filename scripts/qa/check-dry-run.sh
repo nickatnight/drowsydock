@@ -6,6 +6,7 @@
 # step that forgot run_or_print), and still reach every scenario and print the restore command.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+source scripts/lib.sh
 
 stubs="$(mktemp -d)"
 trap '/bin/rm -rf "$stubs"' EXIT
@@ -31,10 +32,10 @@ dry_run() {
 failed=0
 
 # A command named by its full path, such as /usr/bin/defaults, would skip both the PATH stubs and
-# the UNGUARDED functions. Only the read-only PlistBuddy may be named that way.
-if grep -nE '(^|[[:space:];|&(`])/(usr/)?(s)?bin/' scripts/qa-live.sh scripts/qa/live-functions.sh \
-  scripts/qa/dock-preferences.sh |
-  grep -v '^[^:]*:1:#!'; then
+# the UNGUARDED functions. The scan catches an absolute path in any bin or sbin folder, so the
+# read-only /usr/libexec/PlistBuddy passes. A path built at run time isn't caught.
+if calls_by_full_path scripts/qa-live.sh scripts/qa/live-functions.sh scripts/qa/dock-preferences.sh
+then
   echo "qa-live.sh names a command by its full path; call it by name so the dry run can stub it" >&2
   failed=1
 fi
@@ -78,14 +79,4 @@ for expected in "==> Preflight" "defaults import com.apple.dock" \
   fi
 done
 
-selftest="$(dry_run --dry-run --only restore-selftest)"
-report_calls "--dry-run --only restore-selftest" "$selftest"
-if ! grep -q "^==> Preflight" <<<"$selftest" || grep -q "DrowsyDock.app" <<<"$selftest"; then
-  echo "qa-live.sh --only restore-selftest must run its preflight and leave the app alone" >&2
-  failed=1
-fi
-if ! grep -qF "would run: swift build -c release --product qa-helper" <<<"$selftest"; then
-  echo "qa-live.sh --only restore-selftest must build qa-helper, which its compare runs" >&2
-  failed=1
-fi
 exit "$failed"

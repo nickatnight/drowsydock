@@ -62,21 +62,21 @@ final class BatteryParserTests: XCTestCase {
   func testLaptopDischarging() {
     XCTAssertEqual(
       PowerSourceParser.reading(from: [laptopDischarging]),
-      BatteryReading(percentage: 31, powerState: .discharging)
+      BatteryReading(clampingPercentage: 31, powerState: .discharging)
     )
   }
 
   func testLaptopCharging() {
     XCTAssertEqual(
       PowerSourceParser.reading(from: [laptopCharging]),
-      BatteryReading(percentage: 62, powerState: .charging)
+      BatteryReading(clampingPercentage: 62, powerState: .charging)
     )
   }
 
   func testLaptopOnACAndFull() {
     XCTAssertEqual(
       PowerSourceParser.reading(from: [laptopOnACFull]),
-      BatteryReading(percentage: 100, powerState: .pluggedIn)
+      BatteryReading(clampingPercentage: 100, powerState: .pluggedIn)
     )
   }
 
@@ -93,7 +93,7 @@ final class BatteryParserTests: XCTestCase {
   func testPicksTheInternalBatteryWhenAUPSComesFirst() {
     XCTAssertEqual(
       PowerSourceParser.reading(from: [upsOnDesktop, laptopDischarging]),
-      BatteryReading(percentage: 31, powerState: .discharging)
+      BatteryReading(clampingPercentage: 31, powerState: .discharging)
     )
   }
 
@@ -110,7 +110,7 @@ final class BatteryParserTests: XCTestCase {
 
     XCTAssertEqual(
       PowerSourceParser.reading(from: [raw]),
-      BatteryReading(percentage: 31, powerState: .discharging)
+      BatteryReading(clampingPercentage: 31, powerState: .discharging)
     )
   }
 
@@ -135,7 +135,7 @@ final class BatteryParserTests: XCTestCase {
 
     XCTAssertEqual(
       PowerSourceParser.reading(from: [bridged as! [String: Any]]),
-      BatteryReading(percentage: 47, powerState: .discharging)
+      BatteryReading(clampingPercentage: 47, powerState: .discharging)
     )
   }
 

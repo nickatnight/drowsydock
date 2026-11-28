@@ -16,10 +16,12 @@
 #
 # It can't tell in advance whether Apple accepts the upload, or whether Gatekeeper on another Mac
 # opens the downloaded zip; the owner checks the first real release by hand (docs/manual-qa.md).
-# scripts/release/check-release-selftest.sh runs it against stub tools.
+# scripts/check.sh task runs the dry run with security, spctl, notarytool, stapler and altool
+# refused.
 set -euo pipefail
 usage_text="$(sed -n '4,6p' "$0" | sed 's/^# \{0,1\}//')"
 cd "$(dirname "$0")/.."
+source scripts/lib.sh
 
 usage() {
   echo "$usage_text"
@@ -49,8 +51,6 @@ die() {
 warn() {
   echo "release.sh: warning: $*" >&2
 }
-
-step() { printf '\n==> %s\n' "$*"; }
 
 identity_prefix="Developer ID Application:"
 version_pattern='^[0-9]+(\.[0-9]+){0,2}$'
@@ -148,28 +148,12 @@ else
 fi
 
 step "Verify the signature"
-codesign --verify --strict --deep "$app" ||
-  die "codesign --verify --strict --deep rejects $app."
-signature="$(codesign -dv --verbose=4 "$app" 2>&1)" || die "codesign -dv can't read $app."
-if ! grep -Eq '^CodeDirectory .*flags=0x[0-9a-f]+\([^)]*runtime' <<<"$signature"; then
-  die "the signature lacks the hardened runtime (codesign --options runtime)."
-fi
-entitlements="$(codesign -d --entitlements - --xml "$app" 2>/dev/null)" ||
-  die "codesign can't read the entitlements of $app."
-if [[ -n $entitlements ]]; then
-  die "the signature carries entitlements; a release is signed with none (ADR 0007):" \
-    "$entitlements"
-fi
-archs=" $(lipo -archs "$app/Contents/MacOS/DrowsyDock") " || die "lipo can't read the binary."
-for arch in arm64 x86_64; do
-  if [[ $archs != *" $arch "* ]]; then
-    die "the binary lacks $arch (lipo -archs:$archs); a release is universal."
-  fi
-done
+scripts/verify-signature.sh "$app"
 echo "Strict verification, the hardened runtime, no entitlements, arm64 and x86_64: passed."
 if $dry_run; then
   echo "skipped (dry run): the Developer ID authority, TeamIdentifier and timestamp checks"
 else
+  signature="$(codesign -dv --verbose=4 "$app" 2>&1)" || die "codesign -dv can't read $app."
   # codesign lists the chain from the signing certificate up to Apple's root.
   authority="$(grep -m 1 '^Authority=' <<<"$signature" || true)"
   if [[ $authority != "Authority=$identity_prefix"* ]]; then

@@ -1,11 +1,24 @@
-# The functions scripts/qa-live.sh runs: output, the Dock's preferences, the app's log, driving the
-# app, the preflight and the scenarios. Sourcing it defines them and does nothing else; qa-live.sh
-# sets the variables they read first. scripts/qa/check-restore-selftest.sh sources it too.
+# shellcheck source=scripts/lib.sh
+source "${BASH_SOURCE[0]%/*}/../lib.sh"
+
+# MARK: - Settings
+
+live_settings=(root dry_run qa_dir report run_log app app_binary helper dock_backup run_pid_file
+  results owns_backup app_log keep_captures assume_yes)
+
+require_live_settings() {
+  local name
+  for name in "${live_settings[@]}"; do
+    if ! declare -p "$name" >/dev/null 2>&1; then
+      echo "live-functions.sh: set $name before calling require_live_settings" >&2
+      exit 2
+    fi
+  done
+}
 
 # MARK: - Output
 
 say() { printf '%s\n' "$*"; }
-step() { printf '\n==> %s\n' "$*"; }
 
 run_or_print() {
   if $dry_run; then
@@ -152,7 +165,7 @@ cleanup() {
     result FAIL - dock "the Dock's preferences couldn't be restored; see the message above"
     status=1
   fi
-  if $needs_app && ! $dry_run; then
+  if ! $dry_run; then
     if app_running && ! relaunch_without_qa_log; then status=1; fi
     save_run_log
   fi
@@ -575,7 +588,7 @@ preflight() {
     exit 1
   fi
 
-  if $needs_app; then preflight_app; fi
+  preflight_app
 }
 
 preflight_app() {
@@ -649,63 +662,6 @@ preflight_app() {
 }
 
 # MARK: - Scenarios
-
-selftest_key="qa-live-selftest"
-
-scenario_restore_selftest() {
-  step "restore-selftest: save, add one harmless key, restore"
-  run_or_print defaults write com.apple.dock "$selftest_key" -bool true
-  if $dry_run; then
-    put_dock_back
-    owns_backup=false
-    take_dock_backup
-    return
-  fi
-  if ! check - restore-selftest "the harmless key was written" selftest_key_present; then
-    return
-  fi
-  local saved="$qa_dir/selftest-backup.plist"
-  cp "$dock_backup" "$saved"
-  if ! check - restore-selftest "the restore succeeds and verifies" put_dock_back; then
-    # The restore the run depends on just failed, so nothing else may change the Dock. The backup
-    # this run saved is kept and still owned, so cleanup retries the restore from it on exit.
-    rm -f "$saved"
-    exit 1
-  fi
-  # The restore deleted the backup, so a Ctrl-C from here on has nothing for cleanup to restore.
-  owns_backup=false
-  check - restore-selftest "the harmless key is gone" selftest_key_absent
-  check - restore-selftest "the backup is deleted after a verified restore" test ! -e "$dock_backup"
-  # The restore compared before it relaunched the Dock. This compares again once the Dock is back,
-  # and names any key it wrote on launch. An export that writes nothing fails the helper.
-  wait_for_dock_relaunch
-  local changes
-  if changes="$(qa_helper preferences-change <(defaults export com.apple.dock -) "$saved")"; then
-    check - restore-selftest "after the Dock relaunched, its preferences still equal the backup${changes:+ (differ: ${changes//$'\n'/, })}" \
-      test -z "$changes"
-  else
-    result FAIL - restore-selftest "couldn't compare the Dock's preferences with the backup after the relaunch; see the message above"
-  fi
-  rm -f "$saved"
-  take_dock_backup
-}
-
-selftest_key_present() {
-  defaults read com.apple.dock "$selftest_key" >/dev/null 2>&1
-}
-
-selftest_key_absent() {
-  ! selftest_key_present
-}
-
-wait_for_dock_relaunch() {
-  local waited=0
-  while ! pgrep -x Dock >/dev/null && ((waited < 50)); do
-    sleep 0.1
-    waited=$((waited + 1))
-  done
-  sleep 1
-}
 
 scenario_launch() {
   step "launch (QA 1.1 to 1.3, 7.0)"

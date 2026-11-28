@@ -17,17 +17,9 @@ let package = Package(
       name: "DrowsyDock",
       dependencies: ["DockOverlayKit", "DrowsyDockCore"]
     ),
-    .target(name: "LiveQAKit", path: "scripts/qa/Sources/LiveQAKit"),
-    .executableTarget(
-      name: "qa-helper",
-      dependencies: ["DockOverlayKit", "LiveQAKit"],
-      path: "scripts/qa/Sources/qa-helper"
-    ),
-    .target(
-      name: "DockOverlayKitTestSupport",
-      dependencies: ["DockOverlayKit"],
-      path: "Tests/DockOverlayKitTestSupport"
-    ),
+    .target(name: "LiveQAKit"),
+    .executableTarget(name: "qa-helper", dependencies: ["DockOverlayKit", "LiveQAKit"]),
+    .target(name: "DockOverlayKitTestSupport", dependencies: ["DockOverlayKit"]),
     .testTarget(
       name: "DockOverlayKitTests",
       dependencies: ["DockOverlayKit", "DockOverlayKitTestSupport"]
