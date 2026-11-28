@@ -27,6 +27,7 @@ final class BatteryMonitor {
   private(set) var session: BatterySession
   private(set) var isLowPowerModeOn: Bool
 
+  // The phase is `nil` when the battery shown is gone.
   @ObservationIgnored var onPhaseChange: ((DrowsinessTracker.Phase?, _ isResync: Bool) -> Void)?
 
   @ObservationIgnored private let source: any PowerSource

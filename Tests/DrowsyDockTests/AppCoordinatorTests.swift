@@ -448,6 +448,8 @@ final class AppCoordinatorTests: XCTestCase {
 
     rig.wakeFromSleep(to: reading(5))
     XCTAssertEqual(rig.line, "5% · Discharging · Asleep")
+    XCTAssertEqual(rig.overlay.catScene.director.shown, .drowsiness(.asleep))
+    XCTAssertFalse(rig.overlay.catScene.director.isAnimating, "no transition into asleep")
     XCTAssertFalse(isWavePlaying(rig))
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .shown)
     rig.percent(15)

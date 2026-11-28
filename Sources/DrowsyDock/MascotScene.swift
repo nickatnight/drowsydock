@@ -46,6 +46,7 @@ final class MascotScene: SKScene, HostedScene {
       cat.face(facing)
       redraw()
     }
+    // A resync after sleep jumps, as a hidden cat does: nobody watched the battery change.
     if isActive, animated {
       if let step = director.request(mood) {
         perform(step)
