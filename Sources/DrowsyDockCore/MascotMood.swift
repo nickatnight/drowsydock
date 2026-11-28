@@ -13,10 +13,9 @@ public enum MascotMood: Hashable, Sendable {
 }
 
 extension DrowsinessTracker.Phase {
-  /// What the mascot shows in this phase, or `nil` when there is no battery and so no mascot.
-  public var mood: MascotMood? {
+  /// What the mascot shows in this phase.
+  public var mood: MascotMood {
     switch self {
-    case .noBattery: nil
     case .discharging(let state): .drowsiness(state)
     case .waking: .waking
     case .onExternalPower: .drowsiness(.awake)

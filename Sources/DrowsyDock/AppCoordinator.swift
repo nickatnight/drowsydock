@@ -72,11 +72,11 @@ final class AppCoordinator {
     self.overlay = overlay
     self.readsAccessibilityGrant = readsAccessibilityGrant
     isAccessibilityGranted = readsAccessibilityGrant()
-    crowdEffect = CrowdEffectRule(startingIn: battery.session.tracker.phase)
+    crowdEffect = CrowdEffectRule(startingIn: battery.session.tracker?.phase)
     dockTracker = makeDockTracker { [overlay] presentation in
       overlay.present(presentation)
     }
-    overlay.show(battery.session.tracker.phase.mood)
+    overlay.show(battery.session.tracker?.phase.mood)
     battery.onPhaseChange = { [weak self] phase in
       self?.batteryPhaseDidChange(phase)
     }
@@ -115,8 +115,8 @@ final class AppCoordinator {
     }
   }
 
-  private func batteryPhaseDidChange(_ phase: DrowsinessTracker.Phase) {
-    overlay.show(phase.mood)
+  private func batteryPhaseDidChange(_ phase: DrowsinessTracker.Phase?) {
+    overlay.show(phase?.mood)
     guard crowdEffect.phaseChanged(to: phase) else { return }
     if overlay.playCrowdEffect() {
       Self.mascotLogger.notice(Self.waveMessage)

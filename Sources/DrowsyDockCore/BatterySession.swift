@@ -3,18 +3,20 @@
 /// Real readings and simulated ones reach the tracker through the same calls, so the simulator
 /// shows exactly what a real battery at that level would.
 public struct BatterySession: Sendable, Equatable {
-  /// The tracker both sources drive.
-  public private(set) var tracker: DrowsinessTracker
+  /// The tracker both sources drive, or `nil` while the battery shown is missing.
+  public private(set) var tracker: DrowsinessTracker?
 
   /// The active simulator choice.
   public private(set) var simulation: BatterySimulation = .real
 
   private var realReading: BatteryReading?
+  private let thresholds: Thresholds
 
   /// Creates a session showing the real battery.
   public init(realReading: BatteryReading?, thresholds: Thresholds = .default) {
     self.realReading = realReading
-    self.tracker = DrowsinessTracker(reading: realReading, thresholds: thresholds)
+    self.thresholds = thresholds
+    tracker = realReading.map { DrowsinessTracker(reading: $0, thresholds: thresholds) }
   }
 
   /// Records a reading from the real battery. The tracker sees it only while `simulation` is
@@ -22,7 +24,7 @@ public struct BatterySession: Sendable, Equatable {
   public mutating func receive(_ reading: BatteryReading?) {
     realReading = reading
     guard simulation == .real else { return }
-    tracker.update(reading)
+    tracker = updated(tracker, with: reading)
   }
 
   /// Switches the simulator choice.
@@ -34,15 +36,27 @@ public struct BatterySession: Sendable, Equatable {
     self.simulation = simulation
     let reading = reading(for: simulation)
     if reading?.powerState.isExternal == true {
-      tracker.update(reading)
+      tracker = updated(tracker, with: reading)
     } else {
-      tracker = DrowsinessTracker(reading: reading, thresholds: tracker.thresholds)
+      tracker = reading.map { DrowsinessTracker(reading: $0, thresholds: thresholds) }
     }
   }
 
   /// Ends the wake-up animation's phase. See `DrowsinessTracker.finishWaking()`.
   public mutating func finishWaking() {
-    tracker.finishWaking()
+    tracker?.finishWaking()
+  }
+
+  // A battery that appears starts a fresh tracker, so it never wakes the mascot; one that goes
+  // leaves none.
+  private func updated(
+    _ tracker: DrowsinessTracker?,
+    with reading: BatteryReading?
+  ) -> DrowsinessTracker? {
+    guard let reading else { return nil }
+    guard var tracker else { return DrowsinessTracker(reading: reading, thresholds: thresholds) }
+    tracker.update(reading)
+    return tracker
   }
 
   private func reading(for simulation: BatterySimulation) -> BatteryReading? {
@@ -52,7 +66,7 @@ public struct BatterySession: Sendable, Equatable {
     case .discharging(let percentage):
       return BatteryReading(clampingPercentage: percentage, powerState: .discharging)
     case .charging:
-      let percentage = tracker.reading?.percentage ?? realReading?.percentage ?? 100
+      let percentage = tracker?.reading.percentage ?? realReading?.percentage ?? 100
       return BatteryReading(clampingPercentage: percentage, powerState: .charging)
     case .noBattery:
       return nil

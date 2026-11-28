@@ -16,10 +16,6 @@ final class MascotMoodTests: XCTestCase {
     XCTAssertEqual(DrowsinessTracker.Phase.onExternalPower.mood, .drowsiness(.awake))
   }
 
-  func testWithNoBatteryThereIsNoCat() {
-    XCTAssertNil(DrowsinessTracker.Phase.noBattery.mood)
-  }
-
   func testTheWakeUpSettlesAwake() {
     XCTAssertEqual(MascotMood.waking.settledState, .awake)
   }

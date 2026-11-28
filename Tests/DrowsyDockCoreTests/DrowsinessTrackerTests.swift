@@ -24,12 +24,6 @@ final class DrowsinessTrackerTests: XCTestCase {
     XCTAssertEqual(tracker.phase, .onExternalPower)
   }
 
-  func testStartsWithNoBatteryWhenThereIsNoReading() {
-    let tracker = DrowsinessTracker(reading: nil)
-
-    XCTAssertEqual(tracker.phase, .noBattery)
-  }
-
   // MARK: - Discharging
 
   func testGetsSleepierAsTheBatteryDrains() {
@@ -190,25 +184,6 @@ final class DrowsinessTrackerTests: XCTestCase {
     tracker.finishWaking()
 
     XCTAssertEqual(tracker.phase, .discharging(.yawning))
-  }
-
-  // MARK: - No battery
-
-  func testLosingTheBatteryReportsNoBattery() {
-    var tracker = DrowsinessTracker(reading: onBattery(40))
-
-    tracker.update(nil)
-
-    XCTAssertEqual(tracker.phase, .noBattery)
-    XCTAssertNil(tracker.reading)
-  }
-
-  func testPluggingInWithNoPriorBatteryDoesNotWake() {
-    var tracker = DrowsinessTracker(reading: nil)
-
-    tracker.update(charging(80))
-
-    XCTAssertEqual(tracker.phase, .onExternalPower)
   }
 
   // MARK: - Threshold changes

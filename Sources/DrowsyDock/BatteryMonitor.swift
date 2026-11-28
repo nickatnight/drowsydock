@@ -27,8 +27,9 @@ final class BatteryMonitor {
   private(set) var session: BatterySession
   private(set) var isLowPowerModeOn: Bool
 
-  /// Called after each change of the tracker's phase, with the new phase.
-  @ObservationIgnored var onPhaseChange: ((DrowsinessTracker.Phase) -> Void)?
+  /// Called after each change of the tracker's phase, with the new phase, or `nil` when the
+  /// battery shown is gone.
+  @ObservationIgnored var onPhaseChange: ((DrowsinessTracker.Phase?) -> Void)?
 
   @ObservationIgnored private let source: any PowerSource
   @ObservationIgnored private let clock: any Clock<Duration>
@@ -74,18 +75,18 @@ final class BatteryMonitor {
   }
 
   private func changeStatus(_ change: () -> Void) {
-    let previousPhase = session.tracker.phase
+    let previousPhase = session.tracker?.phase
     let previousLogLine = logLine
     change()
     scheduleEndOfWakingIfEntered(from: previousPhase)
     logStatusIfChanged(from: previousLogLine)
-    if session.tracker.phase != previousPhase {
-      onPhaseChange?(session.tracker.phase)
+    if session.tracker?.phase != previousPhase {
+      onPhaseChange?(session.tracker?.phase)
     }
   }
 
-  private func scheduleEndOfWakingIfEntered(from previousPhase: DrowsinessTracker.Phase) {
-    guard session.tracker.phase == .waking, previousPhase != .waking else { return }
+  private func scheduleEndOfWakingIfEntered(from previousPhase: DrowsinessTracker.Phase?) {
+    guard session.tracker?.phase == .waking, previousPhase != .waking else { return }
     wakingTask?.cancel()
     wakingTask = Task { [weak self, clock] in
       guard (try? await clock.sleep(for: DrowsinessTracker.wakingDuration)) != nil, let self else {

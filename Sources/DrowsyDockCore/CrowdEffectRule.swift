@@ -6,20 +6,20 @@
 public struct CrowdEffectRule: Equatable, Sendable {
   private var isArmed = true
 
-  /// Creates the rule for an app that starts in `phase`. Starting asleep counts as this cycle's
-  /// entry, so the effect waits for the next cycle.
-  public init(startingIn phase: DrowsinessTracker.Phase) {
+  /// Creates the rule for an app that starts in `phase`, or with no battery when it is `nil`.
+  /// Starting asleep counts as this cycle's entry, so the effect waits for the next cycle.
+  public init(startingIn phase: DrowsinessTracker.Phase?) {
     record(phase)
   }
 
   /// Records a change of the tracker's phase, and returns whether the effect plays now.
   ///
   /// - Parameters:
-  ///   - phase: The new phase.
+  ///   - phase: The new phase, or `nil` when the battery is gone.
   ///   - isEnabled: Whether the user has the effect turned on.
   ///   - quietHours: Whether quiet hours are on now.
   public mutating func phaseChanged(
-    to phase: DrowsinessTracker.Phase,
+    to phase: DrowsinessTracker.Phase?,
     isEnabled: Bool = true,
     quietHours: Bool = false
   ) -> Bool {
@@ -30,17 +30,17 @@ public struct CrowdEffectRule: Equatable, Sendable {
 
   /// Records a jump to `phase` after the Mac wakes from sleep. The effect never plays for it, and
   /// a jump into `asleep` uses up the cycle.
-  public mutating func resynced(to phase: DrowsinessTracker.Phase) {
+  public mutating func resynced(to phase: DrowsinessTracker.Phase?) {
     record(phase)
   }
 
-  private mutating func record(_ phase: DrowsinessTracker.Phase) {
+  private mutating func record(_ phase: DrowsinessTracker.Phase?) {
     switch phase {
     case .waking, .onExternalPower:
       isArmed = true
     case .discharging(.asleep):
       isArmed = false
-    case .discharging, .noBattery:
+    case .discharging, nil:
       break
     }
   }
