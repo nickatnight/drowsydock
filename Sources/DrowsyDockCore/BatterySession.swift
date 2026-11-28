@@ -1,9 +1,5 @@
 /// Keeps one `DrowsinessTracker` for the real battery and one for the Debug simulator, and shows
 /// one of them.
-///
-/// The real battery's tracker sees every real reading, even while the simulator is shown, so
-/// returning to Real shows its own history. The simulator's tracker takes the same calls, so it
-/// shows exactly what a real battery at that level would.
 public struct BatterySession: Sendable, Equatable {
   /// The active simulator choice.
   public private(set) var simulation: BatterySimulation = .real
@@ -73,8 +69,6 @@ public struct BatterySession: Sendable, Equatable {
     }
   }
 
-  // A battery that appears starts a fresh tracker, so it never wakes the mascot; one that goes
-  // leaves none.
   private func updated(
     _ tracker: DrowsinessTracker?,
     with reading: BatteryReading?
@@ -85,8 +79,6 @@ public struct BatterySession: Sendable, Equatable {
     return tracker
   }
 
-  // Nobody sees the real battery's wake-up while the simulator is shown, and the app ends only the
-  // shown tracker's, so a hidden one settles at once.
   private mutating func settleHiddenWakeUp() {
     guard simulation != .real else { return }
     real?.finishWaking()

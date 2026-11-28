@@ -39,8 +39,6 @@ final class AppCoordinatorTests: XCTestCase {
       simulate(.discharging(percentage: percentage))
     }
 
-    /// Wakes the Mac with the battery at `reading`. macOS sends no power notification for what
-    /// changed during sleep, so only the wake reaches the app.
     func wakeFromSleep(to reading: BatteryReading?) {
       power.reading = reading
       workspace.post(name: NSWorkspace.didWakeNotification, object: nil)

@@ -40,9 +40,6 @@ final class MascotScene: SKScene, HostedScene {
     nil
   }
 
-  /// Shows `mood`, facing `facing` (or the same way as before when `nil`). While the cat is
-  /// visible the change animates, unless `animated` is false; while it is hidden or faded out, the
-  /// cat switches at once.
   func show(_ mood: MascotMood, facing: DockPerch.Facing?, animated: Bool = true) {
     if let facing, facing != self.facing {
       self.facing = facing

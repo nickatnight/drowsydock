@@ -40,8 +40,6 @@ final class MascotOverlay {
     update()
   }
 
-  /// Shows `mood`, or nothing when it is `nil` (no battery). Unless `animated`, the cat switches
-  /// to it at once.
   func show(_ mood: MascotMood?, animated: Bool = true) {
     self.mood = mood
     update(animated: animated)
