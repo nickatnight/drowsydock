@@ -21,6 +21,8 @@ public struct BatterySession: Sendable, Equatable {
   }
 
   /// Records a reading from the real battery.
+  ///
+  /// - Parameter reading: The reading, or `nil` when the Mac reports no battery.
   public mutating func receive(_ reading: BatteryReading?) {
     real = updated(real, with: reading)
   }
@@ -29,6 +31,9 @@ public struct BatterySession: Sendable, Equatable {
   ///
   /// Anything may have happened to the battery during sleep, including a charge, so the real
   /// battery's state is derived afresh, as at launch: on AC power it is awake without a wake-up.
+  ///
+  /// - Parameter reading: The reading taken after the wake, or `nil` when the Mac reports no
+  ///   battery.
   public mutating func resync(_ reading: BatteryReading?) {
     real = reading.map { DrowsinessTracker(reading: $0, thresholds: thresholds) }
   }
@@ -39,6 +44,8 @@ public struct BatterySession: Sendable, Equatable {
   /// 5% shows `awake`. Picking Charging from a discharging state goes through the tracker's charge
   /// edge and wakes the mascot. Picking Real shows the real battery's tracker with any wake-up it
   /// had while hidden already over, since nobody saw it.
+  ///
+  /// - Parameter simulation: The Debug menu's choice.
   public mutating func simulate(_ simulation: BatterySimulation) {
     let shown = tracker
     let realWasHidden = self.simulation != .real

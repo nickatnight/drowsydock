@@ -124,7 +124,7 @@ That is 30 rows. Not runnable yet:
 
 | # | Check | Status |
 |---|---|---|
-| 3.8b | Release an `IOKitPowerSource.Subscription` while plugging in or out, then check for no crash, no `Changed:` line after the release, and 0 leaks. | Placeholder until a slice first releases an `IOKitPowerSource.Subscription`. The wake resync (slice 15) re-reads the battery and keeps its subscription, because 3.8a shows the IOKit notification survives sleep. Nothing releases a subscription yet, so the row can't run. |
+| 3.8b | Release an `IOKitPowerSource.Subscription` while plugging in or out, then check for no crash, no `Changed:` line after the release, and 0 leaks. | Placeholder until a slice first releases an `IOKitPowerSource.Subscription`. The wake resync (slice 15) re-reads the battery and keeps its subscription, on the premise that the IOKit notification survives sleep, which 3.8a checks. If 3.8a fails, that decision has to be reopened. Nothing releases a subscription yet, so the row can't run. |
 
 ## Automated and live rows
 
