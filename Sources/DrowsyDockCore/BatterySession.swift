@@ -30,6 +30,14 @@ public struct BatterySession: Sendable, Equatable {
     settleHiddenWakeUp()
   }
 
+  /// Records a reading from the real battery taken after the Mac woke from sleep.
+  ///
+  /// Anything may have happened to the battery during sleep, including a charge, so the real
+  /// battery's state is derived afresh, as at launch: on AC power it is awake without a wake-up.
+  public mutating func resync(_ reading: BatteryReading?) {
+    real = reading.map { DrowsinessTracker(reading: $0, thresholds: thresholds) }
+  }
+
   /// Switches the simulator choice.
   ///
   /// Picking a level is a jump rather than a discharge, so its state is derived afresh: 80% after

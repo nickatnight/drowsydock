@@ -26,6 +26,7 @@ final class AppCoordinatorTests: XCTestCase {
     let grant: Grant
     let catFades: FadeRecorder
     let canvasFades: FadeRecorder
+    let workspace: NotificationCenter
 
     var line: String { coordinator.battery.statusText }
     var overlay: MascotOverlay { coordinator.overlay }
@@ -36,6 +37,13 @@ final class AppCoordinatorTests: XCTestCase {
 
     func percent(_ percentage: Int) {
       simulate(.discharging(percentage: percentage))
+    }
+
+    /// Wakes the Mac with the battery at `reading`. macOS sends no power notification for what
+    /// changed during sleep, so only the wake reaches the app.
+    func wakeFromSleep(to reading: BatteryReading?) {
+      power.reading = reading
+      workspace.post(name: NSWorkspace.didWakeNotification, object: nil)
     }
   }
 
@@ -58,10 +66,12 @@ final class AppCoordinatorTests: XCTestCase {
     let clock = TestClock()
     let grant = Grant(granted)
     let tracker = FakeDockTracker()
+    let workspace = NotificationCenter()
     let coordinator = AppCoordinator(
       battery: BatteryMonitor(source: power, clock: clock),
       overlay: MascotOverlay(catScene: MascotScene(clock: TestClock())),
       readsAccessibilityGrant: { grant.isGranted },
+      workspaceNotifications: workspace,
       makeDockTracker: { onPresentationChange in
         tracker.onPresentationChange = onPresentationChange
         return tracker
@@ -77,7 +87,8 @@ final class AppCoordinatorTests: XCTestCase {
       clock: clock,
       grant: grant,
       catFades: FadeRecorder(coordinator.overlay.catWindow),
-      canvasFades: FadeRecorder(coordinator.overlay.canvasWindow)
+      canvasFades: FadeRecorder(coordinator.overlay.canvasWindow),
+      workspace: workspace
     )
   }
 
@@ -407,5 +418,61 @@ final class AppCoordinatorTests: XCTestCase {
 
     XCTAssertEqual(rig.line, "5% · Discharging · Asleep")
     XCTAssertFalse(isWavePlaying(rig))
+  }
+
+  // MARK: - Waking the Mac from sleep
+
+  func testAChangeOnBatteryAnimatesTheCat() {
+    let rig = rig(battery: reading(60))
+    rig.tracker.present(shown)
+
+    rig.power.change(to: reading(35))
+
+    XCTAssertTrue(rig.overlay.catScene.needsAnotherFrame)
+  }
+
+  func testWakingFromSleepJumpsToTheBatterysStateWithoutATransition() {
+    let rig = rig(battery: reading(60))
+    rig.tracker.present(shown)
+
+    rig.wakeFromSleep(to: reading(35))
+
+    XCTAssertEqual(rig.line, "35% · Discharging · Drowsy")
+    XCTAssertFalse(rig.overlay.catScene.needsAnotherFrame)
+  }
+
+  func testWakingFromSleepIntoAsleepPlaysNoWaveAndUsesUpTheCycle() {
+    let rig = rig(battery: reading(80))
+    rig.tracker.present(shown)
+
+    rig.wakeFromSleep(to: reading(5))
+    XCTAssertEqual(rig.line, "5% · Discharging · Asleep")
+    XCTAssertFalse(isWavePlaying(rig))
+    XCTAssertEqual(rig.overlay.canvasWindow.visibility, .shown)
+    rig.percent(15)
+    rig.percent(5)
+
+    XCTAssertFalse(isWavePlaying(rig))
+  }
+
+  func testWakingFromSleepOnACPowerShowsAwakeWithoutTheWakeUp() {
+    let rig = rig(battery: reading(5))
+    rig.tracker.present(shown)
+
+    rig.wakeFromSleep(to: BatteryReading(clampingPercentage: 5, powerState: .charging))
+
+    XCTAssertEqual(rig.line, "5% · Charging · Awake")
+    XCTAssertFalse(rig.overlay.catScene.needsAnotherFrame)
+  }
+
+  func testWakingFromSleepWithNoBatteryHidesTheOverlay() {
+    let rig = rig(battery: reading(5))
+    rig.tracker.present(shown)
+
+    rig.wakeFromSleep(to: nil)
+
+    XCTAssertEqual(rig.line, "No battery detected")
+    XCTAssertEqual(rig.overlay.catWindow.visibility, .hidden)
+    XCTAssertEqual(rig.overlay.canvasWindow.visibility, .hidden)
   }
 }

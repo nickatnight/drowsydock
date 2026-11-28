@@ -40,10 +40,11 @@ final class MascotOverlay {
     update()
   }
 
-  /// Shows `mood`, or nothing when it is `nil` (no battery).
-  func show(_ mood: MascotMood?) {
+  /// Shows `mood`, or nothing when it is `nil` (no battery). Unless `animated`, the cat switches
+  /// to it at once.
+  func show(_ mood: MascotMood?, animated: Bool = true) {
     self.mood = mood
-    update()
+    update(animated: animated)
   }
 
   /// Plays the crowd effect over the Dock's icons. Returns `false`, playing nothing, when the
@@ -63,7 +64,7 @@ final class MascotOverlay {
     return true
   }
 
-  private func update() {
+  private func update(animated: Bool = true) {
     guard let mood else {
       hide()
       return
@@ -84,7 +85,7 @@ final class MascotOverlay {
 
     let isPlaced = place(catWindow, at: perch.frame, isFaded: isFaded)
     catScene.setActive(isPlaced && !isFaded)
-    catScene.show(mood, facing: perch.facing)
+    catScene.show(mood, facing: perch.facing, animated: animated)
 
     if isFaded {
       stopCrowdEffect()

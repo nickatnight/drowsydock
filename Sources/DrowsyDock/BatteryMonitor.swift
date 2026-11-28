@@ -27,9 +27,10 @@ final class BatteryMonitor {
   private(set) var session: BatterySession
   private(set) var isLowPowerModeOn: Bool
 
-  /// Called after each change of the tracker's phase, with the new phase, or `nil` when the
-  /// battery shown is gone.
-  @ObservationIgnored var onPhaseChange: ((DrowsinessTracker.Phase?) -> Void)?
+  /// Called after each change of the shown tracker's phase, with the new phase (`nil` when the
+  /// battery shown is gone) and whether the change is a resync after the Mac woke, which nobody
+  /// should see animate.
+  @ObservationIgnored var onPhaseChange: ((DrowsinessTracker.Phase?, _ isResync: Bool) -> Void)?
 
   @ObservationIgnored private let source: any PowerSource
   @ObservationIgnored private let clock: any Clock<Duration>
@@ -65,6 +66,16 @@ final class BatteryMonitor {
     changeStatus { session.simulate(simulation) }
   }
 
+  /// Re-reads the battery after the Mac wakes from sleep, and jumps to the state it derives to.
+  func resync() {
+    Self.logger.notice("The Mac woke from sleep")
+    let reading = source.readBattery()
+    changeStatus(isResync: true) {
+      isLowPowerModeOn = source.isLowPowerModeOn
+      session.resync(reading)
+    }
+  }
+
   private func powerSourceDidChange() {
     Self.logger.debug("Power source notification")
     let reading = source.readBattery()
@@ -74,14 +85,14 @@ final class BatteryMonitor {
     }
   }
 
-  private func changeStatus(_ change: () -> Void) {
+  private func changeStatus(isResync: Bool = false, _ change: () -> Void) {
     let previousPhase = session.tracker?.phase
     let previousLogLine = logLine
     change()
     scheduleEndOfWakingIfEntered(from: previousPhase)
     logStatusIfChanged(from: previousLogLine)
     if session.tracker?.phase != previousPhase {
-      onPhaseChange?(session.tracker?.phase)
+      onPhaseChange?(session.tracker?.phase, isResync)
     }
   }
 

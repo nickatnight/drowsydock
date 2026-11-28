@@ -201,6 +201,53 @@ final class BatterySessionTests: XCTestCase {
     XCTAssertEqual(session.tracker?.phase, .onExternalPower)
   }
 
+  // MARK: - Resync after the Mac wakes
+
+  func testAResyncFromAwakeToAsleepGoesStraightToAsleep() {
+    var session = BatterySession(realReading: onBattery(80))
+
+    session.resync(onBattery(5))
+
+    XCTAssertEqual(session.tracker?.phase, .discharging(.asleep))
+    XCTAssertEqual(session.tracker?.reading, onBattery(5))
+  }
+
+  func testAResyncDerivesAfreshEvenWhenThatIsLessSleepy() {
+    var session = BatterySession(realReading: onBattery(5))
+
+    session.resync(onBattery(80))
+
+    XCTAssertEqual(session.tracker?.phase, .discharging(.awake))
+  }
+
+  func testAResyncOntoACPowerIsAwakeWithoutAWakeUp() {
+    var session = BatterySession(realReading: onBattery(5))
+
+    session.resync(charging(5))
+
+    XCTAssertEqual(session.tracker?.phase, .onExternalPower)
+  }
+
+  func testAResyncWithNoBatteryLeavesNoTracker() {
+    var session = BatterySession(realReading: onBattery(40))
+
+    session.resync(nil)
+
+    XCTAssertNil(session.tracker)
+  }
+
+  func testAResyncWhileSimulatingChangesOnlyTheRealBattery() {
+    var session = BatterySession(realReading: onBattery(80))
+    session.simulate(.discharging(percentage: 40))
+
+    session.resync(onBattery(5))
+    let whileSimulating = session.tracker?.phase
+    session.simulate(.real)
+
+    XCTAssertEqual(whileSimulating, .discharging(.drowsy))
+    XCTAssertEqual(session.tracker?.phase, .discharging(.asleep))
+  }
+
   // MARK: - Menu
 
   func testMenuOffersTheSpecChoicesInOrder() {
