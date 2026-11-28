@@ -55,7 +55,7 @@ The app's side of these (the lines, the 3 s waking clock, a re-plug, a full batt
 | 3.8 | On a Mac with no battery (Mac mini, iMac, Mac Studio), open the menu. | The first line reads `No battery detected`. |
 | 3.8a | Sleep the Mac, wake it, then unplug. (This overlaps slice 15.) | The unplug is still logged within 2 s, so the IOKit notification survives sleep. |
 | 15.1 | With the grant and the cat showing, on battery, sleep the Mac (Apple menu ▸ Sleep), wait a minute, then wake it while watching the log and the Dock. | `The Mac woke from sleep` within about 1 s of waking. The cat shows the pose for the battery's level at once, with no transition and no wave. A `Changed:` line follows only if the menu line changed. |
-| 15.2 | On battery, sleep the Mac, plug in the charger while it sleeps, then wake it. | `The Mac woke from sleep`, and the line ends `Charging · Awake (real)` or `Plugged in · Awake (real)`. If no `Waking` line came before it, the resync ran first and the cat is awake without the wake-up. If IOKit's power notification arrived first, a `Waking` line comes first and the resync cuts the wake-up short within about 1 s. Note which order you saw. |
+| 15.2 | On battery, sleep the Mac, plug in the charger while it sleeps, then wake it. | `The Mac woke from sleep`, and the line ends `Charging · Awake (real)` or `Plugged in · Awake (real)`. If no `Waking` line came before it, the resync ran first and the cat is awake without the wake-up. If IOKit's power notification arrived first, a `Waking` line comes first and the resync cuts the wake-up short within about 1 s (15.9 tests the app's side of this). Note which order you saw. |
 
 ### An Intel Mac
 
@@ -213,10 +213,12 @@ That is 30 rows. Not runnable yet:
 | 11.7 | Charging, then 5%, then hover the Trash in the middle of the wave: The wave stops at once and doesn't resume when the pointer leaves | `AppCoordinatorTests.testHoveringStopsTheWaveForGood` | – |
 | 11.8 | Launch the app with the battery simulated or really below 10%: No wave at launch | `AppCoordinatorTests.testLaunchingAsleepPlaysNoWave` | – |
 | 15.3 | Wake the Mac at another level than it slept at: The cat jumps to that level's pose without a transition, even when that is less sleepy | `AppCoordinatorTests.testWakingFromSleepJumpsToTheBatterysStateWithoutATransition`, `AppCoordinatorTests.testAChangeOnBatteryAnimatesTheCat`, `BatterySessionTests.testAResyncDerivesAfreshEvenWhenThatIsLessSleepy` | – |
-| 15.4 | Wake the Mac below 10% after sleeping above it: The asleep pose and the veil at once, no wave, and no wave later in that discharge cycle | `AppCoordinatorTests.testWakingFromSleepIntoAsleepPlaysNoWaveAndUsesUpTheCycle`, `BatterySessionTests.testAResyncFromAwakeToAsleepGoesStraightToAsleep`, `CrowdEffectRuleTests.testAWakeResyncIntoAsleepDoesNotPlayIt` | – |
+| 15.4 | Wake the Mac below 10% after sleeping above it: The cat jumps to the asleep pose, the veil fades in as it always does (0.2 s), no wave plays, and none plays later in that discharge cycle | `AppCoordinatorTests.testWakingFromSleepIntoAsleepPlaysNoWaveAndUsesUpTheCycle`, `BatterySessionTests.testAResyncFromAwakeToAsleepGoesStraightToAsleep`, `CrowdEffectRuleTests.testAWakeResyncIntoAsleepDoesNotPlayIt` | – |
 | 15.5 | Wake the Mac on AC power after sleeping on battery: `Awake`, without the wake-up | `AppCoordinatorTests.testWakingFromSleepOnACPowerShowsAwakeWithoutTheWakeUp`, `BatterySessionTests.testAResyncOntoACPowerIsAwakeWithoutAWakeUp` | – |
 | 15.6 | Wake the Mac when it reads no battery: `No battery detected`, and the cat and the veil disappear | `AppCoordinatorTests.testWakingFromSleepWithNoBatteryHidesTheOverlay`, `BatterySessionTests.testAResyncWithNoBatteryLeavesNoTracker` | – |
 | 15.7 | Sleep and wake the Mac with a Simulate battery level picked: The simulated line stays; Real then shows the battery as it woke | `BatterySessionTests.testAResyncWhileSimulatingChangesOnlyTheRealBattery` | – |
+| 15.8 | Turn Low Power Mode on while the Mac sleeps, then wake it: The line gains ` · Low Power` | `AppCoordinatorTests.testWakingFromSleepRereadsLowPowerMode` | – |
+| 15.9 | The app's half of 15.2: the plug-in arrives first (`Waking`), then the wake: The cat jumps to awake, the line reads `Awake`, and the 3 s clock changes nothing when it fires | `AppCoordinatorTests.testWakingFromSleepDuringTheWakeUpCutsItShort` | – |
 
 ### When every snapshot fails at once
 

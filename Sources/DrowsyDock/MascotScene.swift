@@ -11,7 +11,7 @@ final class MascotScene: SKScene, HostedScene {
   weak var host: SceneHostView?
 
   private let cat = CatRenderer()
-  private var director = AnimationDirector()
+  private(set) var director = AnimationDirector()
   private var facing = DockPerch.Facing.left
   private var isActive = false
   private var isPlayingGestureOrLoop = false

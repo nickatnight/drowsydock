@@ -274,6 +274,8 @@ final class AppCoordinatorTests: XCTestCase {
     XCTAssertEqual(rig.overlay.canvasWindow.frame, MascotOverlay.canvasFrame(around: dock))
     finishWave(rig)
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .shown)
+    XCTAssertEqual(rig.canvasFades.lastFade?.alpha, 1, "the veil fades in as usual")
+    XCTAssertEqual(rig.canvasFades.lastFade?.duration, 0.2)
     rig.percent(15)
 
     XCTAssertEqual(rig.overlay.canvasWindow.visibility, .hidden)
@@ -436,6 +438,7 @@ final class AppCoordinatorTests: XCTestCase {
     rig.wakeFromSleep(to: reading(35))
 
     XCTAssertEqual(rig.line, "35% · Discharging · Drowsy")
+    XCTAssertEqual(rig.overlay.catScene.director.shown, .drowsiness(.drowsy))
     XCTAssertFalse(rig.overlay.catScene.needsAnotherFrame)
   }
 
@@ -460,7 +463,36 @@ final class AppCoordinatorTests: XCTestCase {
     rig.wakeFromSleep(to: BatteryReading(clampingPercentage: 5, powerState: .charging))
 
     XCTAssertEqual(rig.line, "5% · Charging · Awake")
+    XCTAssertEqual(rig.overlay.catScene.director.shown, .drowsiness(.awake))
     XCTAssertFalse(rig.overlay.catScene.needsAnotherFrame)
+  }
+
+  func testWakingFromSleepDuringTheWakeUpCutsItShort() {
+    let rig = rig(battery: reading(5))
+    rig.tracker.present(shown)
+    let charging = BatteryReading(clampingPercentage: 5, powerState: .charging)
+    rig.power.change(to: charging)
+    XCTAssertEqual(rig.line, "5% · Charging · Waking")
+    waitUntil("the end of waking is scheduled") { rig.clock.sleeperCount == 1 }
+
+    rig.wakeFromSleep(to: charging)
+    XCTAssertEqual(rig.line, "5% · Charging · Awake")
+    XCTAssertEqual(rig.overlay.catScene.director.shown, .drowsiness(.awake))
+    XCTAssertFalse(rig.overlay.catScene.needsAnotherFrame)
+    rig.clock.advance(by: DrowsinessTracker.wakingDuration)
+    OffscreenRenderer.drainMainQueue()
+
+    XCTAssertEqual(rig.line, "5% · Charging · Awake")
+    XCTAssertFalse(isWavePlaying(rig))
+  }
+
+  func testWakingFromSleepRereadsLowPowerMode() {
+    let rig = rig(battery: reading(60))
+    rig.power.isLowPowerModeOn = true
+
+    rig.wakeFromSleep(to: reading(60))
+
+    XCTAssertEqual(rig.line, "60% · Discharging · Awake · Low Power")
   }
 
   func testWakingFromSleepWithNoBatteryHidesTheOverlay() {
