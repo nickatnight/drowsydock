@@ -41,7 +41,7 @@ Last reviewed: 2026-11-16. Earlier measurements and the reasons behind each chan
 
 | Metric | Current baseline (`cea7bcd`, 448 tests) | Rule |
 |---|---|---|
-| Coverage, `DrowsyDockCore` | Lines 393/393, regions 197/198, functions 63/63. The one missed region (`StatusLine`'s `.noBattery` label) can't be reached. | must not fall |
+| Coverage, `DrowsyDockCore` | Lines 399/399, regions 200/200, functions 66/66, measured at the merge of job 005a (476 tests) with the `check.sh task` profile; the other rows are still at `cea7bcd`. The `StatusLine` region that couldn't be reached went with the tracker's `.noBattery` phase. | must not fall |
 | Coverage, `LiveQAKit` | Lines 395/399, functions 82/86 | must not fall |
 | Coverage, `MirroredLogger` | Lines 26/27, functions 8/9 | must not fall |
 | Release binary size | 1,482,336 bytes, universal (arm64 728,672, x86_64 730,320). The binary keeps its symbol table; stripping it in `bundle.sh` would shrink it if size ever matters. | ≤ 20% growth without a stated reason |

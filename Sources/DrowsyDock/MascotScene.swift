@@ -11,7 +11,7 @@ final class MascotScene: SKScene, HostedScene {
   weak var host: SceneHostView?
 
   private let cat = CatRenderer()
-  private var director = AnimationDirector()
+  private(set) var director = AnimationDirector()
   private var facing = DockPerch.Facing.left
   private var isActive = false
   private var isPlayingGestureOrLoop = false
@@ -40,15 +40,14 @@ final class MascotScene: SKScene, HostedScene {
     nil
   }
 
-  /// Shows `mood`, facing `facing` (or the same way as before when `nil`). While the cat is
-  /// visible the change animates; while it is hidden or faded out, the cat switches at once.
-  func show(_ mood: MascotMood, facing: DockPerch.Facing?) {
+  func show(_ mood: MascotMood, facing: DockPerch.Facing?, animated: Bool = true) {
     if let facing, facing != self.facing {
       self.facing = facing
       cat.face(facing)
       redraw()
     }
-    if isActive {
+    // A resync after sleep jumps, as a hidden cat does: nobody watched the battery change.
+    if isActive, animated {
       if let step = director.request(mood) {
         perform(step)
       }

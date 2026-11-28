@@ -2,12 +2,17 @@
 public enum StatusLine {
   /// Returns the menu's battery line for `tracker`, with " · Low Power" appended when Low Power
   /// Mode is on.
-  public static func text(for tracker: DrowsinessTracker, isLowPowerModeOn: Bool) -> String {
-    guard let reading = tracker.reading else { return "No battery detected" }
+  ///
+  /// - Parameters:
+  ///   - tracker: The battery's tracker, or `nil` when the Mac has no battery.
+  ///   - isLowPowerModeOn: Whether Low Power Mode is on.
+  /// - Returns: The line, or "No battery detected" when there is no tracker.
+  public static func text(for tracker: DrowsinessTracker?, isLowPowerModeOn: Bool) -> String {
+    guard let tracker else { return "No battery detected" }
 
     var parts = [
-      "\(reading.percentage)%",
-      label(for: reading.powerState),
+      "\(tracker.reading.percentage)%",
+      label(for: tracker.reading.powerState),
       label(for: tracker.phase),
     ]
     if isLowPowerModeOn {
@@ -26,7 +31,6 @@ public enum StatusLine {
 
   private static func label(for phase: DrowsinessTracker.Phase) -> String {
     switch phase {
-    case .noBattery: "No battery"
     case .discharging(.awake), .onExternalPower: "Awake"
     case .discharging(.drowsy): "Drowsy"
     case .discharging(.yawning): "Yawning"

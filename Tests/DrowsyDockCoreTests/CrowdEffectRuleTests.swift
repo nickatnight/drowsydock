@@ -65,7 +65,7 @@ final class CrowdEffectRuleTests: XCTestCase {
   func testLosingTheBatteryDoesNotReArmIt() {
     var rule = CrowdEffectRule(startingIn: noddingOff)
     _ = rule.phaseChanged(to: asleep)
-    _ = rule.phaseChanged(to: .noBattery)
+    _ = rule.phaseChanged(to: nil)
 
     XCTAssertFalse(rule.phaseChanged(to: asleep))
   }

@@ -1,12 +1,11 @@
-/// Turns a stream of battery readings into the mascot's phase.
+/// Turns a stream of readings from one battery into the mascot's phase.
 ///
-/// While discharging, the state only gets sleepier, so a reading that jitters by 1% around a
-/// threshold never flips the mascot back up. Plugging in, unplugging after a charge, or changing
-/// the thresholds derives the state afresh.
+/// A Mac without a battery has no tracker. While discharging, the state only gets sleepier, so a
+/// reading that jitters by 1% around a threshold never flips the mascot back up. Plugging in,
+/// unplugging after a charge, or changing the thresholds derives the state afresh.
 public struct DrowsinessTracker: Sendable, Equatable {
   /// What the mascot is doing.
   public enum Phase: Sendable, Equatable {
-    case noBattery
     /// On battery, at the sleepiest state reached during this discharge cycle.
     case discharging(DrowsinessState)
     /// AC power was just connected and the wake-up is playing. `finishWaking()` ends it.
@@ -22,27 +21,22 @@ public struct DrowsinessTracker: Sendable, Equatable {
   /// What the mascot is doing now.
   public private(set) var phase: Phase
 
-  /// The latest reading, or `nil` when the Mac has no battery.
-  public private(set) var reading: BatteryReading?
+  /// The latest reading.
+  public private(set) var reading: BatteryReading
 
   /// The thresholds the discharging states derive from.
   public private(set) var thresholds: Thresholds
 
   /// Creates a tracker that starts in the state `reading` derives to, without a wake-up.
-  public init(reading: BatteryReading?, thresholds: Thresholds = .default) {
+  public init(reading: BatteryReading, thresholds: Thresholds = .default) {
     self.reading = reading
     self.thresholds = thresholds
     self.phase = Self.derivedPhase(for: reading, thresholds: thresholds)
   }
 
-  /// Records a new reading. Pass `nil` when the battery is gone.
-  public mutating func update(_ reading: BatteryReading?) {
+  /// Records a new reading.
+  public mutating func update(_ reading: BatteryReading) {
     self.reading = reading
-    guard let reading else {
-      phase = .noBattery
-      return
-    }
-
     switch (phase, reading.powerState.isExternal) {
     case (.discharging(let sleepiest), false):
       let derived = DrowsinessState(percentage: reading.percentage, thresholds: thresholds)
@@ -51,7 +45,7 @@ public struct DrowsinessTracker: Sendable, Equatable {
       phase = .waking
     case (.waking, true), (.onExternalPower, true):
       break
-    case (.noBattery, _), (.waking, false), (.onExternalPower, false):
+    case (.waking, false), (.onExternalPower, false):
       phase = Self.derivedPhase(for: reading, thresholds: thresholds)
     }
   }
@@ -70,8 +64,7 @@ public struct DrowsinessTracker: Sendable, Equatable {
     phase = Self.derivedPhase(for: reading, thresholds: thresholds)
   }
 
-  private static func derivedPhase(for reading: BatteryReading?, thresholds: Thresholds) -> Phase {
-    guard let reading else { return .noBattery }
+  private static func derivedPhase(for reading: BatteryReading, thresholds: Thresholds) -> Phase {
     guard !reading.powerState.isExternal else { return .onExternalPower }
     return .discharging(DrowsinessState(percentage: reading.percentage, thresholds: thresholds))
   }

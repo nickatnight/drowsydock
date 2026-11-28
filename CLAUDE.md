@@ -37,7 +37,7 @@ Read the relevant ADR before changing the area it covers. To change a decision, 
 |---|---|
 | 0001 | Build setup |
 | 0002, 0027 | Target split; every target under `Sources/`, no `path:` |
-| 0003 | Drowsiness tracker phases |
+| 0003, 0032 | Drowsiness tracker phases; a tracker per battery, no battery as no tracker, the wake resync |
 | 0004 | Dock tracker phases and triggers |
 | 0005, 0007 | Signing, hardened runtime, no entitlements |
 | 0006 | Accessibility coordinates |

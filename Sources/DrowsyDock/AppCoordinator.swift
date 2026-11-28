@@ -37,6 +37,7 @@ final class AppCoordinator {
   @ObservationIgnored let overlay: MascotOverlay
   @ObservationIgnored private var menuObserver: (any NSObjectProtocol)?
   @ObservationIgnored private var accessibilityObserver: (any NSObjectProtocol)?
+  @ObservationIgnored private var wakeObserver: (any NSObjectProtocol)?
   @ObservationIgnored private var grantRecheck: Task<Void, Never>?
   @ObservationIgnored private let readsAccessibilityGrant: @MainActor () -> Bool
   @ObservationIgnored private let dockTracker: any DockTracking
@@ -66,19 +67,20 @@ final class AppCoordinator {
     battery: BatteryMonitor,
     overlay: MascotOverlay,
     readsAccessibilityGrant: @escaping @MainActor () -> Bool,
+    workspaceNotifications: NotificationCenter = NSWorkspace.shared.notificationCenter,
     makeDockTracker: (@escaping @MainActor (OverlayPresentation) -> Void) -> any DockTracking
   ) {
     self.battery = battery
     self.overlay = overlay
     self.readsAccessibilityGrant = readsAccessibilityGrant
     isAccessibilityGranted = readsAccessibilityGrant()
-    crowdEffect = CrowdEffectRule(startingIn: battery.session.tracker.phase)
+    crowdEffect = CrowdEffectRule(startingIn: battery.session.tracker?.phase)
     dockTracker = makeDockTracker { [overlay] presentation in
       overlay.present(presentation)
     }
-    overlay.show(battery.session.tracker.phase.mood)
-    battery.onPhaseChange = { [weak self] phase in
-      self?.batteryPhaseDidChange(phase)
+    overlay.show(battery.session.tracker?.phase.mood)
+    battery.onPhaseChange = { [weak self] phase, isResync in
+      self?.batteryPhaseDidChange(phase, isResync: isResync)
     }
     Self.logger.notice(Self.accessibilityMessage(isGranted: isAccessibilityGranted))
 
@@ -96,6 +98,13 @@ final class AppCoordinator {
       queue: .main
     ) { [weak self] _ in
       MainActor.assumeIsolated { self?.accessibilityListDidChange() }
+    }
+    wakeObserver = workspaceNotifications.addObserver(
+      forName: NSWorkspace.didWakeNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated { self?.battery.resync() }
     }
   }
 
@@ -115,8 +124,12 @@ final class AppCoordinator {
     }
   }
 
-  private func batteryPhaseDidChange(_ phase: DrowsinessTracker.Phase) {
-    overlay.show(phase.mood)
+  private func batteryPhaseDidChange(_ phase: DrowsinessTracker.Phase?, isResync: Bool) {
+    overlay.show(phase?.mood, animated: !isResync)
+    guard !isResync else {
+      crowdEffect.resynced(to: phase)
+      return
+    }
     guard crowdEffect.phaseChanged(to: phase) else { return }
     if overlay.playCrowdEffect() {
       Self.mascotLogger.notice(Self.waveMessage)

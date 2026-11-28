@@ -73,7 +73,7 @@ final class StatusLineTests: XCTestCase {
 
   func testNoBattery() {
     XCTAssertEqual(
-      StatusLine.text(for: DrowsinessTracker(reading: nil), isLowPowerModeOn: true),
+      StatusLine.text(for: nil, isLowPowerModeOn: true),
       "No battery detected"
     )
   }
